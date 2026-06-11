@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Config>
+    <Terminal id="123">
+        <TermIP>192.168.1.14</TermIP>
+        <branchNumber>hags</branchNumber>
+        <TerminalType>12876</TerminalType>
+        <autorestartmode>sh</autorestartmode>
+    </Terminal>
+</Config>

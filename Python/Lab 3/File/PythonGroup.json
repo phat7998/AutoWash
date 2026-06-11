@@ -1,0 +1,70 @@
+{
+  "group": {
+    "id": "1234567890",
+    "name": "Python Group",
+    "posts": [
+      {
+        "post_id": "post_001",
+        "author": {
+          "user_id": "user_001",
+          "name": "John Doe"
+        },
+        "content": "Python is very easy. How do you think?",
+        "timestamp": "2024-08-03 12:34:56",
+        "likes": [
+          {
+            "user_id": "user_002",
+            "name": "Jane Smith",
+            "timestamp": "2024-08-03 12:45:00"
+          },
+          {
+            "user_id": "user_003",
+            "name": "Alice Johnson",
+            "timestamp": "2024-08-03 13:00:00"
+          }
+        ],
+        "shares": [
+          {
+            "user_id": "user_004",
+            "name": "Bob Brown",
+            "timestamp": "2024-08-03 14:00:00 "
+          }
+        ]
+      },
+      {
+        "post_id": "post_002",
+        "author": {
+          "user_id": "user_002",
+          "name": "Jane Smith"
+        },
+        "content": "Learning Python by reading book and coding",
+        "timestamp": "2024-08-03 15:34:56",
+        "likes": [
+          {
+            "user_id": "user_001",
+            "name": "John Doe",
+            "timestamp": "2024-08-03 16:00:00"
+          }
+        ],
+        "shares": [
+          {
+            "user_id": "user_003",
+            "name": "Alice Johnson",
+            "timestamp": "2024-08-03 17:00:00"
+          }
+        ]
+      },
+      {
+        "post_id": "post_001",
+        "author": {
+          "user_id": "user_001",
+          "name": "John Doe"
+        },
+        "content": "Python is very easy, How do you think?",
+        "timestamp": "2025-05-10 14:16:15",
+        "likes": [],
+        "shares": []
+      }
+    ]
+  }
+}
