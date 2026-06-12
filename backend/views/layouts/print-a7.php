@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phiếu Gửi Hàng - LOGSHIP</title>
+    <title>Phiếu Dịch Vụ - AutoWash</title>
     <!-- Google Fonts - Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -45,6 +45,14 @@
         .form-header img {
             width: 150px;
             height: auto;
+        }
+
+        .brand-logo {
+            width: 150px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #e60023;
+            text-transform: uppercase;
         }
 
         .form-header h1 {
@@ -158,7 +166,7 @@
         .contact-phone {
             font-weight: 700;
             font-size: 1.2rem;
-            color: #e60023; /* Màu đỏ Logship */
+            color: #e60023; /* Màu nhấn thương hiệu */
             margin-top: 0.5rem;
         }
 
@@ -186,89 +194,85 @@
 <div class="container">
     <!-- Hàng Tiêu Đề -->
     <div class="form-header">
-        <img src="https://logship.vn/wp-content/uploads/2021/08/logo-logship-02-1.png" alt="Logship Logo">
-        <h1>PHIẾU GỬI HÀNG</h1>
+        <div class="brand-logo">AutoWash</div>
+        <h1>PHIẾU DỊCH VỤ</h1>
         <div class="header-spacer"></div> <!-- Spacer để căn giữa -->
     </div>
 
     <!-- Bảng nội dung chính -->
     <div class="form-grid">
-        <!-- Hàng 1: Người gửi | Nội dung hàng hóa | Thanh toán cước -->
+        <!-- Hàng 1: Khách hàng | Thông tin xe | Thanh toán -->
         <div class="form-row">
-            <!-- Cột 1: Người gửi (2/4) -->
+            <!-- Cột 1: Khách hàng (2/4) -->
             <div class="form-cell col-2-4">
-                <span class="col-title">Người gửi: YÊN XUÂN</span>
+                <span class="col-title">Khách hàng:</span>
                 <div class="col-data">
                     <span class="col-title-inline">Điện thoại:</span>
-                    0909177197
                 </div>
                 <div class="col-data">
                     <span class="col-title-inline">Địa chỉ:</span>
-                    55 ĐẶNG DUNG, TÂN ĐỊNH, QUẬN 1, HCM
                 </div>
             </div>
-            <!-- Cột 2: Nội dung hàng hóa (1/4) -->
+            <!-- Cột 2: Thông tin xe (1/4) -->
             <div class="form-cell col-1-4 data-block">
-                <span class="col-title">Nội dung hàng hóa:</span>
-                <span class="small-note">(Tên hàng hóa, số lượng)</span>
+                <span class="col-title">Thông tin xe:</span>
+                <span class="small-note">(Biển số, dòng xe, màu xe)</span>
             </div>
-            <!-- Cột 3: Thanh toán cước (1/4) -->
+            <!-- Cột 3: Thanh toán (1/4) -->
             <div class="form-cell col-1-4 data-block">
-                <span class="col-title">Thanh toán cước:</span>
+                <span class="col-title">Thanh toán:</span>
                 <div class="checkbox-item">
                     <div class="checkbox-box"></div>
-                    <span>Người gửi</span>
+                    <span>Đã thanh toán</span>
                 </div>
                 <div class="checkbox-item">
                     <div class="checkbox-box"></div>
-                    <span>Người nhận</span>
+                    <span>Chưa thanh toán</span>
                 </div>
             </div>
         </div>
 
-        <!-- Hàng 2: Người nhận | Cước phí | Trọng lượng -->
+        <!-- Hàng 2: Dịch vụ | Chi phí | Xe -->
         <div class="form-row">
-            <!-- Cột 1: Người nhận (2/4) -->
+            <!-- Cột 1: Dịch vụ (2/4) -->
             <div class="form-cell col-2-4">
-                <span class="col-title">Người nhận: CHỊ THƯ</span>
+                <span class="col-title">Dịch vụ đã chọn:</span>
                 <div class="col-data">
-                    <span class="col-title-inline">Điện thoại:</span>
-                    0918790015
+                    <span class="col-title-inline">Gói:</span>
                 </div>
                 <div class="col-data">
-                    <span class="col-title-inline">Địa chỉ:</span>
-                    55 ĐẶNG DUNG, TÂN ĐỊNH, QUẬN 1, HCM
+                    <span class="col-title-inline">Ghi chú:</span>
                 </div>
             </div>
-            <!-- Cột 2: Cước phí (1/4) -->
+            <!-- Cột 2: Chi phí (1/4) -->
             <div class="form-cell col-1-4 data-block">
-                <span class="col-title">Cước phí:</span>
+                <span class="col-title">Chi phí:</span>
                 <div style="text-align: right; font-weight: 700; padding-right: 1rem;">
                     /VNĐ
                 </div>
             </div>
-            <!-- Cột 3: Trọng lượng/kích thước (1/4) -->
+            <!-- Cột 3: Biển số/loại xe (1/4) -->
             <div class="form-cell col-1-4 data-block">
-                <span class="col-title">Trọng lượng/ kích thước:</span>
+                <span class="col-title">Biển số/loại xe:</span>
             </div>
         </div>
 
-        <!-- Hàng 3: Dịch vụ | Dịch vụ cộng thêm | NV chấp nhận | NV giao -->
+        <!-- Hàng 3: Dịch vụ | Dịch vụ cộng thêm | NV tiếp nhận | NV bàn giao -->
         <div class="form-row">
             <!-- Cột 1: Dịch vụ (1/4) -->
             <div class="form-cell col-1-4 height-fixed">
                 <span class="col-title">Dịch vụ:</span>
                 <div class="checkbox-item">
                     <div class="checkbox-box"></div>
-                    <span>Chuyển phát nhanh</span>
+                    <span>Rửa xe</span>
                 </div>
                 <div class="checkbox-item">
                     <div class="checkbox-box"></div>
-                    <span>Chuyển phát tiết kiệm</span>
+                    <span>Vệ sinh nội thất</span>
                 </div>
                 <div class="checkbox-item">
                     <div class="checkbox-box"></div>
-                    <span>Hoả tốc, hẹn giờ</span>
+                    <span>Chăm sóc xe</span>
                 </div>
             </div>
             <!-- Cột 2: Dịch vụ cộng thêm (1/4) -->
@@ -276,22 +280,22 @@
                 <span class="col-title">Dịch vụ cộng thêm:</span>
                 <div class="checkbox-item">
                     <div class="checkbox-box"></div>
-                    <span>Bảo hiểm</span>
+                    <span>Phủ wax</span>
                 </div>
                 <div class="checkbox-item">
                     <div class="checkbox-box"></div>
-                    <span>Đồng kiểm</span>
+                    <span>Khử mùi</span>
                 </div>
             </div>
-            <!-- Cột 3: Nhân viên chấp nhận (1/4) -->
+            <!-- Cột 3: Nhân viên tiếp nhận (1/4) -->
             <div class="form-cell col-1-4 height-fixed">
-                <span class="col-title">Nhân viên chấp nhận:</span>
-                <span class="small-note">(Ngày nhận)</span>
+                <span class="col-title">Nhân viên tiếp nhận:</span>
+                <span class="small-note">(Ngày tiếp nhận)</span>
             </div>
-            <!-- Cột 4: Nhân viên giao (1/4) -->
+            <!-- Cột 4: Nhân viên bàn giao (1/4) -->
             <div class="form-cell col-1-4 height-fixed">
-                <span class="col-title">Nhân viên giao:</span>
-                <span class="small-note">(Ngày giao)</span>
+                <span class="col-title">Nhân viên bàn giao:</span>
+                <span class="small-note">(Ngày bàn giao)</span>
             </div>
         </div>
 
@@ -309,8 +313,8 @@
                     </svg>
 
                     <div class="contact-phone">
-                        028 6653 8616
-                        <span class="contact-web">www.logship.vn</span>
+                        Hotline AutoWash
+                        <span class="contact-web">AutoWash</span>
                     </div>
                 </div>
             </div>
@@ -318,9 +322,9 @@
             <div class="form-cell col-3-4 height-footer">
                 <span class="col-title">Lưu ý:</span>
                 <ul class="footer-notes">
-                    <li>1. Logship là đơn vị trung gian vận chuyển, không chịu trách nhiệm về chất lượng hàng hóa.</li>
-                    <li>2. Để kiểm tra tình trạng đơn giá và quy định trách nhiệm vận chuyển, vui lòng tham khảo Website: https://logship.vn/ hoặc liên hệ hotline 0918790015.</li>
-                    <li>3. Người gửi cam kết nội dung bên gửi là tài sản hợp pháp, có đầy đủ hóa đơn, chứng từ theo quy định pháp luật.</li>
+                    <li>1. Khách hàng vui lòng kiểm tra thông tin dịch vụ, xe và chi phí trước khi xác nhận.</li>
+                    <li>2. AutoWash chỉ chịu trách nhiệm với các hạng mục dịch vụ được ghi nhận trên phiếu.</li>
+                    <li>3. Mọi điều chỉnh sau khi phát hành phiếu cần được xác nhận bởi nhân viên phụ trách.</li>
                 </ul>
             </div>
         </div>

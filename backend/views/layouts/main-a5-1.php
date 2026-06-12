@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Phiếu Gửi Logship</title>
+    <title>Phiếu Dịch Vụ AutoWash</title>
     <style>
         /* --- CSS SETUP --- */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -169,7 +169,7 @@
             height: 50%;
         }
 
-        /* Cột Trái (Người gửi + Người nhận) */
+        /* Cột trái (Khách hàng + xe) */
         .col-sender-receiver {
             width: 40%;
             display: flex;
@@ -260,7 +260,7 @@
             font-weight: bold;
         }
 
-        /* Row 3: Nội dung, Dịch vụ, Cước */
+        /* Row 3: Nội dung, dịch vụ, chi phí */
         .middle-section {
             display: flex;
             border-top: 1px solid #000;

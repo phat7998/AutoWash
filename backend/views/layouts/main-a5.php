@@ -163,7 +163,7 @@
         .contact-phone {
             font-weight: 700;
             font-size: 0.8rem;
-            color: #e60023; /* Màu đỏ Logship */
+            color: #e60023; /* Màu nhấn thương hiệu */
         }
 
         .contact-web {
