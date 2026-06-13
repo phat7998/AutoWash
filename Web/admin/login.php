@@ -1,32 +1,3 @@
-<?php
-session_start();
-
-if (isset($_GET['logout'])) {
-    session_destroy();
-    header('Location: login.php');
-    exit;
-}
-
-if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
-    header('Location: dashboard.php');
-    exit;
-}
-
-$message = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $password = trim($_POST['password'] ?? '');
-
-    if ($username === 'admin' && $password === 'admin123') {
-        $_SESSION['admin_logged_in'] = true;
-        $_SESSION['admin_name'] = 'Quản trị viên';
-        header('Location: dashboard.php');
-        exit;
-    }
-
-    $message = 'Tài khoản hoặc mật khẩu không đúng. Dùng admin / admin123 để test.';
-}
-?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -54,21 +25,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <h1>Đăng nhập quản trị Auto Wash</h1>
     <p>Trang này dùng cho nhân viên admin xem booking, cập nhật trạng thái và quản lý loyalty cơ bản.</p>
 
-    <?php if ($message !== ''): ?>
-      <div class="alert"><?php echo htmlspecialchars($message); ?></div>
-    <?php endif; ?>
+    <div id="messageBox" class="alert" style="display:none;"></div>
 
-    <form method="post" autocomplete="off">
+    <form id="loginForm" autocomplete="off">
       <label for="username">Tên đăng nhập</label>
       <input id="username" name="username" type="text" placeholder="admin" required />
 
       <label for="password">Mật khẩu</label>
-      <input id="password" name="password" type="password" placeholder="admin123" required />
+      <input id="password" name="password" type="password" placeholder="your-password" required />
 
       <button type="submit">Đăng nhập</button>
     </form>
 
-    <div class="hint">Tài khoản demo: admin / admin123</div>
+    <div class="hint">Sử dụng tài khoản admin thật của backend khi có sẵn. Nếu backend chưa bật, bạn có thể dùng tài khoản demo <strong>admin / admin123</strong> để vào chế độ thử.</div>
   </main>
+
+  <script>
+    const ADMIN_API = 'https://api-admin.wp-fl-demo.xyz';
+
+    function showMessage(text, type = 'error') {
+      const box = document.getElementById('messageBox');
+      box.textContent = text;
+      box.style.display = 'block';
+      box.style.background = type === 'success' ? 'rgba(74,222,128,0.12)' : 'rgba(248,113,113,0.12)';
+      box.style.borderColor = type === 'success' ? 'rgba(74,222,128,0.25)' : 'rgba(248,113,113,0.25)';
+      box.style.color = type === 'success' ? '#bbf7d0' : '#fecaca';
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      showMessage('Đang đăng nhập...', 'success');
+
+      try {
+        const response = await fetch(`${ADMIN_API}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        const payload = result && typeof result === 'object' && 'data' in result ? result.data : result;
+        const token = payload && (payload.access_token || payload.data?.access_token);
+
+        if (response.ok && token) {
+          localStorage.setItem('adminToken', token);
+          localStorage.setItem('adminUser', JSON.stringify(payload.user || {}));
+          showMessage('Đăng nhập thành công. Đang chuyển đến dashboard...', 'success');
+          window.location.href = 'dashboard.php';
+          return;
+        }
+
+        if (username === 'admin' && password === 'admin123') {
+          localStorage.setItem('adminToken', 'demo-admin-token');
+          localStorage.setItem('adminUser', JSON.stringify({ username: 'admin', role: 'demo' }));
+          showMessage('Backend chưa sẵn — đang bật chế độ demo cho admin.', 'success');
+          setTimeout(() => {
+            window.location.href = 'dashboard.php';
+          }, 400);
+          return;
+        }
+
+        const message = result.message || 'Đăng nhập thất bại';
+        showMessage(message, 'error');
+      } catch (error) {
+        console.error(error);
+        showMessage('Không thể kết nối API admin. Hãy kiểm tra kết nối internet hoặc tài khoản backend.', 'error');
+      }
+    });
+  </script>
 </body>
 </html>

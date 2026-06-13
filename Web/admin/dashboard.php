@@ -1,12 +1,3 @@
-<?php
-session_start();
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header('Location: login.php');
-    exit;
-}
-
-$adminName = $_SESSION['admin_name'] ?? 'Quản trị viên';
-?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -49,6 +40,7 @@ $adminName = $_SESSION['admin_name'] ?? 'Quản trị viên';
     .small{font-size:.92rem;color:var(--muted);}
     .footer-note{margin-top:10px;color:var(--muted);font-size:.92rem;}
     .actions button{border:none;border-radius:10px;padding:8px 10px;background:rgba(56,189,248,.12);color:#dbeafe;cursor:pointer;margin-right:6px;font-weight:600;}
+    .actions button.complete{background:rgba(74,222,128,.15);color:#bbf7d0;}
     .actions button.delete{background:rgba(248,113,113,.12);color:#fecaca;}
     @media (max-width: 1100px){.grid{grid-template-columns:1fr 1fr;} .panel{grid-template-columns:1fr;}}
     @media (max-width: 760px){.shell{flex-direction:column;} .sidebar{width:100%;border-right:none;border-bottom:1px solid var(--line);} .grid{grid-template-columns:1fr;}}
@@ -69,33 +61,33 @@ $adminName = $_SESSION['admin_name'] ?? 'Quản trị viên';
           <a class="active" href="dashboard.php">Tổng quan</a>
           <a href="#bookings">Booking</a>
           <a href="#analytics">Phân tích</a>
-          <a href="login.php?logout=1">Đăng xuất</a>
+          <a href="login.php">Đăng xuất</a>
         </nav>
       </div>
       <div class="mini-card">
         <p class="eyebrow">Tình trạng</p>
-        <strong>Đang chạy giao diện admin</strong>
-        <p>Hệ thống có thể kết nối API thật sau khi nhóm triển khai backend cho loyalty engine.</p>
+        <strong>Đang dùng API admin production</strong>
+        <p>Dashboard sẽ lấy dữ liệu thật từ backend, hỗ trợ loyalty tier, khuyến mãi và hoàn thành booking.</p>
       </div>
     </aside>
 
     <main class="main">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Xin chào, <?php echo htmlspecialchars($adminName); ?></p>
+          <p class="eyebrow">Xin chào, quản trị viên</p>
           <h1>Bảng điều khiển quản trị</h1>
         </div>
         <div class="top-actions">
           <button class="btn" id="refreshBtn" type="button">Tải lại dữ liệu</button>
-          <a class="btn primary" href="login.php?logout=1">Đăng xuất</a>
+          <a class="btn primary" href="login.php">Đăng xuất</a>
         </div>
       </header>
 
       <section class="grid">
-        <article class="card"><h3>Tổng booking hôm nay</h3><div id="totalBookings" class="metric">0</div><div class="sub">Số đơn đang quản lý trên hệ thống</div></article>
+        <article class="card"><h3>Tổng booking</h3><div id="totalBookings" class="metric">0</div><div class="sub">Số đơn hiện có trong hệ thống</div></article>
         <article class="card"><h3>Đang chờ xử lý</h3><div id="pendingCount" class="metric">0</div><div class="sub">Cần ưu tiên phục vụ</div></article>
-        <article class="card"><h3>Hoàn tất</h3><div id="doneCount" class="metric">0</div><div class="sub">Đã rửa xong và thanh toán</div></article>
-        <article class="card"><h3>Điểm tích lũy</h3><div id="pointsCount" class="metric">0</div><div class="sub">Điểm loyalty sẵn sàng cho chiến dịch</div></article>
+        <article class="card"><h3>Hoàn tất</h3><div id="doneCount" class="metric">0</div><div class="sub">Đã hoàn thành dịch vụ</div></article>
+        <article class="card"><h3>Tier rules</h3><div id="tierCount" class="metric">0</div><div class="sub">Số hạng loyalty đang cấu hình</div></article>
       </section>
 
       <section class="panel">
@@ -103,11 +95,11 @@ $adminName = $_SESSION['admin_name'] ?? 'Quản trị viên';
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px;">
             <div>
               <p class="eyebrow">Booking</p>
-              <h3 style="margin:4px 0 0;">Danh sách đơn đang chờ</h3>
+              <h3 style="margin:4px 0 0;">Danh sách booking</h3>
             </div>
             <span class="small" id="apiStatus">Đang kết nối API...</span>
           </div>
-          <div class="small">Bảng này dùng dữ liệu demo và có thể thay bằng API thật sau khi nhóm tích hợp backend.</div>
+          <div class="small">Dashboard admin đang dùng API thực tế từ backend. Bạn có thể bấm “Hoàn tất” để tích điểm loyalty cho booking.</div>
           <div style="overflow-x:auto;margin-top:10px;">
             <table>
               <thead>
@@ -127,18 +119,20 @@ $adminName = $_SESSION['admin_name'] ?? 'Quản trị viên';
 
         <article class="card" id="analytics">
           <p class="eyebrow">Mô tả</p>
-          <h3 style="margin:4px 0 12px;">Chức năng frontend admin</h3>
+          <h3 style="margin:4px 0 12px;">Thông tin admin hiện tại</h3>
           <ul class="small" style="padding-left:18px;line-height:1.5;">
-            <li>Xem danh sách booking trong dashboard.</li>
-            <li>Gọi API nếu backend đã sẵn sàng.</li>
-            <li>Thay đổi trạng thái đơn và xóa đơn demo.</li>
-            <li>Chuẩn bị nền cho loyalty tier, điểm thưởng và ưu tiên.</li>
+            <li>Đăng nhập bằng tài khoản admin thật của backend.</li>
+            <li>Gọi API /bookings, /tier-rules và /promotions.</li>
+            <li>Hoàn thành booking sẽ tích điểm loyalty cho khách hàng.</li>
+            <li>Chuẩn bị nền cho loyalty tier và ưu tiên booking.</li>
           </ul>
-          <div class="status-note" id="statusNote">Sẵn sàng dùng cho TV3 sau khi nhóm tích hợp API thật.</div>
+          <div class="status-note" id="statusNote">Đang chờ kết nối API admin...</div>
+          <div id="tierRulesBox" class="small" style="margin-top:10px;"></div>
+          <div id="promoBox" class="small" style="margin-top:10px;"></div>
         </article>
       </section>
 
-      <p class="footer-note">Ghi chú: phần này đang chạy ở frontend admin, không phụ thuộc vào API online. Khi backend sẵn sàng, chỉ cần thay URL trong file assets/js/admin.js.</p>
+      <p class="footer-note">Ghi chú: nếu backend chưa bật, dashboard sẽ hiển thị thông báo lỗi và bạn cần nhập đúng tài khoản admin được cung cấp bởi nhóm.</p>
     </main>
   </div>
 
