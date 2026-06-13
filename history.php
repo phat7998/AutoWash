@@ -10,7 +10,7 @@ if (!isset($_SESSION['user_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lich su dat lich - AutoWash Pro</title>
+    <title>Lịch sử đặt lịch - AutoWash Pro</title>
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
@@ -19,21 +19,21 @@ if (!isset($_SESSION['user_id'])) {
     <a href="index.php" class="logo">AutoWash<span>Pro</span></a>
     <ul class="nav-links">
         <li><a href="dashboard.php">Dashboard</a></li>
-        <li><a href="booking_form.php">Dat lich</a></li>
-        <li><a href="history.php">Lich su</a></li>
-        <li><a href="#" onclick="logout();return false;" class="btn-nav" style="background:#dc2626;">Dang xuat</a></li>
+        <li><a href="booking_form.php">Đặt lịch</a></li>
+        <li><a href="history.php">Lịch sử</a></li>
+        <li><a href="#" onclick="logout();return false;" class="btn-nav" style="background:#dc2626;">Đăng xuất</a></li>
     </ul>
 </nav>
 
 <div class="container">
     <div class="card-header" style="margin-bottom:8px;">
         <div>
-            <h2 style="margin:0;">Lich su dat lich</h2>
+            <h2 style="margin:0;">Lịch sử đặt lịch</h2>
             <p style="color:#64748b;margin-top:4px;">
-                Tong so lan dat lich: <strong><span id="totalBookings">0</span></strong>
+                Tổng số lần đặt lịch: <strong><span id="totalBookings">0</span></strong>
             </p>
         </div>
-        <a href="booking_form.php" class="btn btn-primary btn-sm">+ Dat lich moi</a>
+        <a href="booking_form.php" class="btn btn-primary btn-sm">+ Đặt lịch mới</a>
     </div>
 
     <div class="card">
@@ -42,16 +42,16 @@ if (!isset($_SESSION['user_id'])) {
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>Ngay</th>
-                        <th>Gio</th>
-                        <th>Goi rua</th>
-                        <th>Bien so</th>
-                        <th>Trang thai</th>
-                        <th>Ghi chu</th>
+                        <th>Ngày</th>
+                        <th>Giờ</th>
+                        <th>Gói rửa</th>
+                        <th>Biển số</th>
+                        <th>Trạng thái</th>
+                        <th>Ghi chú</th>
                     </tr>
                 </thead>
                 <tbody id="historyTable">
-                    <tr><td colspan="7" style="text-align:center;color:#64748b;">Dang tai...</td></tr>
+                    <tr><td colspan="7" style="text-align:center;color:#64748b;">Đang tải...</td></tr>
                 </tbody>
             </table>
         </div>

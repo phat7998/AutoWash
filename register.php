@@ -10,7 +10,7 @@ if (isset($_SESSION['user_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dang ky - AutoWash Pro</title>
+    <title>Đăng ký - AutoWash Pro</title>
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
@@ -18,20 +18,20 @@ if (isset($_SESSION['user_id'])) {
 <div class="auth-wrapper">
     <div class="auth-card">
         <div class="auth-logo">AutoWash<span>Pro</span></div>
-        <h2>Tao tai khoan</h2>
-        <p class="auth-subtitle">Dang ky de dat lich rua xe va tich diem</p>
+        <h2>Tạo tài khoản</h2>
+        <p class="auth-subtitle">Đăng ký để đặt lịch rửa xe và tích điểm</p>
 
         <div id="registerError" class="alert alert-error"></div>
 
         <form id="registerForm">
             <div class="form-group">
-                <label for="fullname">Ho va ten *</label>
-                <input type="text" id="fullname" class="form-control" placeholder="Nguyen Van A" required>
+                <label for="fullname">Họ và tên *</label>
+                <input type="text" id="fullname" class="form-control" placeholder="Nguyễn Văn A" required>
             </div>
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="phone">So dien thoai *</label>
+                    <label for="phone">Số điện thoại *</label>
                     <input type="tel" id="phone" class="form-control" placeholder="0912345678" required>
                 </div>
                 <div class="form-group">
@@ -42,43 +42,43 @@ if (isset($_SESSION['user_id'])) {
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="password">Mat khau *</label>
-                    <input type="password" id="password" class="form-control" placeholder="It nhat 6 ky tu" required minlength="6">
+                    <label for="password">Mật khẩu *</label>
+                    <input type="password" id="password" class="form-control" placeholder="Ít nhất 6 ký tự" required minlength="6">
                 </div>
                 <div class="form-group">
-                    <label for="confirmPassword">Xac nhan mat khau *</label>
-                    <input type="password" id="confirmPassword" class="form-control" placeholder="Nhap lai mat khau" required>
+                    <label for="confirmPassword">Xác nhận mật khẩu *</label>
+                    <input type="password" id="confirmPassword" class="form-control" placeholder="Nhập lại mật khẩu" required>
                 </div>
             </div>
 
             <div class="card-header" style="margin-top:8px;">
-                <h3>Thong tin xe (khong bat buoc)</h3>
+                <h3>Thông tin xe (không bắt buộc)</h3>
             </div>
 
             <div class="form-group">
-                <label for="licensePlate">Bien so xe</label>
+                <label for="licensePlate">Biển số xe</label>
                 <input type="text" id="licensePlate" class="form-control" placeholder="59A1-12345">
             </div>
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="vehicleBrand">Hang xe</label>
+                    <label for="vehicleBrand">Hãng xe</label>
                     <input type="text" id="vehicleBrand" class="form-control" placeholder="Honda">
                 </div>
                 <div class="form-group">
-                    <label for="vehicleModel">Mau xe</label>
+                    <label for="vehicleModel">Mẫu xe</label>
                     <input type="text" id="vehicleModel" class="form-control" placeholder="Vision">
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-primary btn-block">Dang ky</button>
+            <button type="submit" class="btn btn-primary btn-block">Đăng ký</button>
         </form>
 
         <p class="auth-footer">
-            Da co tai khoan? <a href="login.php">Dang nhap</a>
+            Đã có tài khoản? <a href="login.php">Đăng nhập</a>
         </p>
         <p class="auth-footer">
-            <a href="index.php">&larr; Quay lai trang chu</a>
+            <a href="index.php">&larr; Quay lại trang chủ</a>
         </p>
     </div>
 </div>

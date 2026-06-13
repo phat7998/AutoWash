@@ -10,7 +10,7 @@ if (isset($_SESSION['user_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dang nhap - AutoWash Pro</title>
+    <title>Đăng nhập - AutoWash Pro</title>
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
@@ -18,30 +18,30 @@ if (isset($_SESSION['user_id'])) {
 <div class="auth-wrapper">
     <div class="auth-card">
         <div class="auth-logo">AutoWash<span>Pro</span></div>
-        <h2>Dang nhap</h2>
-        <p class="auth-subtitle">Chao mung quay tro lai!</p>
+        <h2>Đăng nhập</h2>
+        <p class="auth-subtitle">Chào mừng quay trở lại!</p>
 
         <div id="loginError" class="alert alert-error"></div>
 
         <form id="loginForm">
             <div class="form-group">
-                <label for="phone">So dien thoai</label>
+                <label for="phone">Số điện thoại</label>
                 <input type="tel" id="phone" class="form-control" placeholder="0912345678" required>
             </div>
 
             <div class="form-group">
-                <label for="password">Mat khau</label>
-                <input type="password" id="password" class="form-control" placeholder="Nhap mat khau" required>
+                <label for="password">Mật khẩu</label>
+                <input type="password" id="password" class="form-control" placeholder="Nhập mật khẩu" required>
             </div>
 
-            <button type="submit" class="btn btn-primary btn-block">Dang nhap</button>
+            <button type="submit" class="btn btn-primary btn-block">Đăng nhập</button>
         </form>
 
         <p class="auth-footer">
-            Chua co tai khoan? <a href="register.php">Dang ky ngay</a>
+            Chưa có tài khoản? <a href="register.php">Đăng ký ngay</a>
         </p>
         <p class="auth-footer">
-            <a href="index.php">&larr; Quay lai trang chu</a>
+            <a href="index.php">&larr; Quay lại trang chủ</a>
         </p>
     </div>
 </div>

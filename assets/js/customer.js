@@ -64,17 +64,17 @@ function initRegister() {
         const vehicleModel = document.getElementById('vehicleModel').value.trim();
 
         if (!fullname || !phone || !password) {
-            showAlert('registerError', 'Vui long dien day du ho ten, so dien thoai va mat khau.', 'error');
+            showAlert('registerError', 'Vui lòng điền đầy đủ họ tên, số điện thoại và mật khẩu.', 'error');
             return;
         }
 
         if (password.length < 6) {
-            showAlert('registerError', 'Mat khau phai co it nhat 6 ky tu.', 'error');
+            showAlert('registerError', 'Mật khẩu phải có ít nhất 6 ký tự.', 'error');
             return;
         }
 
         if (password !== confirmPassword) {
-            showAlert('registerError', 'Mat khau xac nhan khong khop.', 'error');
+            showAlert('registerError', 'Mật khẩu xác nhận không khớp.', 'error');
             return;
         }
 
@@ -90,7 +90,7 @@ function initRegister() {
 
         const btn = form.querySelector('button[type="submit"]');
         btn.disabled = true;
-        btn.innerHTML = '<span class="loader"></span> Dang xu ly...';
+        btn.innerHTML = '<span class="loader"></span> Đang xử lý...';
 
         fetch(API_BASE + 'register.php', {
             method: 'POST',
@@ -100,19 +100,19 @@ function initRegister() {
         .then(r => r.json())
         .then(data => {
             btn.disabled = false;
-            btn.textContent = 'Dang ky';
+            btn.textContent = 'Đăng ký';
 
             if (data.success) {
-                showAlert('registerError', data.message || 'Dang ky thanh cong! Dang chuyen huong...', 'success');
+                showAlert('registerError', data.message || 'Đăng ký thành công! Đang chuyển hướng...', 'success');
                 setTimeout(() => { window.location.href = 'login.php'; }, 1500);
             } else {
-                showAlert('registerError', data.message || 'Dang ky that bai.', 'error');
+                showAlert('registerError', data.message || 'Đăng ký thất bại.', 'error');
             }
         })
         .catch(() => {
             btn.disabled = false;
-            btn.textContent = 'Dang ky';
-            showAlert('registerError', 'Loi ket noi den may chu.', 'error');
+            btn.textContent = 'Đăng ký';
+            showAlert('registerError', 'Lỗi kết nối đến máy chủ.', 'error');
         });
     });
 }
@@ -130,13 +130,13 @@ function initLogin() {
         const password = document.getElementById('password').value;
 
         if (!phone || !password) {
-            showAlert('loginError', 'Vui long nhap so dien thoai va mat khau.', 'error');
+            showAlert('loginError', 'Vui lòng nhập số điện thoại và mật khẩu.', 'error');
             return;
         }
 
         const btn = form.querySelector('button[type="submit"]');
         btn.disabled = true;
-        btn.innerHTML = '<span class="loader"></span> Dang dang nhap...';
+        btn.innerHTML = '<span class="loader"></span> Đang đăng nhập...';
 
         fetch(API_BASE + 'login.php', {
             method: 'POST',
@@ -146,18 +146,18 @@ function initLogin() {
         .then(r => r.json())
         .then(data => {
             btn.disabled = false;
-            btn.textContent = 'Dang nhap';
+            btn.textContent = 'Đăng nhập';
 
             if (data.success) {
                 window.location.href = 'dashboard.php';
             } else {
-                showAlert('loginError', data.message || 'Sai so dien thoai hoac mat khau.', 'error');
+                showAlert('loginError', data.message || 'Sai số điện thoại hoặc mật khẩu.', 'error');
             }
         })
         .catch(() => {
             btn.disabled = false;
-            btn.textContent = 'Dang nhap';
-            showAlert('loginError', 'Loi ket noi den may chu.', 'error');
+            btn.textContent = 'Đăng nhập';
+            showAlert('loginError', 'Lỗi kết nối đến máy chủ.', 'error');
         });
     });
 }
@@ -207,7 +207,7 @@ function loadRecentBookings() {
             if (!tbody) return;
 
             if (!data.success || !data.bookings || data.bookings.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:24px;">Chua co lich su dat lich.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:24px;">Chưa có lịch sử đặt lịch.</td></tr>';
                 return;
             }
 
@@ -245,15 +245,15 @@ function initBookingForm() {
         const notes = document.getElementById('notes').value.trim();
 
         if (!vehicleId) {
-            showAlert('bookingError', 'Vui long chon xe.', 'error');
+            showAlert('bookingError', 'Vui lòng chọn xe.', 'error');
             return;
         }
         if (!washType) {
-            showAlert('bookingError', 'Vui long chon goi rua xe.', 'error');
+            showAlert('bookingError', 'Vui lòng chọn gói rửa xe.', 'error');
             return;
         }
         if (!bookingDate || !bookingTime) {
-            showAlert('bookingError', 'Vui long chon ngay va gio dat lich.', 'error');
+            showAlert('bookingError', 'Vui lòng chọn ngày và giờ đặt lịch.', 'error');
             return;
         }
 
@@ -267,7 +267,7 @@ function initBookingForm() {
 
         const btn = form.querySelector('button[type="submit"]');
         btn.disabled = true;
-        btn.innerHTML = '<span class="loader"></span> Dang dat lich...';
+        btn.innerHTML = '<span class="loader"></span> Đang đặt lịch...';
 
         fetch(API_BASE + 'booking.php', {
             method: 'POST',
@@ -277,19 +277,19 @@ function initBookingForm() {
         .then(r => r.json())
         .then(data => {
             btn.disabled = false;
-            btn.textContent = 'Xac nhan dat lich';
+            btn.textContent = 'Xác nhận đặt lịch';
 
             if (data.success) {
-                showAlert('bookingSuccess', data.message || 'Dat lich thanh cong!', 'success');
+                showAlert('bookingSuccess', data.message || 'Đặt lịch thành công!', 'success');
                 document.getElementById('bookingModal').classList.add('active');
             } else {
-                showAlert('bookingError', data.message || 'Dat lich that bai.', 'error');
+                showAlert('bookingError', data.message || 'Đặt lịch thất bại.', 'error');
             }
         })
         .catch(() => {
             btn.disabled = false;
-            btn.textContent = 'Xac nhan dat lich';
-            showAlert('bookingError', 'Loi ket noi den may chu.', 'error');
+            btn.textContent = 'Xác nhận đặt lịch';
+            showAlert('bookingError', 'Lỗi kết nối đến máy chủ.', 'error');
         });
     });
 }
@@ -301,7 +301,7 @@ function loadUserVehicles() {
             const select = document.getElementById('vehicleId');
             if (!select) return;
 
-            select.innerHTML = '<option value="">-- Chon xe --</option>';
+            select.innerHTML = '<option value="">-- Chọn xe --</option>';
 
             if (data.success && data.vehicles && data.vehicles.length > 0) {
                 data.vehicles.forEach(v => {
@@ -329,7 +329,7 @@ function loadAdvanceDays() {
 
             const info = document.getElementById('advanceDaysInfo');
             if (info) {
-                info.textContent = `Ban co the dat lich truoc toi da ${days} ngay (cap do: ${data.tier || 'Member'}).`;
+                info.textContent = `Bạn có thể đặt lịch trước tối đa ${days} ngày (cấp độ: ${data.tier || 'Member'}).`;
             }
         })
         .catch(() => {});
@@ -364,7 +364,7 @@ function loadHistory() {
             if (countEl) countEl.textContent = data.bookings ? data.bookings.length : 0;
 
             if (!data.success || !data.bookings || data.bookings.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:32px;">Chua co lich su dat lich nao.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:32px;">Chưa có lịch sử đặt lịch nào.</td></tr>';
                 return;
             }
 
