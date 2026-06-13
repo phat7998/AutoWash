@@ -1,0 +1,68 @@
+/vendor
+/vendor-bin
+/composer.phar
+
+# Local application config and secrets
+/backend/config/*-local.php
+/frontend/config/*-local.php
+/customer/config/*-local.php
+/console/config/*-local.php
+/common/config/*-local.php
+/environments/*/config/*-local.php
+.env
+.env.*
+!.env.example
+auth.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Runtime/cache/published assets
+/backend/runtime/*
+/backend/web/assets/*
+/frontend/runtime/*
+/frontend/web/assets/*
+/customer/runtime/*
+/customer/web/assets/*
+/console/runtime/*
+!/backend/runtime/.gitignore
+!/frontend/runtime/.gitignore
+!/customer/runtime/.gitignore
+!/console/runtime/.gitignore
+
+# ACME challenge tokens are generated per certificate request; keep folders only.
+/backend/web/.well-known/acme-challenge/*
+/frontend/web/.well-known/acme-challenge/*
+/customer/web/.well-known/acme-challenge/*
+!/backend/web/.well-known/acme-challenge/.gitignore
+!/frontend/web/.well-known/acme-challenge/.gitignore
+!/customer/web/.well-known/acme-challenge/.gitignore
+
+# Local release/build artifacts
+/autowash-release*.zip
+*.sql
+*.sql.gz
+*.dump
+*.db
+*.sqlite
+*.sqlite3
+
+# Test/tool output
+.phpunit.result.cache
+.php-cs-fixer.cache
+/coverage/
+/tests/_output/
+/tests/_support/_generated/
+
+# Local editor/OS/log noise
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
+*.tmp
+*.temp
+*.cache
+/tasks

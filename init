@@ -1,0 +1,4 @@
+#!/usr/bin/env php
+<?php
+echo "AutoWash skeleton does not ship custom init steps yet.\n";
+

@@ -1,0 +1,38 @@
+{
+  "name": "autowash/platform",
+  "description": "AutoWash multi-app platform skeleton based on Yii2 advanced structure",
+  "type": "project",
+  "license": "proprietary",
+  "minimum-stability": "stable",
+  "require": {
+    "php": "^8.2",
+    "ext-json": "*",
+    "ext-pdo": "*",
+    "ext-mbstring": "*",
+    "yiisoft/yii2": "^2.0.53",
+    "yiisoft/yii2-bootstrap5": "^2.0",
+    "yiisoft/yii2-swiftmailer": "^2.1",
+    "yiisoft/yii2-queue": "^2.3",
+    "mdmsoft/yii2-admin": "~2.0",
+    "hail812/yii2-adminlte3": "^1.1"
+  },
+  "require-dev": {
+    "yiisoft/yii2-debug": "^2.1",
+    "yiisoft/yii2-gii": "^2.2",
+    "codeception/codeception": "^5.0",
+    "codeception/module-yii2": "^1.1"
+  },
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://asset-packagist.org"
+    }
+  ],
+  "config": {
+    "process-timeout": 1800,
+    "allow-plugins": {
+      "yiisoft/yii2-composer": true
+    }
+  }
+}
+
