@@ -1,0 +1,6 @@
+rank,feature,label,importance_combined,importance_rf,importance_gb,importance_lr
+1,lifetime_spend,Tổng chi tiêu tích lũy,0.607,0.4593,1.0,0.3618
+2,wash_count,Số lần rửa xe,0.2936,0.4167,0.0,0.4642
+3,cancel_rate_pct,Tỉ lệ hủy đặt lịch,0.0529,0.0529,0.0,0.1058
+4,avg_service_amount,Chi tiêu trung bình/lần,0.0465,0.0712,0.0,0.0683
+5,promo_usage_rate_pct,Tỉ lệ sử dụng khuyến mãi,0.0,0.0,0.0,0.0

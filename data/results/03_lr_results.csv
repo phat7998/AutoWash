@@ -1,0 +1,2 @@
+model,accuracy,precision,recall,f1,auc,cv_accuracy_mean,cv_accuracy_std
+Logistic Regression,0.9825,1.0,0.9583,0.9787,1.0,0.8702,0.1591
