@@ -1,0 +1,3 @@
+hypothesis,test,statistic,p_value,reject_h0,conclusion,spearman_r
+H1: Wash count ảnh hưởng đến tier,Kruskal-Wallis,218.013,0.0,True,Wash count có ảnh hưởng đáng kể đến tier,0.8731
+H2: Lifetime spend tương quan với tier,Spearman + ANOVA,0.8776,0.0,True,Tương quan mạnh thuận (r=0.878),0.8776

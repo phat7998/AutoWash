@@ -1,0 +1,5 @@
+tier,count,lifetime_spend_mean,lifetime_spend_median,lifetime_spend_std,lifetime_spend_min,lifetime_spend_max,wash_count_mean,wash_count_median,wash_count_std,wash_count_min,wash_count_max,total_bookings_mean,total_bookings_median,total_bookings_std,total_bookings_min,total_bookings_max,cancel_rate_pct_mean,cancel_rate_pct_median,cancel_rate_pct_std,cancel_rate_pct_min,cancel_rate_pct_max,avg_service_amount_mean,avg_service_amount_median,avg_service_amount_std,avg_service_amount_min,avg_service_amount_max
+MEMBER,168,193214.29,160000.0,136115.14,0.0,490000.0,4.14,4.0,2.64,0,11,6.31,6.0,3.39,0,16,21.78,20.0,18.58,0.0,100.0,45867.0,45000.0,9598.89,30000.0,80000.0
+SILVER,88,875681.82,805000.0,304452.76,500000.0,1490000.0,15.78,15.0,4.79,9,30,19.23,18.0,5.46,10,33,9.44,8.15,6.74,0.0,28.6,55311.08,55000.0,5919.61,42000.0,73333.33
+GOLD,26,2115769.23,1980000.0,509589.43,1500000.0,2960000.0,31.5,30.0,6.05,24,41,35.35,35.0,6.51,26,49,5.13,4.6,3.4,0.0,13.3,66884.83,67500.0,3840.5,58965.52,74545.45
+PLATINUM,5,3130000.0,3150000.0,57879.18,3070000.0,3200000.0,43.8,45.0,1.64,42,45,47.6,48.0,1.67,45,49,3.78,4.3,1.73,2.0,6.1,71403.42,71224.49,1373.32,69787.23,72888.89
