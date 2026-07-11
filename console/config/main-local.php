@@ -1,12 +1,13 @@
 <?php
+
 return [
     'components' => [
         'db' => [
-            'class' => 'yii\db\Connection',
+            'class' => yii\db\Connection::class,
             'dsn' => 'mysql:host=localhost;dbname=autowash',
-            'username' => 'root',
-            'password' => '',
-            'charset' => 'utf8',
+            'username' => 'autowash',
+            'password' => 'autowash123',
+            'charset' => 'utf8mb4',
         ],
     ],
 ];

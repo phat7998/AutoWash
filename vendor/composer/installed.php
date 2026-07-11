@@ -3,7 +3,7 @@
         'name' => 'autowash/platform',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '5d33c137f1a49ce3e96a9b268aae518d4193f2b4',
+        'reference' => '9dd51d8dd288f8a2c001a284537f4c1497486ed0',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -22,7 +22,7 @@
         'autowash/platform' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '5d33c137f1a49ce3e96a9b268aae518d4193f2b4',
+            'reference' => '9dd51d8dd288f8a2c001a284537f4c1497486ed0',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

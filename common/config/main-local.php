@@ -6,13 +6,13 @@ return [
         '@npm'    => '@vendor/npm-asset',
     ],
     'components' => [
-        'db' => [
-            'class' => 'yii\db\Connection',
-            'dsn' => 'mysql:host=localhost;dbname=autowash',
-            'username' => 'root',
-            'password' => '',
-            'charset' => 'utf8',
-        ],
+	'db' => [
+    	    'class' => yii\db\Connection::class,
+    	    'dsn' => 'mysql:host=localhost;dbname=autowash',
+    	    'username' => 'autowash',
+    	    'password' => 'autowash123',
+    	    'charset' => 'utf8mb4',
+	],
         'queue' => [
             'class' => \yii\queue\db\Queue::class,
             'db' => 'db',

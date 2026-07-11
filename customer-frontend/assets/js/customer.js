@@ -3,7 +3,7 @@
  * Kết nối Yii2 Customer API (Bearer Token)
  */
 
-const API_BASE = 'http://localhost/AutoWash/customer/web';
+const API_BASE = 'http://localhost:8081';
 
 function getToken() {
     return localStorage.getItem('customerToken');

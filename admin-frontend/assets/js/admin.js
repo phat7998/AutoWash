@@ -1,4 +1,4 @@
-const ADMIN_API = 'http://localhost/AutoWash/backend/web';
+const ADMIN_API = 'http://localhost:8082';
 const DEMO_TOKEN = 'demo-admin-token';
 
 const FALLBACK_BOOKINGS = [
