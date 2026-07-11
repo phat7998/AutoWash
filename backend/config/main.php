@@ -71,7 +71,12 @@ return [
                 'GET promotions' => 'api/promotion/index',
                 'POST promotions' => 'api/promotion/create',
                 'GET bookings' => 'api/booking/index',
+                'GET bookings/queue' => 'api/booking/queue',
                 'POST bookings/complete' => 'api/booking/complete',
+                'GET analytics/summary' => 'api/analytics/summary',
+                'GET analytics/tier-distribution' => 'api/analytics/tier-distribution',
+                'GET analytics/booking-by-hour' => 'api/analytics/booking-by-hour',
+                'GET analytics/retention' => 'api/analytics/retention',
                 [
                     'class' => yii\rest\UrlRule::class,
                     'controller' => ['api/auth'],
@@ -96,6 +101,18 @@ return [
                     'pluralize' => true,
                     'extraPatterns' => [
                         'POST complete' => 'complete',
+                        'GET queue' => 'queue',
+                    ],
+                ],
+                [
+                    'class' => yii\rest\UrlRule::class,
+                    'controller' => ['api/analytics'],
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'GET summary' => 'summary',
+                        'GET tier-distribution' => 'tier-distribution',
+                        'GET booking-by-hour' => 'booking-by-hour',
+                        'GET retention' => 'retention',
                     ],
                 ],
             ],

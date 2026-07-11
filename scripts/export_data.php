@@ -5,10 +5,12 @@
  */
 
 // ── Cấu hình DB ───────────────────────────────────────────────────────────────
-$DB_HOST = '103.1.239.95';
-$DB_NAME = 'autowash';
-$DB_USER = 'userwash';
-$DB_PASS = 'FcjUwrBz3Y84c9dTzqqE';
+// Có thể truyền bằng biến môi trường:
+//   AUTOWASH_DB_HOST=localhost AUTOWASH_DB_NAME=autowash AUTOWASH_DB_USER=root AUTOWASH_DB_PASS= php scripts/export_data.php
+$DB_HOST = getenv('AUTOWASH_DB_HOST') ?: 'localhost';
+$DB_NAME = getenv('AUTOWASH_DB_NAME') ?: 'autowash';
+$DB_USER = getenv('AUTOWASH_DB_USER') ?: 'root';
+$DB_PASS = getenv('AUTOWASH_DB_PASS') ?: '';
 
 // ── Kết nối DB ────────────────────────────────────────────────────────────────
 try {

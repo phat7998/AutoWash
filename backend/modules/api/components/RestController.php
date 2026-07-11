@@ -2,6 +2,7 @@
 
 namespace backend\modules\api\components;
 
+use common\components\ApiResponseFormatter;
 use yii\rest\Controller;
 use yii\filters\auth\HttpBearerAuth;
 use yii\filters\ContentNegotiator;
@@ -54,6 +55,8 @@ class RestController extends Controller
             \Yii::$app->response->statusCode = 204;
             return false;
         }
+
+        ApiResponseFormatter::register(\Yii::$app->response);
 
         // Enforce Content-Type: application/json for POST/PUT/PATCH to prevent CSRF
         if (in_array($request->getMethod(), ['POST', 'PUT', 'PATCH'])) {

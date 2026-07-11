@@ -7,6 +7,7 @@ use common\models\User;
 use common\models\Customer;
 use common\models\LoyaltyAccount;
 use common\models\TierRule;
+use common\models\Vehicle;
 use Yii;
 
 class RegisterForm extends Model
@@ -60,6 +61,21 @@ class RegisterForm extends Model
 
             if (!$customer->save()) {
                 throw new \Exception('Failed to save customer');
+            }
+
+            if (!empty($this->license_plate)) {
+                $vehicle = new Vehicle();
+                $vehicle->customer_id = $customer->id;
+                $vehicle->license_plate = strtoupper(trim($this->license_plate));
+                $vehicle->vehicle_type = 'MOTORBIKE';
+                $vehicle->brand_name = 'Xe may';
+                $vehicle->status = 'ACTIVE';
+                $vehicle->created_at = time();
+                $vehicle->updated_at = time();
+
+                if (!$vehicle->save()) {
+                    throw new \Exception('Failed to save vehicle');
+                }
             }
 
             // Init loyalty account

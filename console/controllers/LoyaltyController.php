@@ -4,9 +4,10 @@ namespace console\controllers;
 
 use yii\console\Controller;
 use common\models\LoyaltyAccount;
-use common\models\TierRule;
 use common\models\PointTransaction;
+use common\services\LoyaltyService;
 use Yii;
+use yii\console\ExitCode;
 
 class LoyaltyController extends Controller
 {
@@ -17,29 +18,22 @@ class LoyaltyController extends Controller
     {
         echo "Starting tier review...\n";
         
-        $tiers = TierRule::find()->orderBy(['priority_order' => SORT_DESC])->all();
-        $accounts = LoyaltyAccount::find()->all();
+        $accounts = LoyaltyAccount::find()->with('tierRule')->all();
         
         $updated = 0;
         foreach ($accounts as $account) {
-            $newTierId = null;
-            foreach ($tiers as $tier) {
-                if ($account->lifetime_spend >= $tier->minimum_spend && $account->wash_count >= $tier->minimum_visits) {
-                    $newTierId = $tier->id;
-                    break;
-                }
-            }
-            
-            if ($newTierId && $account->tier_rule_id !== $newTierId) {
-                $account->tier_rule_id = $newTierId;
-                $account->reviewed_at = time();
-                $account->save(false);
+            $oldTier = $account->tierRule ? $account->tierRule->code : 'NONE';
+            $newTier = LoyaltyService::reviewTier($account);
+            $newTierCode = $newTier ? $newTier->code : 'NONE';
+
+            if ($oldTier !== $newTierCode) {
                 $updated++;
-                echo "Customer {$account->customer_id} upgraded/downgraded to Tier ID {$newTierId}\n";
+                echo "Customer {$account->customer_id}: {$oldTier} -> {$newTierCode}\n";
             }
         }
         
         echo "Tier review finished. {$updated} accounts updated.\n";
+        return ExitCode::OK;
     }
 
     /**
@@ -84,5 +78,6 @@ class LoyaltyController extends Controller
         }
         
         echo "Finished expiration. Processed {$expiredCount} transactions.\n";
+        return ExitCode::OK;
     }
 }

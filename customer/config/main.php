@@ -64,6 +64,7 @@ return [
                     'pluralize' => true,
                     'extraPatterns' => [
                         'GET history' => 'history',
+                        'POST <id:\d+>/complete' => 'complete',
                     ],
                 ],
                 [
@@ -80,6 +81,7 @@ return [
                         'GET tiers' => 'tiers',
                         'POST redeem' => 'redeem',
                         'GET tier' => 'tier',
+                        'GET next-tier' => 'next-tier',
                         'GET advance-days' => 'advance-days',
                     ],
                 ],
