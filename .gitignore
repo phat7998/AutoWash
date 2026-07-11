@@ -1,0 +1,5 @@
+/runtime/logs/
+/runtime/pids/
+/backend/web/assets/
+/customer/web/assets/
+/frontend/web/assets/
