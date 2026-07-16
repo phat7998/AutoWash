@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Core\Application;
 use App\Core\CsrfTokenManager;
+use App\Core\Database;
 use App\Core\ErrorHandler;
 use App\Core\Logger;
 use App\Core\Request;
@@ -11,6 +12,10 @@ use App\Core\Router;
 use App\Core\Session;
 use App\Core\View;
 use App\Middleware\CsrfMiddleware;
+use App\Controllers\AuthController;
+use App\Repositories\UserRepository;
+use App\Services\AuthService;
+use App\Validation\AuthValidator;
 
 $projectRoot = require __DIR__ . '/environment.php';
 $config = require $projectRoot . '/config/app.php';
@@ -28,18 +33,26 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
     $router = new Router();
     $router->middleware(new CsrfMiddleware($tokens));
 
-    $registerRoutes = require $projectRoot . '/routes/web.php';
-    $registerRoutes($router, $view, $session, $tokens);
-
     $logFile = (string) $config['log_file'];
 
     if (!str_starts_with($logFile, '/')) {
         $logFile = $projectRoot . '/' . ltrim($logFile, '/');
     }
 
+    $logger = new Logger($logFile, new DateTimeZone($timezone));
+
+    $authControllerFactory = static fn (): AuthController => new AuthController(
+        new AuthService(new UserRepository(Database::connection()), new AuthValidator(), $session, $logger),
+        $view,
+        $session,
+        $tokens
+    );
+    $registerRoutes = require $projectRoot . '/routes/web.php';
+    $registerRoutes($router, $view, $session, $tokens, $authControllerFactory);
+
     $errorHandler = new ErrorHandler(
         $view,
-        new Logger($logFile, new DateTimeZone($timezone)),
+        $logger,
         (bool) $config['debug']
     );
     $errorHandler->register();

@@ -54,7 +54,7 @@ final class DatabaseFoundationTest extends TestCase
     {
         self::assertSame(PDO::ERRMODE_EXCEPTION, self::$database->getAttribute(PDO::ATTR_ERRMODE));
         self::assertSame(PDO::FETCH_ASSOC, self::$database->getAttribute(PDO::ATTR_DEFAULT_FETCH_MODE));
-        self::assertFalse(self::$database->getAttribute(PDO::ATTR_EMULATE_PREPARES));
+        self::assertFalse((bool) self::$database->getAttribute(PDO::ATTR_EMULATE_PREPARES));
         $connectionCharset = self::$database->query('SELECT @@character_set_connection')->fetchColumn();
         self::assertStringContainsString('utf8mb4', (string) $connectionCharset);
         self::assertSame('+07:00', self::$database->query('SELECT @@session.time_zone')->fetchColumn());
@@ -135,6 +135,13 @@ final class DatabaseFoundationTest extends TestCase
         self::assertSame(2, (int) self::$database->query(
             'SELECT COUNT(*) FROM service_vehicle_prices WHERE is_supported = FALSE'
         )->fetchColumn());
+        $demoUsers = self::$database->query(
+            'SELECT phone, password_hash, role FROM users ORDER BY phone'
+        )->fetchAll();
+        self::assertCount(2, $demoUsers);
+        self::assertSame(['admin', 'customer'], array_column($demoUsers, 'role'));
+        self::assertTrue(password_verify('AutoWash@123', $demoUsers[0]['password_hash']));
+        self::assertNotSame('AutoWash@123', $demoUsers[0]['password_hash']);
     }
 
     public function testImportantUniqueAndCheckConstraintsAreEnforced(): void
@@ -222,6 +229,7 @@ final class DatabaseFoundationTest extends TestCase
         $tables = [
             'app_settings',
             'tiers',
+            'users',
             'vehicle_types',
             'services',
             'service_vehicle_prices',

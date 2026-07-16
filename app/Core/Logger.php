@@ -22,11 +22,27 @@ final class Logger
      */
     public function error(string $message, array $context = []): void
     {
+        $this->write('error', $message, $context);
+    }
+
+    /**
+     * @param array<string, scalar|null> $context
+     */
+    public function warning(string $message, array $context = []): void
+    {
+        $this->write('warning', $message, $context);
+    }
+
+    /**
+     * @param array<string, scalar|null> $context
+     */
+    private function write(string $level, string $message, array $context): void
+    {
         try {
             $line = json_encode(
                 [
                     'time' => (new DateTimeImmutable('now', $this->timezone))->format(DATE_ATOM),
-                    'level' => 'error',
+                    'level' => $level,
                     'message' => $message,
                     'context' => $this->sanitizeContext($context),
                 ],

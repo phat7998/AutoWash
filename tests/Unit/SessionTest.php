@@ -38,4 +38,23 @@ final class SessionTest extends TestCase
 
         session_destroy();
     }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testRegenerateChangesIdAndInvalidateDestroysSession(): void
+    {
+        $session = Session::start(['name' => 'AUTOWASH_AUTH_TEST'], false);
+        $session->put('auth_user', ['id' => 1]);
+        $oldId = session_id();
+
+        $session->regenerate();
+
+        self::assertNotSame($oldId, session_id());
+        self::assertSame(['id' => 1], $session->get('auth_user'));
+
+        $session->invalidate();
+
+        self::assertSame(PHP_SESSION_NONE, session_status());
+        self::assertNull($session->get('auth_user'));
+    }
 }

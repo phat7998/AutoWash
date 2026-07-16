@@ -62,6 +62,37 @@ final class Session
         unset($this->data[$key]);
     }
 
+    public function regenerate(): void
+    {
+        if (session_status() === PHP_SESSION_ACTIVE && !session_regenerate_id(true)) {
+            throw new \RuntimeException('Không thể làm mới phiên đăng nhập.');
+        }
+    }
+
+    public function invalidate(): void
+    {
+        $this->data = [];
+
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            return;
+        }
+
+        $parameters = session_get_cookie_params();
+
+        if ((bool) ini_get('session.use_cookies')) {
+            setcookie(session_name(), '', [
+                'expires' => time() - 42000,
+                'path' => $parameters['path'],
+                'domain' => $parameters['domain'],
+                'secure' => $parameters['secure'],
+                'httponly' => $parameters['httponly'],
+                'samesite' => $parameters['samesite'],
+            ]);
+        }
+
+        session_destroy();
+    }
+
     public function flash(string $key, mixed $value): void
     {
         $this->data[$key] = $value;

@@ -5,6 +5,8 @@ declare(strict_types=1);
 /** @var Closure(mixed): string $e */
 /** @var string $content */
 /** @var string|null $title */
+/** @var array<string, mixed>|null $authUser */
+/** @var string|null $csrfToken */
 ?>
 <!doctype html>
 <html lang="vi">
@@ -25,7 +27,18 @@ declare(strict_types=1);
             </a>
             <nav aria-label="Điều hướng chính">
                 <a class="nav-link" href="/">Trang chủ</a>
-                <a class="nav-link" href="/health">Trạng thái hệ thống</a>
+                <?php if (isset($authUser) && is_array($authUser)): ?>
+                    <a class="nav-link" href="<?= ($authUser['role'] ?? null) === 'admin' ? '/admin' : '/tai-khoan' ?>">
+                        Tổng quan
+                    </a>
+                    <form class="nav-form" method="post" action="/dang-xuat">
+                        <input type="hidden" name="_csrf_token" value="<?= $e($csrfToken ?? '') ?>">
+                        <button class="nav-link nav-button" type="submit">Đăng xuất</button>
+                    </form>
+                <?php else: ?>
+                    <a class="nav-link" href="/dang-nhap">Đăng nhập</a>
+                    <a class="button button-primary header-action" href="/dang-ky">Đăng ký</a>
+                <?php endif; ?>
             </nav>
         </div>
     </header>

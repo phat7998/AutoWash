@@ -2,7 +2,7 @@
 
 AutoWash Pro là hệ thống quản lý dịch vụ chăm sóc phương tiện, đặt lịch trước và khách hàng thân thiết được xây dựng bằng Modern PHP thuần. Phiên bản đồ án cũ được lưu tại nhánh `legacy-main`.
 
-Repository hiện hoàn thành Slice 03: Composer/PSR-4, cấu hình môi trường, database foundation và hạ tầng HTTP/security. Ứng dụng đã có Front Controller, router, session/CSRF, view escaping, xử lý lỗi an toàn, trang nền tảng và health check; authentication và các module nghiệp vụ thuộc các slice sau.
+Repository hiện hoàn thành Slice 04: Composer/PSR-4, database foundation, hạ tầng HTTP/security và authentication/RBAC. Ứng dụng hỗ trợ đăng ký customer, đăng nhập, đăng xuất an toàn, session lifecycle và khu vực customer/admin được bảo vệ ở backend; các module nghiệp vụ bắt đầu từ quản lý phương tiện ở Slice 05.
 
 ## Yêu cầu hệ thống
 
@@ -67,7 +67,20 @@ Reset chỉ dành cho `APP_ENV=local|testing`, xóa toàn bộ dữ liệu trong
 php database/reset.php --force --seed
 ```
 
-Không chạy lệnh reset trên database có dữ liệu cần giữ. Dữ liệu seed Slice 02 chỉ là cấu hình và demo nền tảng; tài khoản demo thuộc Slice 04.
+Không chạy lệnh reset trên database có dữ liệu cần giữ. Seed có hai tài khoản demo cố định:
+
+| Vai trò | Số điện thoại | Mật khẩu |
+|---|---|---|
+| Admin | `0900000001` | `AutoWash@123` |
+| Customer | `0900000002` | `AutoWash@123` |
+
+Đây là thông tin chỉ dành cho môi trường demo/local, không dùng làm secret production. Các route chính của Slice 04:
+
+- `/dang-ky`: đăng ký customer; dữ liệu role từ request luôn bị bỏ qua.
+- `/dang-nhap`: đăng nhập bằng số điện thoại và mật khẩu.
+- `/tai-khoan`: vùng customer đã xác thực.
+- `/admin`: vùng admin đã xác thực và kiểm tra role.
+- `/dang-xuat`: chỉ nhận POST có CSRF hợp lệ.
 
 ## Kiểm tra chất lượng
 
@@ -81,7 +94,7 @@ composer check
 - `composer lint`: kiểm tra PSR-12 bằng PHP_CodeSniffer.
 - `composer test`: chạy PHPUnit.
 - `composer check`: chạy lint rồi toàn bộ test hiện có.
-- HTTP/security test kiểm tra router, 404/405, CSRF, session flash/cookie, escaping, PRG và production error response.
+- HTTP/security test kiểm tra router, 404/405, CSRF, session flash/cookie, escaping, PRG, production error response và Auth/RBAC.
 
 Integration test database cần MySQL riêng có thể reset an toàn:
 

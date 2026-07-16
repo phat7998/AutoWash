@@ -100,7 +100,15 @@ final class HttpCoreTest extends TestCase
         $router->middleware(new CsrfMiddleware($tokens));
 
         $registerRoutes = require dirname(__DIR__, 2) . '/routes/web.php';
-        $registerRoutes($router, $view, $session, $tokens);
+        $registerRoutes(
+            $router,
+            $view,
+            $session,
+            $tokens,
+            static fn (): never => throw new \RuntimeException(
+                'Route HTTP nền tảng không được tải database.'
+            )
+        );
 
         $handler = new ErrorHandler(
             $view,

@@ -20,7 +20,7 @@ if ($unknownArguments !== []) {
 try {
     $seeder = new DatabaseSeeder(Database::connection(), __DIR__ . '/seeds/base.php');
     $seeder->seed();
-    echo "Đã seed cấu hình và dữ liệu demo nền tảng.\n";
+    echo "Đã seed cấu hình, tài khoản và dữ liệu demo nền tảng.\n";
 } catch (Throwable $throwable) {
     fwrite(STDERR, sprintf("Seed thất bại: %s\n", $throwable->getMessage()));
     exit(1);

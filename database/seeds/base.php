@@ -13,6 +13,10 @@ return [
         ['GOLD', 'Vàng', 3, 12, '800000.00', 5, '1.25'],
         ['PLATINUM', 'Bạch kim', 4, 14, '1500000.00', 8, '1.50'],
     ],
+    'users' => [
+        ['0900000001', 'Quản trị viên AutoWash', 'AutoWash@123', 'admin', 'MEMBER'],
+        ['0900000002', 'Khách hàng Demo', 'AutoWash@123', 'customer', 'MEMBER'],
+    ],
     'vehicle_types' => [
         ['motorbike', 'Xe máy', 20, 1],
         ['car', 'Ô tô con', 40, 2],

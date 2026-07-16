@@ -7,10 +7,10 @@
 
 | Requirement ID | Mô tả/acceptance rút gọn | Nguồn | Priority | Module / Slice | Code | Test dự kiến | Demo | Status |
 |---|---|---|---|---|---|---|---|---|
-| AUTH-01 | Register phone unique, password ≥8/BCRYPT, role luôn customer | Spec §7.1; SU26SWP01 | MUST | Auth / 04 | Planned | IT-AUTH-01, ST-AUTH-01 | DEMO-01 | Planned |
-| AUTH-02 | Login verify, generic error, regenerate session, chặn disabled | Spec §7.1 | MUST | Auth / 04 | Planned | IT-AUTH-02, ST-AUTH-02 | DEMO-01 | Planned |
-| AUTH-03 | Backend RBAC chặn customer vào admin | Spec §7.1 | MUST | Auth / 04 | Planned | FT-AUTH-03, ST-AUTH-03 | DEMO-08 | Planned |
-| AUTH-04 | Logout hủy session/cookie, POST + CSRF | Spec §7.1 | MUST | Auth / 04 | Planned | IT-AUTH-04, ST-CSRF-01 | DEMO-01 | Planned |
+| AUTH-01 | Register phone unique, password ≥8/BCRYPT, role luôn customer | Spec §7.1; SU26SWP01 | MUST | Auth / 04 | `app/Controllers/AuthController.php`, `app/Services/AuthService.php`, `app/Repositories/UserRepository.php`, `app/Validation/AuthValidator.php` | `AuthFlowTest`, `AuthValidatorTest` | DEMO-01 | Done |
+| AUTH-02 | Login verify, generic error, regenerate session, chặn disabled | Spec §7.1 | MUST | Auth / 04 | `app/Services/AuthService.php`, `app/Core/Session.php` | `AuthFlowTest`, `SessionTest` | DEMO-01 | Done |
+| AUTH-03 | Backend RBAC chặn customer vào admin | Spec §7.1 | MUST | Auth / 04 | `app/Middleware/AuthenticatedMiddleware.php`, `app/Middleware/GuestMiddleware.php`, `app/Middleware/RoleMiddleware.php` | `AuthAuthorizationTest` | DEMO-08 | Done |
+| AUTH-04 | Logout hủy session/cookie, POST + CSRF | Spec §7.1 | MUST | Auth / 04 | `app/Controllers/AuthController.php`, `app/Services/AuthService.php`, `app/Core/Session.php`, `app/Middleware/CsrfMiddleware.php` | `AuthFlowTest`, `SessionTest`, `CsrfMiddlewareTest` | DEMO-01 | Done |
 | VEH-01 | Biển dân sự VN thông dụng; uppercase/bỏ separator; shared validator pattern tập trung | Spec §7.2; DEC-031 | MUST | Vehicle / 05 | Planned | UT-VEH-01, VEH-PLATE-01..07 | DEMO-01 | Planned |
 | VEH-02 | `normalized_plate` unique; display khác nhưng normalized trùng thành domain error | Spec §7.2; DEC-031 | MUST | Vehicle / 05 | Planned | IT-VEH-02, VEH-PLATE-03 | DEMO-01 | Planned |
 | VEH-03 | Ownership cho view/edit/booking vehicle | Spec §7.2 | MUST | Vehicle / 05 | Planned | IT-VEH-03, ST-AUTH-03 | DEMO-01 | Planned |
@@ -78,12 +78,12 @@
 | NFR-11 | PDO prepared statement thật, utf8mb4 | Spec §5.4, §8 | MUST | 02+ | `app/Core/Database.php`, `app/Database/DatabaseSeeder.php` | `DatabaseFoundationTest`, ST-SQL-01 | — | In Progress |
 | NFR-12 | Escape HTML mặc định | Spec §8 | MUST | 03+ | `app/Core/View.php`, `app/Support/Html.php`, `resources/views/` | `ViewTest`, ST-XSS-01 | — | Done |
 | NFR-13 | CSRF cho mọi mutation | Spec §8 | MUST | 03+ | `app/Middleware/CsrfMiddleware.php`, `app/Core/CsrfTokenManager.php` | `CsrfMiddlewareTest`, `HttpCoreTest`, ST-CSRF-01 | — | Done |
-| NFR-14 | Session cookie hardening + regenerate/logout | Spec §8 | MUST | 03,04 | `app/Core/Session.php`, `bootstrap/app.php` | `SessionTest`; ST-SESSION-01 tiếp tục ở Slice 04 | DEMO-01 | In Progress |
-| NFR-15 | Backend role + ownership authorization | Spec §8 | MUST | 04+ | Planned | ST-AUTH-03 | DEMO-08 | Planned |
+| NFR-14 | Session cookie hardening + regenerate/logout | Spec §8 | MUST | 03,04 | `app/Core/Session.php`, `app/Services/AuthService.php`, `bootstrap/app.php` | `SessionTest`, `AuthFlowTest` | DEMO-01 | Done |
+| NFR-15 | Backend role + ownership authorization | Spec §8 | MUST | 04+ | `app/Middleware/AuthenticatedMiddleware.php`, `app/Middleware/RoleMiddleware.php` | `AuthAuthorizationTest`; ownership tiếp tục theo module | DEMO-08 | In Progress |
 | NFR-16 | Upload MIME/size/random/non-executable | Spec §8 | MUST | 13 | Planned | ST-UPLOAD-01 | DEMO LPR | Planned |
-| NFR-17 | Không commit/log secret/token/password/PII | Spec §8, §13 | MUST | 01+ | `.gitignore`, `.dockerignore`, `.env.example`, `app/Core/Logger.php` | `ProductionErrorTest`, `HttpSecurityConfigurationTest`, ST-SECRET-01 | — | In Progress |
+| NFR-17 | Không commit/log secret/token/password/PII | Spec §8, §13 | MUST | 01+ | `.gitignore`, `.dockerignore`, `.env.example`, `app/Core/Logger.php`, `app/Services/AuthService.php` | `ProductionErrorTest`, `HttpSecurityConfigurationTest`, `AuthFlowTest`; ST-SECRET-01 tiếp tục toàn dự án | — | In Progress |
 | NFR-18 | Production error không lộ kỹ thuật; log request ID | Spec §8, §10 | MUST | 03+ | `app/Core/Application.php`, `app/Core/ErrorHandler.php`, `app/Core/Logger.php` | `ProductionErrorTest`, `HttpCoreTest`, ST-ERROR-01 | — | Done |
-| NFR-19 | Backend validation đủ trust boundary | Spec §8.2 | MUST | 04+ | Planned | ST-VALIDATION-01 | DEMO-01..07 | Planned |
+| NFR-19 | Backend validation đủ trust boundary | Spec §8.2 | MUST | 04+ | `app/Validation/AuthValidator.php`, `app/Services/AuthService.php` | `AuthValidatorTest`, `AuthFlowTest`; tiếp tục theo module | DEMO-01..07 | In Progress |
 | NFR-20 | Chống client tamper giá/điểm/quyền lợi | Spec §8.3 | MUST | 07,09,10,12 | Planned | ST-PRICE-01 | DEMO-07 | Planned |
 | NFR-21 | Transaction cho critical flows | Spec §9 | MUST | 07,09..12 | Planned | IT-NFR-21 | DEMO-03..07 | Planned |
 | NFR-22 | Lock/unique/idempotency giữ invariant | Spec §9 | MUST | 02,07,09..12 | `database/migrations/`, `app/Database/MigrationRunner.php` | `DatabaseFoundationTest`, IT-NFR-22 | DEMO-03,06 | In Progress |

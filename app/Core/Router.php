@@ -10,28 +10,33 @@ use App\Middleware\MiddlewareInterface;
 
 final class Router
 {
-    /** @var list<array{method: string, path: string, handler: callable}> */
+    /** @var list<array{method: string, path: string, handler: callable, middleware: list<MiddlewareInterface>}> */
     private array $routes = [];
 
     /** @var list<MiddlewareInterface> */
     private array $middleware = [];
 
-    public function get(string $path, callable $handler): void
+    public function get(string $path, callable $handler, MiddlewareInterface ...$middleware): void
     {
-        $this->add('GET', $path, $handler);
+        $this->add('GET', $path, $handler, ...$middleware);
     }
 
-    public function post(string $path, callable $handler): void
+    public function post(string $path, callable $handler, MiddlewareInterface ...$middleware): void
     {
-        $this->add('POST', $path, $handler);
+        $this->add('POST', $path, $handler, ...$middleware);
     }
 
-    public function add(string $method, string $path, callable $handler): void
-    {
+    public function add(
+        string $method,
+        string $path,
+        callable $handler,
+        MiddlewareInterface ...$middleware
+    ): void {
         $this->routes[] = [
             'method' => strtoupper($method),
             'path' => $this->normalizePath($path),
             'handler' => $handler,
+            'middleware' => $middleware,
         ];
     }
 
@@ -59,7 +64,7 @@ final class Router
             $routedRequest = $request->withRouteParameters($parameters);
             $destination = static fn (Request $current): Response => ($route['handler'])($current);
             $pipeline = array_reduce(
-                array_reverse($this->middleware),
+                array_reverse([...$this->middleware, ...$route['middleware']]),
                 static fn (callable $next, MiddlewareInterface $item): callable =>
                     static fn (Request $current): Response => $item->process($current, $next),
                 $destination

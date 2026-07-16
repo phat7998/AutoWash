@@ -8,11 +8,11 @@ declare(strict_types=1);
 ?>
 <section class="hero" aria-labelledby="page-title">
     <div>
-        <p class="eyebrow">Hạ tầng HTTP và bảo mật nền tảng</p>
+        <p class="eyebrow">Xác thực và bảo mật nền tảng</p>
         <h1 id="page-title">Nền tảng AutoWash Pro đã sẵn sàng</h1>
         <p class="lead">
-            Front Controller, định tuyến, session, CSRF, hiển thị an toàn và xử lý lỗi
-            đang hoạt động. Chức năng tài khoản sẽ được triển khai ở slice tiếp theo.
+            Đăng ký, đăng nhập, session, CSRF và phân quyền customer/admin đang hoạt động
+            trên nền Front Controller và xử lý lỗi an toàn.
         </p>
     </div>
     <span class="status-badge"><span aria-hidden="true">●</span> Hệ thống hoạt động</span>

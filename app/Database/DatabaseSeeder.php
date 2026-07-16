@@ -29,6 +29,7 @@ final readonly class DatabaseSeeder
         try {
             $this->seedSettings($data['settings']);
             $this->seedTiers($data['tiers']);
+            $this->seedUsers($data['users']);
             $this->seedVehicleTypes($data['vehicle_types']);
             $this->seedServices($data['services']);
             $this->seedServicePrices($data['service_vehicle_prices']);
@@ -42,6 +43,43 @@ final readonly class DatabaseSeeder
             }
 
             throw $throwable;
+        }
+    }
+
+    /** @param list<array{string, string, string, string, string}> $users */
+    private function seedUsers(array $users): void
+    {
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            INSERT INTO users (
+                current_tier_id, phone, full_name, password_hash, role, status
+            ) VALUES (
+                :current_tier_id, :phone, :full_name, :password_hash, :role, 'active'
+            )
+            ON DUPLICATE KEY UPDATE
+                current_tier_id = VALUES(current_tier_id),
+                full_name = VALUES(full_name),
+                password_hash = VALUES(password_hash),
+                role = VALUES(role),
+                status = 'active',
+                updated_at = CURRENT_TIMESTAMP
+            SQL
+        );
+
+        foreach ($users as [$phone, $fullName, $password, $role, $tierCode]) {
+            $passwordHash = password_hash($password, PASSWORD_BCRYPT);
+
+            if (!is_string($passwordHash)) {
+                throw new RuntimeException('Không thể tạo mật khẩu băm cho tài khoản demo.');
+            }
+
+            $statement->execute([
+                'current_tier_id' => $this->idByCode('tiers', $tierCode),
+                'phone' => $phone,
+                'full_name' => $fullName,
+                'password_hash' => $passwordHash,
+                'role' => $role,
+            ]);
         }
     }
 
@@ -265,7 +303,7 @@ final readonly class DatabaseSeeder
 
     private function idByCode(string $table, string $code): int
     {
-        $allowedTables = ['services', 'vehicle_types', 'rewards'];
+        $allowedTables = ['tiers', 'services', 'vehicle_types', 'rewards'];
 
         if (!in_array($table, $allowedTables, true)) {
             throw new RuntimeException('Bảng seed không nằm trong allowlist.');
