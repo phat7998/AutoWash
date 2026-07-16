@@ -84,6 +84,8 @@ final readonly class RewardRepository
                 CASE
                     WHEN reward_redemptions.status = 'available' AND reward_redemptions.expires_at <= :at
                     THEN 'expired'
+                    WHEN reward_redemptions.status = 'available' AND reward_redemptions.booking_id IS NOT NULL
+                    THEN 'reserved'
                     ELSE reward_redemptions.status
                 END AS effective_status
             FROM reward_redemptions
@@ -153,10 +155,10 @@ final readonly class RewardRepository
             $statement = $this->database->prepare(
                 <<<'SQL'
                 INSERT INTO rewards (
-                    code, name, reward_type, points_cost, value, service_id,
+                    code, name, reward_type, points_cost, value, max_discount, service_id,
                     minimum_tier_id, valid_days_after_redeem, is_active
                 ) VALUES (
-                    :code, :name, :reward_type, :points_cost, :value, :service_id,
+                    :code, :name, :reward_type, :points_cost, :value, :max_discount, :service_id,
                     :minimum_tier_id, :valid_days_after_redeem, TRUE
                 )
                 SQL
@@ -176,7 +178,8 @@ final readonly class RewardRepository
             $statement = $this->database->prepare(
                 <<<'SQL'
                 UPDATE rewards SET code = :code, name = :name, reward_type = :reward_type,
-                    points_cost = :points_cost, value = :value, service_id = :service_id,
+                    points_cost = :points_cost, value = :value, max_discount = :max_discount,
+                    service_id = :service_id,
                     minimum_tier_id = :minimum_tier_id,
                     valid_days_after_redeem = :valid_days_after_redeem,
                     updated_at = CURRENT_TIMESTAMP

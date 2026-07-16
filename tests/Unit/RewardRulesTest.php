@@ -103,4 +103,26 @@ final class RewardRulesTest extends TestCase
             self::assertArrayHasKey('vehicle_type_ids', $exception->errors());
         }
     }
+
+    public function testPercentageRewardAcceptsConfiguredMaximumDiscount(): void
+    {
+        $data = (new RewardValidator())->validate(
+            'PERCENT_CAP',
+            'Giảm phần trăm có trần',
+            'percentage_discount',
+            '500',
+            '20',
+            '',
+            '',
+            '30',
+            [],
+            [1],
+            [1],
+            [1],
+            '50000'
+        );
+
+        self::assertSame('20.00', $data['value']);
+        self::assertSame('50000.00', $data['max_discount']);
+    }
 }

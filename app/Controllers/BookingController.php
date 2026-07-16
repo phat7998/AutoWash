@@ -33,7 +33,7 @@ final readonly class BookingController
     {
         $vehicleId = $this->stringInput($request, 'vehicle_id');
 
-        return $this->formResponse($vehicleId, '', [], [], 200);
+        return $this->formResponse($vehicleId, '', [], '', [], 200);
     }
 
     public function index(Request $request): Response
@@ -89,19 +89,22 @@ final readonly class BookingController
         $vehicleId = $this->stringInput($request, 'vehicle_id');
         $slotId = $this->stringInput($request, 'start_slot_id');
         $serviceIds = $request->input('service_ids', []);
+        $rewardRedemptionId = $this->stringInput($request, 'reward_redemption_id');
 
         try {
             $bookingCode = $this->bookings->create(
                 $this->ownerId(),
                 $vehicleId,
                 $slotId,
-                $serviceIds
+                $serviceIds,
+                $rewardRedemptionId
             );
         } catch (ValidationException $exception) {
             return $this->formResponse(
                 $vehicleId,
                 $slotId,
                 $this->serviceValues($serviceIds),
+                $rewardRedemptionId,
                 $exception->errors(),
                 422
             );
@@ -112,6 +115,7 @@ final readonly class BookingController
                 $vehicleId,
                 $slotId,
                 $this->serviceValues($serviceIds),
+                $rewardRedemptionId,
                 ['booking' => $exception->getMessage()],
                 422
             );
@@ -120,6 +124,7 @@ final readonly class BookingController
                 '',
                 $slotId,
                 $this->serviceValues($serviceIds),
+                $rewardRedemptionId,
                 ['vehicle_id' => $exception->getMessage()],
                 422
             );
@@ -141,6 +146,7 @@ final readonly class BookingController
         string $vehicleId,
         string $slotId,
         array $selectedServiceIds,
+        string $selectedRewardRedemptionId,
         array $errors,
         int $status
     ): Response {
@@ -165,6 +171,7 @@ final readonly class BookingController
             'selectedVehicleId' => $vehicleId,
             'selectedSlotId' => $slotId,
             'selectedServiceIds' => $selectedServiceIds,
+            'selectedRewardRedemptionId' => $selectedRewardRedemptionId,
             'errors' => $errors,
         ]), $status);
     }

@@ -3,7 +3,7 @@
 > **Mã đề tài:** SU26SWP01  
 > **Tên tiếng Việt:** Hệ thống quản lý rửa xe tự động thông minh với đặt lịch trước và chương trình khách hàng thân thiết  
 > **Tên tiếng Anh:** Smart Automated Car Wash Management System with Advance Booking & Loyalty Program  
-> **Phiên bản đặc tả:** 2.3 — Slice 10 Generic Credit Lot Approval
+> **Phiên bản đặc tả:** 2.4 — Slice 12 Reward Percentage Cap Alignment
 > **Múi giờ nghiệp vụ:** `Asia/Ho_Chi_Minh`  
 > **Trạng thái:** Nguồn sự thật kỹ thuật dùng cho nhóm phát triển và AI Agent
 > **Nguồn đã audit tại Slice 00:** `SE_SWP_TopicList_SU26.xlsx`, dòng đề tài `SU26SWP01`; không phát hiện Q&A đã có câu trả lời trong repository tại thời điểm audit.
@@ -562,6 +562,7 @@ blocker Slice 10, không phải mở rộng tính năng ngoài roadmap.
 - `reward_type`: fixed_discount/percentage_discount/free_service/add_on
 - `points_cost`
 - `value`
+- `max_discount` nullable — chỉ dùng cho reward giảm phần trăm
 - `service_id` nullable
 - `minimum_tier_id` nullable
 - `valid_days_after_redeem`

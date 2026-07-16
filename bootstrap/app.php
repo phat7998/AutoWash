@@ -19,6 +19,8 @@ use App\Controllers\AdminServiceController;
 use App\Controllers\AdminSlotController;
 use App\Controllers\AdminRewardController;
 use App\Controllers\AdminTierReviewController;
+use App\Controllers\AdminTierController;
+use App\Controllers\AdminPromotionController;
 use App\Controllers\BookingController;
 use App\Controllers\LoyaltyController;
 use App\Controllers\RewardController;
@@ -33,6 +35,8 @@ use App\Repositories\BookingRepository;
 use App\Repositories\LoyaltyTransactionRepository;
 use App\Repositories\RewardRepository;
 use App\Repositories\TierRepository;
+use App\Repositories\TierConfigurationRepository;
+use App\Repositories\PromotionRepository;
 use App\Services\AuthService;
 use App\Services\LicensePlateService;
 use App\Services\ServiceCatalogService;
@@ -50,6 +54,9 @@ use App\Services\LoyaltyService;
 use App\Services\RewardService;
 use App\Services\TierReviewPolicy;
 use App\Services\TierReviewService;
+use App\Services\TierConfigurationService;
+use App\Services\PromotionService;
+use App\Services\BookingCompletionService;
 use App\Validation\AuthValidator;
 use App\Validation\ServiceCatalogValidator;
 use App\Validation\VehicleValidator;
@@ -58,6 +65,8 @@ use App\Validation\BookingValidator;
 use App\Validation\BookingLifecycleValidator;
 use App\Validation\LoyaltyAdjustmentValidator;
 use App\Validation\RewardValidator;
+use App\Validation\TierConfigurationValidator;
+use App\Validation\PromotionValidator;
 
 $projectRoot = require __DIR__ . '/environment.php';
 $config = require $projectRoot . '/config/app.php';
@@ -142,6 +151,11 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         new LoyaltyExpirationPolicy(new DateTimeZone($timezone)),
         new DateTimeZone($timezone)
     );
+    $promotionServiceFactory = static fn (): PromotionService => new PromotionService(
+        new PromotionRepository(Database::connection()),
+        new DateTimeZone($timezone),
+        new PromotionValidator(new DateTimeZone($timezone))
+    );
     $bookingServiceFactory = static fn (): BookingService => new BookingService(
         new BookingRepository(Database::connection()),
         new BookingValidator(),
@@ -151,7 +165,8 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         new DateTimeZone($timezone),
         new BookingLifecyclePolicy(),
         new BookingLifecycleValidator(),
-        $loyaltyServiceFactory(),
+        new BookingCompletionService($promotionServiceFactory(), $loyaltyServiceFactory()),
+        $promotionServiceFactory(),
         $logger
     );
     $bookingControllerFactory = static fn (): BookingController => new BookingController(
@@ -208,6 +223,17 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
             $session,
             $tokens
         );
+    $adminTierControllerFactory = static fn (): AdminTierController => new AdminTierController(
+        new TierConfigurationService(
+            new TierConfigurationRepository(Database::connection()),
+            new TierConfigurationValidator()
+        ),
+        $view,
+        $session,
+        $tokens
+    );
+    $adminPromotionControllerFactory = static fn (): AdminPromotionController =>
+        new AdminPromotionController($promotionServiceFactory(), $view, $session, $tokens);
     $registerRoutes = require $projectRoot . '/routes/web.php';
     $registerRoutes(
         $router,
@@ -226,7 +252,9 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $adminLoyaltyControllerFactory,
         $rewardControllerFactory,
         $adminRewardControllerFactory,
-        $adminTierReviewControllerFactory
+        $adminTierReviewControllerFactory,
+        $adminTierControllerFactory,
+        $adminPromotionControllerFactory
     );
 
     $errorHandler = new ErrorHandler(

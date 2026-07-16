@@ -32,6 +32,7 @@ final readonly class BookingService
         private BookingLifecyclePolicy $lifecyclePolicy = new BookingLifecyclePolicy(),
         private BookingLifecycleValidator $lifecycleValidator = new BookingLifecycleValidator(),
         private ?BookingCompletionProcessorInterface $completionProcessor = null,
+        private ?PromotionService $promotionService = null,
         private ?Logger $logger = null
     ) {
     }
@@ -47,6 +48,7 @@ final readonly class BookingService
                 'selected_vehicle' => null,
                 'services' => [],
                 'slots' => [],
+                'reward_redemptions' => [],
             ];
         }
 
@@ -86,6 +88,7 @@ final readonly class BookingService
             'selected_vehicle' => $context,
             'services' => $this->bookings->findServicesForVehicleType((int) $context['vehicle_type_id']),
             'slots' => $slots,
+            'reward_redemptions' => $this->promotionService?->availableRedemptions($ownerId) ?? [],
         ];
     }
 
@@ -96,9 +99,15 @@ final readonly class BookingService
         int $ownerId,
         string $vehicleId,
         string $startSlotId,
-        mixed $serviceIds
+        mixed $serviceIds,
+        string $rewardRedemptionId = ''
     ): string {
-        $selection = $this->validator->selection($vehicleId, $startSlotId, $serviceIds);
+        $selection = $this->validator->selection(
+            $vehicleId,
+            $startSlotId,
+            $serviceIds,
+            $rewardRedemptionId
+        );
         $bookingCode = $this->bookingCode();
 
         return $this->bookings->transactional(function () use ($ownerId, $selection, $bookingCode): string {
@@ -130,6 +139,28 @@ final readonly class BookingService
             $durationMinutes = $resources->durationMinutes;
             $capacityUnits = $resources->capacityUnits;
             $price = $this->priceCalculator->calculate($items);
+
+            if ($this->promotionService !== null) {
+                $benefits = $this->promotionService->checkoutBenefits(
+                    $ownerId,
+                    (int) $context['tier_id'],
+                    (int) $context['tier_rank'],
+                    (int) $context['vehicle_type_id'],
+                    $selection->serviceIds,
+                    $price->subtotal,
+                    $selection->rewardRedemptionId
+                );
+                $price = $this->priceCalculator->calculate(
+                    $items,
+                    $benefits['perks'],
+                    $benefits['promotions'],
+                    $benefits['reward']
+                );
+            } elseif ($selection->rewardRedemptionId !== null) {
+                throw new ValidationException([
+                    'reward_redemption_id' => 'Checkout reward chưa sẵn sàng.',
+                ]);
+            }
             $startSlot = $this->bookings->findStartSlot($selection->startSlotId);
 
             if ($startSlot === null) {
@@ -178,6 +209,13 @@ final readonly class BookingService
                 $capacityUnits,
                 $price
             );
+            if ($price->rewardRedemptionId !== null && $this->promotionService !== null) {
+                $this->promotionService->attachReward(
+                    $price->rewardRedemptionId,
+                    $bookingId,
+                    new DateTimeImmutable('now', $this->timezone)
+                );
+            }
             $this->bookings->insertBookingItems($bookingId, $items);
             $this->bookings->insertReservations($bookingId, $slotIds, $capacityUnits);
             $this->bookings->insertBookingCreatedEvent(
@@ -262,6 +300,7 @@ final readonly class BookingService
                 $now
             );
             $this->bookings->markCancelled($bookingId, 'Khách hàng tự hủy lịch đặt.');
+            $this->promotionService?->releaseReward($bookingId, $now);
 
             return $currentStatus;
         });
@@ -405,6 +444,7 @@ final readonly class BookingService
                 }
             } elseif ($targetStatus === 'cancelled' && $reason !== null) {
                 $this->bookings->markCancelled($bookingId, $reason);
+                $this->promotionService?->releaseReward($bookingId);
                 $this->bookings->insertTransitionAudit(
                     $adminId,
                     $bookingId,
@@ -414,6 +454,9 @@ final readonly class BookingService
                 );
             } else {
                 $this->bookings->markStatus($bookingId, $targetStatus);
+                if ($targetStatus === 'no_show') {
+                    $this->promotionService?->releaseReward($bookingId);
+                }
             }
 
             return $currentStatus;

@@ -43,6 +43,8 @@ final readonly class DatabaseSeeder
             $this->seedCapacityFixtures($data['capacity_fixtures']);
             $this->seedRewards($data['rewards']);
             $this->seedRewardVehicleRestrictions();
+            $this->seedTierPerks($data['tier_perks'] ?? []);
+            $this->seedPromotions($data['promotions'] ?? []);
             $this->seedLoyaltyCreditLots($data['loyalty_credit_lots'] ?? []);
             $this->database->commit();
         } catch (Throwable $throwable) {
@@ -595,23 +597,33 @@ final readonly class DatabaseSeeder
         $statement->execute($parameters);
     }
 
-    /** @param list<array{string, string, string, int, string, ?string, int}> $rewards */
+    /** @param list<array{string, string, string, int, string, ?string, int, ?string}> $rewards */
     private function seedRewards(array $rewards): void
     {
-        $statement = $this->database->prepare(
+        $hasMaxDiscount = (int) $this->database->query(
             <<<'SQL'
+            SELECT COUNT(*) FROM information_schema.columns
+            WHERE table_schema = DATABASE() AND table_name = 'rewards'
+              AND column_name = 'max_discount'
+            SQL
+        )->fetchColumn() === 1;
+        $maxColumn = $hasMaxDiscount ? ', max_discount' : '';
+        $maxValue = $hasMaxDiscount ? ', :max_discount' : '';
+        $maxUpdate = $hasMaxDiscount ? ', max_discount = VALUES(max_discount)' : '';
+        $statement = $this->database->prepare(
+            <<<SQL
             INSERT INTO rewards (
-                code, name, reward_type, points_cost, value, service_id,
+                code, name, reward_type, points_cost, value{$maxColumn}, service_id,
                 minimum_tier_id, valid_days_after_redeem, is_active
             ) VALUES (
-                :code, :name, :reward_type, :points_cost, :value, :service_id,
+                :code, :name, :reward_type, :points_cost, :value{$maxValue}, :service_id,
                 NULL, :valid_days_after_redeem, TRUE
             )
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
                 reward_type = VALUES(reward_type),
                 points_cost = VALUES(points_cost),
-                value = VALUES(value),
+                value = VALUES(value){$maxUpdate},
                 service_id = VALUES(service_id),
                 valid_days_after_redeem = VALUES(valid_days_after_redeem),
                 is_active = TRUE,
@@ -619,8 +631,8 @@ final readonly class DatabaseSeeder
             SQL
         );
 
-        foreach ($rewards as [$code, $name, $type, $points, $value, $serviceCode, $validDays]) {
-            $statement->execute([
+        foreach ($rewards as [$code, $name, $type, $points, $value, $serviceCode, $validDays, $maxDiscount]) {
+            $parameters = [
                 'code' => $code,
                 'name' => $name,
                 'reward_type' => $type,
@@ -628,6 +640,105 @@ final readonly class DatabaseSeeder
                 'value' => $value,
                 'service_id' => $serviceCode === null ? null : $this->idByCode('services', $serviceCode),
                 'valid_days_after_redeem' => $validDays,
+            ];
+            if ($hasMaxDiscount) {
+                $parameters['max_discount'] = $maxDiscount;
+            }
+            $statement->execute($parameters);
+        }
+    }
+
+    /** @param list<array{string, string, string, ?string}> $perks */
+    private function seedTierPerks(array $perks): void
+    {
+        $find = $this->database->prepare(
+            'SELECT id FROM tier_perks WHERE tier_id = :tier_id AND perk_type = :perk_type '
+            . 'AND service_id <=> :service_id ORDER BY id LIMIT 1'
+        );
+        $insert = $this->database->prepare(
+            'INSERT INTO tier_perks (tier_id, perk_type, value, service_id, is_active) '
+            . 'VALUES (:tier_id, :perk_type, :value, :service_id, TRUE)'
+        );
+        $update = $this->database->prepare(
+            'UPDATE tier_perks SET value = :value, is_active = TRUE, updated_at = CURRENT_TIMESTAMP '
+            . 'WHERE id = :id'
+        );
+        foreach ($perks as [$tierCode, $type, $value, $serviceCode]) {
+            $parameters = [
+                'tier_id' => $this->idByCode('tiers', $tierCode),
+                'perk_type' => $type,
+                'service_id' => $serviceCode === null ? null : $this->idByCode('services', $serviceCode),
+            ];
+            $find->execute($parameters);
+            $id = $find->fetchColumn();
+            if ($id === false) {
+                $insert->execute($parameters + ['value' => $value]);
+            } else {
+                $update->execute(['value' => $value, 'id' => $id]);
+            }
+        }
+    }
+
+    /** @param list<array<int, mixed>> $promotions */
+    private function seedPromotions(array $promotions): void
+    {
+        $timezone = new DateTimeZone('Asia/Ho_Chi_Minh');
+        $now = new DateTimeImmutable('now', $timezone);
+        $upsert = $this->database->prepare(
+            <<<'SQL'
+            INSERT INTO promotions (
+                code, name, discount_type, discount_value, max_discount, minimum_order_value,
+                start_at, end_at, usage_limit, per_user_limit, is_active
+            ) VALUES (
+                :code, :name, :type, :value, :max_discount, :minimum_order,
+                :start_at, :end_at, :usage_limit, :per_user_limit, TRUE
+            ) ON DUPLICATE KEY UPDATE name = VALUES(name), discount_type = VALUES(discount_type),
+                discount_value = VALUES(discount_value), max_discount = VALUES(max_discount),
+                minimum_order_value = VALUES(minimum_order_value), start_at = VALUES(start_at),
+                end_at = VALUES(end_at), usage_limit = VALUES(usage_limit),
+                per_user_limit = VALUES(per_user_limit), is_active = TRUE, updated_at = CURRENT_TIMESTAMP
+            SQL
+        );
+        foreach ($promotions as $promotion) {
+            [$code, $name, $type, $value, $max, $minimum, $startDays, $endDays,
+                $usageLimit, $userLimit, $tierCodes, $serviceCodes, $vehicleCodes] = $promotion;
+            $upsert->execute([
+                'code' => $code, 'name' => $name, 'type' => $type, 'value' => $value,
+                'max_discount' => $max, 'minimum_order' => $minimum,
+                'start_at' => $now->modify($startDays . ' days')->format('Y-m-d H:i:s'),
+                'end_at' => $now->modify('+' . $endDays . ' days')->format('Y-m-d H:i:s'),
+                'usage_limit' => $usageLimit, 'per_user_limit' => $userLimit,
+            ]);
+            $promotionId = $this->idByCode('promotions', $code);
+            $this->seedPromotionRelations($promotionId, 'promotion_tiers', 'tier_id', 'tiers', $tierCodes);
+            $this->seedPromotionRelations($promotionId, 'promotion_services', 'service_id', 'services', $serviceCodes);
+            $this->seedPromotionRelations(
+                $promotionId,
+                'promotion_vehicle_types',
+                'vehicle_type_id',
+                'vehicle_types',
+                $vehicleCodes
+            );
+        }
+    }
+
+    /** @param list<string> $codes */
+    private function seedPromotionRelations(
+        int $promotionId,
+        string $table,
+        string $column,
+        string $sourceTable,
+        array $codes
+    ): void {
+        $delete = $this->database->prepare("DELETE FROM {$table} WHERE promotion_id = :id");
+        $delete->execute(['id' => $promotionId]);
+        $insert = $this->database->prepare(
+            "INSERT INTO {$table} (promotion_id, {$column}) VALUES (:promotion_id, :relation_id)"
+        );
+        foreach ($codes as $code) {
+            $insert->execute([
+                'promotion_id' => $promotionId,
+                'relation_id' => $this->idByCode($sourceTable, $code),
             ]);
         }
     }
@@ -649,7 +760,7 @@ final readonly class DatabaseSeeder
 
     private function idByCode(string $table, string $code): int
     {
-        $allowedTables = ['tiers', 'services', 'vehicle_types', 'rewards'];
+        $allowedTables = ['tiers', 'services', 'vehicle_types', 'rewards', 'promotions'];
 
         if (!in_array($table, $allowedTables, true)) {
             throw new RuntimeException('Bảng seed không nằm trong allowlist.');

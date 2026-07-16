@@ -66,6 +66,7 @@ final readonly class AdminRewardController
             'reward_type' => (string) $reward['reward_type'],
             'points_cost' => (string) $reward['points_cost'],
             'value' => (string) $reward['value'],
+            'max_discount' => (string) ($reward['max_discount'] ?? ''),
             'service_id' => (string) ($reward['service_id'] ?? ''),
             'minimum_tier_id' => (string) ($reward['minimum_tier_id'] ?? ''),
             'valid_days_after_redeem' => (string) $reward['valid_days_after_redeem'],
@@ -126,6 +127,7 @@ final readonly class AdminRewardController
             'values' => $values + [
                 'code' => '', 'name' => '', 'reward_type' => 'fixed_discount',
                 'points_cost' => '', 'value' => '', 'service_id' => '',
+                'max_discount' => '',
                 'minimum_tier_id' => '', 'valid_days_after_redeem' => '30',
                 'vehicle_type_ids' => [],
             ],
@@ -144,6 +146,7 @@ final readonly class AdminRewardController
             'reward_type' => $this->stringInput($request, 'reward_type'),
             'points_cost' => $this->stringInput($request, 'points_cost'),
             'value' => $this->stringInput($request, 'value'),
+            'max_discount' => $this->stringInput($request, 'max_discount'),
             'service_id' => $this->stringInput($request, 'service_id'),
             'minimum_tier_id' => $this->stringInput($request, 'minimum_tier_id'),
             'valid_days_after_redeem' => $this->stringInput($request, 'valid_days_after_redeem'),
@@ -160,6 +163,7 @@ final readonly class AdminRewardController
             $values['code'], $values['name'], $values['reward_type'], $values['points_cost'],
             $values['value'], $values['service_id'], $values['minimum_tier_id'],
             $values['valid_days_after_redeem'], $values['vehicle_type_ids'],
+            $values['max_discount'],
         ];
     }
 

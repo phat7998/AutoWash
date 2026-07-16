@@ -11,7 +11,10 @@ final readonly class BookingPrice
         public string $perkDiscount,
         public string $promotionDiscount,
         public string $rewardDiscount,
-        public string $finalPrice
+        public string $finalPrice,
+        public ?int $perkId = null,
+        public ?int $promotionId = null,
+        public ?int $rewardRedemptionId = null
     ) {
     }
 }

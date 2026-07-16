@@ -10,7 +10,8 @@ final readonly class BookingSelection
     public function __construct(
         public int $vehicleId,
         public int $startSlotId,
-        public array $serviceIds
+        public array $serviceIds,
+        public ?int $rewardRedemptionId = null
     ) {
     }
 }

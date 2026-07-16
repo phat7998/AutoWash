@@ -28,7 +28,8 @@ final readonly class RewardValidator
         array $vehicleTypeIds,
         array $validServiceIds,
         array $validTierIds,
-        array $validVehicleTypeIds
+        array $validVehicleTypeIds,
+        string $maxDiscount = ''
     ): array {
         $code = strtoupper(trim($code));
         $name = trim(preg_replace('/\s+/u', ' ', $name) ?? $name);
@@ -74,6 +75,14 @@ final readonly class RewardValidator
             }
         }
 
+        $normalizedMaxDiscount = $maxDiscount === '' ? null : $this->money($maxDiscount);
+
+        if ($maxDiscount !== '' && ($normalizedMaxDiscount === null || $normalizedMaxDiscount === '0.00')) {
+            $errors['max_discount'] = 'Mức giảm tối đa phải là số tiền lớn hơn 0.';
+        } elseif ($rewardType !== 'percentage_discount' && $normalizedMaxDiscount !== null) {
+            $errors['max_discount'] = 'Chỉ reward giảm phần trăm mới có mức giảm tối đa.';
+        }
+
         $service = $this->optionalId($serviceId);
         $tier = $this->optionalId($minimumTierId);
 
@@ -117,6 +126,7 @@ final readonly class RewardValidator
             'reward_type' => $rewardType,
             'points_cost' => $points,
             'value' => $normalizedValue,
+            'max_discount' => $normalizedMaxDiscount,
             'service_id' => $service,
             'minimum_tier_id' => $tier,
             'valid_days_after_redeem' => $days,

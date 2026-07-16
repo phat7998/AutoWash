@@ -132,7 +132,12 @@ final readonly class LoyaltyTransactionRepository
                     AS anonymous_user_key,
                 vehicle_types.code AS vehicle_type_code,
                 DATEDIFF(wash_slots.slot_date, DATE(bookings.created_at)) AS booking_lead_days,
-                GROUP_CONCAT(services.code ORDER BY booking_items.id SEPARATOR ',') AS service_codes
+                GROUP_CONCAT(services.code ORDER BY booking_items.id SEPARATOR ',') AS service_codes,
+                bookings.promotion_id IS NOT NULL AS used_promotion,
+                EXISTS (
+                    SELECT 1 FROM reward_redemptions
+                    WHERE reward_redemptions.booking_id = bookings.id
+                ) AS used_reward
             FROM bookings
             INNER JOIN users ON users.id = bookings.user_id
             INNER JOIN vehicles ON vehicles.id = bookings.vehicle_id
@@ -162,7 +167,9 @@ final readonly class LoyaltyTransactionRepository
         string $orderValue,
         string $monthlySpend,
         int $monthlyVisits,
-        int $points
+        int $points,
+        bool $usedReward = false,
+        bool $usedPromotion = false
     ): void {
         $serviceCodes = array_values(array_filter(explode(',', (string) $context['service_codes'])));
         $statement = $this->database->prepare(
@@ -176,7 +183,7 @@ final readonly class LoyaltyTransactionRepository
                 :event_key, :anonymous_user_key, 'booking_completed', CURRENT_TIMESTAMP, :tier_code,
                 :vehicle_type_code, :service_code, :booking_lead_days, :order_value,
                 :monthly_spend, :monthly_visits, :points_earned,
-                FALSE, FALSE, 'system', :metadata_json
+                :used_reward, :used_promotion, 'system', :metadata_json
             )
             SQL
         );
@@ -191,6 +198,8 @@ final readonly class LoyaltyTransactionRepository
             'monthly_spend' => $monthlySpend,
             'monthly_visits' => $monthlyVisits,
             'points_earned' => $points,
+            'used_reward' => $usedReward ? 1 : 0,
+            'used_promotion' => $usedPromotion ? 1 : 0,
             'metadata_json' => json_encode(
                 ['service_codes' => $serviceCodes],
                 JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE

@@ -1,11 +1,11 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
 > Cập nhật: 2026-07-16  
-> Slice hiện tại: Slice 11 — Complete
+> Slice hiện tại: Slice 12 — Complete
 >
 > Product code: đã có nền repository/database, HTTP/security, authentication/RBAC, quản lý phương tiện,
 > danh mục dịch vụ, booking, loyalty generic credit lots, FEFO redemption/expiry, reward management và
-> monthly tier review.
+> monthly tier review, tier/perk/promotion configuration và checkout benefit integration.
 
 ## Tổng quan
 
@@ -24,7 +24,51 @@
 | 09 | Complete | Earn formula, ledger/cache, atomic completion, metrics/event, customer history, admin adjustment/audit/concurrency và reconcile |
 | 10 | Complete | Generic credit/debit allocation, migration/backfill, reward CRUD/redemption, FEFO, expiry CLI và concurrency |
 | 11 | Complete | Review tháng trước, spend AND visits, upgrade/downgrade/hold, history/reset, idempotency và recovery |
-| 12–15 | Not started | Xem `ROADMAP.md` |
+| 12 | Complete | Tier/perk/promotion admin, best-benefit pricing, reward use-once và limit concurrency |
+| 13–15 | Not started | Xem `ROADMAP.md` |
+
+## Slice 12 — Tier Configuration, Perks, Promotions and Checkout Integration
+
+- Requirements: hoàn tất BKG-03, BKG-05, BKG-06, RWD-03, RWD-04, PRO-01..05, ADM-01 và ADM-05;
+  tiếp tục ADM-08, NFR-03, NFR-05, NFR-09..13, NFR-15, NFR-17 và NFR-19..23.
+- Hoàn thành:
+  - Admin CRUD/inactivate tier rule, tier perk và promotion qua Controller–Service–Repository–View; backend
+    validate code/rank/ngưỡng/rate, type/value/time/limit và target tier/service/vehicle type; thay đổi config
+    ghi audit log cùng transaction.
+  - Seed Silver+ map bằng ba quan hệ Silver/Gold/Platinum; target rỗng nghĩa là không giới hạn theo dimension.
+  - `PromotionService` tải và khóa config trong transaction booking, kiểm tra active/time/tier/minimum/scope,
+    reserve total/per-user limit bằng cả usage đã hoàn thành và booking pending/confirmed.
+  - `PriceCalculator` dùng integer cents/decimal string, chọn một perk tốt nhất, một promotion discount lớn
+    nhất với tie-break end sớm, và tối đa một reward đúng owner/service/vehicle type; từng discount được cap
+    để final không âm và snapshot vào booking.
+  - Reward redemption được gắn duy nhất vào booking khi checkout; complete atomically ghi promotion usage,
+    chuyển reward `used` và research flags; cancel/no-show trả reward `available` nếu còn hạn hoặc `expired`.
+  - Migration `008_add_reward_percentage_cap` thêm `rewards.max_discount` nullable để hoàn tất RWD-03;
+    seeder tương thích cả schema legacy trước migration 008 trong test backfill.
+  - Concurrency promotion limit dùng locking/current read; regression hai process chứng minh chỉ một booking
+    giữ lượt promotion cuối dưới MySQL `REPEATABLE READ`.
+- Chưa hoàn thành: LPR/upload Slice 13; research export/dashboard Slice 14; hardening/performance/release Slice
+  15; audit service-price và special monthly-review rerun còn trong phần ADM-08 tiếp theo.
+- File thay đổi: pricing/booking/promotion/tier/reward Controller–Service–Repository–Validator/DTO; migration
+  008; bootstrap/routes/views/layout; seed; unit/integration/concurrency test; README, Spec, ERD, RTM và status.
+- Migration: `008_add_reward_percentage_cap`; không tạo entity/association mới và không đổi decision khóa.
+- Test đã chạy:
+  - `BookingRulesTest` — pass, 9 tests/33 assertions; pricing best/tie/cap/final-zero có evidence.
+  - `BookingFlowTest` benefit filters — pass, checkout snapshot, complete usage/research, cancel restore và
+    concurrency promotion limit hai process.
+  - `PromotionConfigurationFlowTest` — pass, 3 tests/55 assertions; tier/perk/promotion validation, Silver+
+    eligibility, boundary time/minimum/scope, reward ownership/type, duplicate rank và audit.
+  - Database foundation/backfill — pass, 10 tests/43 assertions; fresh migration 008 và legacy seeder.
+  - Host PHP 8.5/MySQL 8.4 `composer check` — pass, PHPCS 149/149 file; PHPUnit 151 tests/729 assertions.
+  - Docker PHP 8.2.32/MySQL 8.4 `composer check` — pass, PHPCS 149/149 file; PHPUnit 151 tests/729 assertions.
+  - Fresh Docker reset/migrate/seed — pass. HTTP Apache port 8081: admin login `303`, tier page `200`,
+    promotion page `200`; customer login `303`, checkout `200` và hiển thị reward selector.
+- Kết quả: đạt toàn bộ acceptance Slice 12; không có test skip/fail trong full DB suite.
+- Quyết định: giữ DEC-001..033; migration 008 chỉ lấp field cấu hình đã được RWD-03 yêu cầu, không đổi rule.
+- Rủi ro còn lại: promotion service target được hiểu là booking đủ điều kiện khi có ít nhất một service mục
+  tiêu; discount promotion vẫn tính trên subtotal toàn booking theo mô hình order-level hiện tại.
+- Lệnh chạy tiếp: sau khi accept Slice 12, thực hiện duy nhất Slice 13.
+- Commit đề xuất: `feat(PRO): hoàn tất quyền lợi và khuyến mãi checkout [Slice 12]`.
 
 ## Slice 11 — Monthly Tier Review and Tier History
 

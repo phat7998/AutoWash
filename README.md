@@ -2,7 +2,7 @@
 
 AutoWash Pro là hệ thống quản lý dịch vụ chăm sóc phương tiện, đặt lịch trước và khách hàng thân thiết được xây dựng bằng Modern PHP thuần. Phiên bản đồ án cũ được lưu tại nhánh `legacy-main`.
 
-Repository hiện hoàn thành Slice 11: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
+Repository hiện hoàn thành Slice 12: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
 authentication/RBAC, quản lý phương tiện, danh mục dịch vụ và khung giờ. Customer xem được giá/thời lượng
 theo loại xe, chọn nhiều dịch vụ và tạo booking theo booking window của tier. Backend tự tính giá, tổng thời
 lượng, capacity lớn nhất, khóa mọi slot chồng lấn và lưu booking/items/reservations atomically. Admin quản lý
@@ -15,6 +15,9 @@ expiry 12 tháng lịch chỉ trừ remaining points thực tế.
 Monthly tier review xét tháng lịch vừa kết thúc bằng ngưỡng cấu hình trong database, ghi history và reset
 monthly metrics theo từng customer trong transaction riêng; point balance được giữ nguyên và run đã hoàn tất
 không chạy lặp.
+Admin cấu hình được tier rule, tier perk và promotion có target tier/service/vehicle type. Checkout tự chọn
+một perk và một promotion tốt nhất, cho customer dùng tối đa một reward đúng owner; discount được snapshot,
+promotion limit được giữ bằng locking, complete ghi usage/use-once còn cancel trả reward chưa hết hạn.
 
 ## Yêu cầu hệ thống
 
@@ -76,6 +79,7 @@ mà không tạo thêm tier, loại xe, phương tiện, dịch vụ, slot hoặ
 
 Migration `007_generalize_loyalty_credit_lots` đổi allocation thành debit-to-credit, backfill adjustment cũ
 theo thứ tự lịch sử và fail rõ với transaction ID nếu dữ liệu cũ không thể reconcile an toàn.
+Migration `008_add_reward_percentage_cap` bổ sung mức giảm tối đa nullable cho reward phần trăm.
 
 Reset chỉ dành cho `APP_ENV=local|testing`, xóa toàn bộ dữ liệu trong database đang cấu hình và bắt buộc xác nhận rõ:
 
@@ -113,6 +117,8 @@ Không chạy lệnh reset trên database có dữ liệu cần giữ. Seed có 
 - `/admin/lich-dat`: admin xác nhận, hoàn thành, hủy có lý do/audit hoặc đánh dấu khách không đến.
 - `/admin/diem-thuong`: admin điều chỉnh điểm có reason, ledger, audit và không cho số dư âm.
 - `/admin/xet-hang`: admin xem trạng thái run và lịch sử snapshot xét hạng.
+- `/admin/hang-thanh-vien`: admin cấu hình tier rule và tier perk có audit.
+- `/admin/promotion`: admin CRUD/inactivate promotion và target tier/service/vehicle type.
 - `/admin/reward`: admin tạo, sửa, kích hoạt hoặc ngừng reward cùng tier/service/vehicle restriction.
 - `/admin/dich-vu`: admin tạo, sửa, kích hoạt hoặc ngừng dịch vụ và cấu hình theo loại xe.
 - `/admin/khung-gio`: admin tạo hoặc đóng khung giờ vận hành.

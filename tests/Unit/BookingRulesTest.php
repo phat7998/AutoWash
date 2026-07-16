@@ -96,6 +96,52 @@ final class BookingRulesTest extends TestCase
         self::assertSame(5, $vehicleFloor->capacityUnits);
     }
 
+    public function testPriceCalculatorChoosesBestBenefitsAndKeepsFinalNonNegative(): void
+    {
+        $price = (new PriceCalculator())->calculate(
+            [
+                ['service_id' => 1, 'price' => '100000.00'],
+                ['service_id' => 2, 'price' => '50000.00'],
+            ],
+            [
+                ['id' => 1, 'perk_type' => 'percentage_discount', 'value' => '5.00'],
+                ['id' => 2, 'perk_type' => 'fixed_discount', 'value' => '10000.00'],
+            ],
+            [
+                [
+                    'id' => 10, 'discount_type' => 'percentage', 'discount_value' => '10.00',
+                    'max_discount' => null, 'service_id' => null, 'end_at' => '2030-12-31 00:00:00',
+                ],
+                [
+                    'id' => 11, 'discount_type' => 'fixed', 'discount_value' => '15000.00',
+                    'max_discount' => null, 'service_id' => null, 'end_at' => '2030-06-30 00:00:00',
+                ],
+            ],
+            [
+                'redemption_id' => 20, 'reward_type' => 'percentage_discount',
+                'value' => '50.00', 'max_discount' => '20000.00', 'service_id' => null,
+            ]
+        );
+
+        self::assertSame('150000.00', $price->subtotal);
+        self::assertSame('10000.00', $price->perkDiscount);
+        self::assertSame('15000.00', $price->promotionDiscount);
+        self::assertSame('20000.00', $price->rewardDiscount);
+        self::assertSame('105000.00', $price->finalPrice);
+        self::assertSame(2, $price->perkId);
+        self::assertSame(11, $price->promotionId);
+        self::assertSame(20, $price->rewardRedemptionId);
+
+        $free = (new PriceCalculator())->calculate(
+            [['service_id' => 1, 'price' => '40000.00']],
+            [['id' => 3, 'perk_type' => 'fixed_discount', 'value' => '90000.00']],
+            [],
+            null
+        );
+        self::assertSame('0.00', $free->finalPrice);
+        self::assertSame('40000.00', $free->perkDiscount);
+    }
+
     public function testValidatorNormalizesIdsAndRejectsDuplicateServices(): void
     {
         $validator = new BookingValidator();

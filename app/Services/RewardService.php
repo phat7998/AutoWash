@@ -144,7 +144,8 @@ final readonly class RewardService
         string $serviceId,
         string $minimumTierId,
         string $validDays,
-        array $vehicleTypeIds
+        array $vehicleTypeIds,
+        string $maxDiscount = ''
     ): int {
         $data = $this->validatedData(
             $code,
@@ -155,7 +156,8 @@ final readonly class RewardService
             $serviceId,
             $minimumTierId,
             $validDays,
-            $vehicleTypeIds
+            $vehicleTypeIds,
+            $maxDiscount
         );
 
         try {
@@ -176,7 +178,8 @@ final readonly class RewardService
         string $serviceId,
         string $minimumTierId,
         string $validDays,
-        array $vehicleTypeIds
+        array $vehicleTypeIds,
+        string $maxDiscount = ''
     ): void {
         $this->requiredReward($rewardId);
         $data = $this->validatedData(
@@ -188,7 +191,8 @@ final readonly class RewardService
             $serviceId,
             $minimumTierId,
             $validDays,
-            $vehicleTypeIds
+            $vehicleTypeIds,
+            $maxDiscount
         );
 
         try {
@@ -225,7 +229,8 @@ final readonly class RewardService
         string $serviceId,
         string $minimumTierId,
         string $validDays,
-        array $vehicleTypeIds
+        array $vehicleTypeIds,
+        string $maxDiscount = ''
     ): array {
         $options = $this->formOptions();
 
@@ -241,7 +246,8 @@ final readonly class RewardService
             $vehicleTypeIds,
             array_map('intval', array_column($options['services'], 'id')),
             array_map('intval', array_column($options['tiers'], 'id')),
-            array_map('intval', array_column($options['vehicle_types'], 'id'))
+            array_map('intval', array_column($options['vehicle_types'], 'id')),
+            $maxDiscount
         );
     }
 

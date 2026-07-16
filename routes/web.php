@@ -10,6 +10,8 @@ use App\Controllers\AdminServiceController;
 use App\Controllers\AdminSlotController;
 use App\Controllers\AdminRewardController;
 use App\Controllers\AdminTierReviewController;
+use App\Controllers\AdminTierController;
+use App\Controllers\AdminPromotionController;
 use App\Controllers\BookingController;
 use App\Controllers\LoyaltyController;
 use App\Controllers\RewardController;
@@ -42,7 +44,9 @@ return static function (
     ?callable $adminLoyaltyControllerFactory = null,
     ?callable $rewardControllerFactory = null,
     ?callable $adminRewardControllerFactory = null,
-    ?callable $adminTierReviewControllerFactory = null
+    ?callable $adminTierReviewControllerFactory = null,
+    ?callable $adminTierControllerFactory = null,
+    ?callable $adminPromotionControllerFactory = null
 ): void {
     $router->get('/', static function () use ($view, $session, $tokens): Response {
         return Response::html($view->render('home', [
@@ -219,6 +223,54 @@ return static function (
             $adminTierReviewControllerFactory();
         $router->get('/admin/xet-hang', static fn (Request $request): Response =>
             $adminTierReviews()->index($request), $authenticated, $admin);
+    }
+
+    if ($adminTierControllerFactory !== null) {
+        $adminTiers = static fn (): AdminTierController => $adminTierControllerFactory();
+        $router->get('/admin/hang-thanh-vien', static fn (Request $request): Response =>
+            $adminTiers()->index($request), $authenticated, $admin);
+        $router->get('/admin/hang-thanh-vien/them', static fn (Request $request): Response =>
+            $adminTiers()->createTier($request), $authenticated, $admin);
+        $router->post('/admin/hang-thanh-vien/them', static fn (Request $request): Response =>
+            $adminTiers()->storeTier($request), $authenticated, $admin);
+        $router->get('/admin/hang-thanh-vien/{id}/sua', static fn (Request $request): Response =>
+            $adminTiers()->editTier($request), $authenticated, $admin);
+        $router->post('/admin/hang-thanh-vien/{id}/sua', static fn (Request $request): Response =>
+            $adminTiers()->updateTier($request), $authenticated, $admin);
+        $router->post('/admin/hang-thanh-vien/{id}/ngung-hoat-dong', static fn (Request $request): Response =>
+            $adminTiers()->toggleTier($request, false), $authenticated, $admin);
+        $router->post('/admin/hang-thanh-vien/{id}/kich-hoat', static fn (Request $request): Response =>
+            $adminTiers()->toggleTier($request, true), $authenticated, $admin);
+        $router->get('/admin/quyen-loi/them', static fn (Request $request): Response =>
+            $adminTiers()->createPerk($request), $authenticated, $admin);
+        $router->post('/admin/quyen-loi/them', static fn (Request $request): Response =>
+            $adminTiers()->storePerk($request), $authenticated, $admin);
+        $router->get('/admin/quyen-loi/{id}/sua', static fn (Request $request): Response =>
+            $adminTiers()->editPerk($request), $authenticated, $admin);
+        $router->post('/admin/quyen-loi/{id}/sua', static fn (Request $request): Response =>
+            $adminTiers()->updatePerk($request), $authenticated, $admin);
+        $router->post('/admin/quyen-loi/{id}/ngung-hoat-dong', static fn (Request $request): Response =>
+            $adminTiers()->togglePerk($request, false), $authenticated, $admin);
+        $router->post('/admin/quyen-loi/{id}/kich-hoat', static fn (Request $request): Response =>
+            $adminTiers()->togglePerk($request, true), $authenticated, $admin);
+    }
+
+    if ($adminPromotionControllerFactory !== null) {
+        $adminPromotions = static fn (): AdminPromotionController => $adminPromotionControllerFactory();
+        $router->get('/admin/promotion', static fn (Request $request): Response =>
+            $adminPromotions()->index($request), $authenticated, $admin);
+        $router->get('/admin/promotion/them', static fn (Request $request): Response =>
+            $adminPromotions()->create($request), $authenticated, $admin);
+        $router->post('/admin/promotion/them', static fn (Request $request): Response =>
+            $adminPromotions()->store($request), $authenticated, $admin);
+        $router->get('/admin/promotion/{id}/sua', static fn (Request $request): Response =>
+            $adminPromotions()->edit($request), $authenticated, $admin);
+        $router->post('/admin/promotion/{id}/sua', static fn (Request $request): Response =>
+            $adminPromotions()->update($request), $authenticated, $admin);
+        $router->post('/admin/promotion/{id}/ngung-hoat-dong', static fn (Request $request): Response =>
+            $adminPromotions()->toggle($request, false), $authenticated, $admin);
+        $router->post('/admin/promotion/{id}/kich-hoat', static fn (Request $request): Response =>
+            $adminPromotions()->toggle($request, true), $authenticated, $admin);
     }
 
     if ($vehicleControllerFactory === null) {

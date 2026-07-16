@@ -12,8 +12,12 @@ final class BookingValidator
     /**
      * @param mixed $serviceIds
      */
-    public function selection(string $vehicleId, string $startSlotId, mixed $serviceIds): BookingSelection
-    {
+    public function selection(
+        string $vehicleId,
+        string $startSlotId,
+        mixed $serviceIds,
+        string $rewardRedemptionId = ''
+    ): BookingSelection {
         $errors = [];
         $normalizedVehicleId = $this->positiveId($vehicleId);
         $normalizedSlotId = $this->positiveId($startSlotId);
@@ -50,12 +54,23 @@ final class BookingValidator
             throw new ValidationException($errors);
         }
 
+        $normalizedRewardId = $rewardRedemptionId === ''
+            ? null
+            : $this->positiveId($rewardRedemptionId);
+
+        if ($rewardRedemptionId !== '' && $normalizedRewardId === null) {
+            throw new ValidationException([
+                'reward_redemption_id' => 'Reward được chọn không hợp lệ.',
+            ]);
+        }
+
         sort($normalizedServiceIds);
 
         return new BookingSelection(
             $normalizedVehicleId,
             $normalizedSlotId,
-            $normalizedServiceIds
+            $normalizedServiceIds,
+            $normalizedRewardId
         );
     }
 

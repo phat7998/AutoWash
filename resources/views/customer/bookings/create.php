@@ -9,9 +9,11 @@ use App\Support\VietnameseFormatter;
 /** @var array<string, mixed>|null $selected_vehicle */
 /** @var list<array<string, mixed>> $services */
 /** @var list<array<string, mixed>> $slots */
+/** @var list<array<string, mixed>> $reward_redemptions */
 /** @var string $selectedVehicleId */
 /** @var string $selectedSlotId */
 /** @var list<string> $selectedServiceIds */
+/** @var string $selectedRewardRedemptionId */
 /** @var array<string, string> $errors */
 /** @var string $csrfToken */
 /** @var string|null $flashSuccess */
@@ -124,6 +126,34 @@ use App\Support\VietnameseFormatter;
             <?php if (isset($errors['service_ids'])): ?>
                 <span class="field-error" role="alert"><?= $e($errors['service_ids']) ?></span>
             <?php endif; ?>
+        </fieldset>
+
+        <fieldset class="booking-fieldset">
+            <legend>Reward đã đổi (không bắt buộc)</legend>
+            <p class="field-help">
+                Chọn tối đa một reward. Backend kiểm tra lại owner, hạn dùng, dịch vụ và loại xe;
+                perk và promotion tốt nhất được tự động áp dụng.
+            </p>
+            <label class="form-field" for="reward_redemption_id">
+                <span>Reward dùng cho lịch đặt</span>
+                <select id="reward_redemption_id" name="reward_redemption_id">
+                    <option value="">Không dùng reward</option>
+                    <?php foreach ($reward_redemptions as $redemption): ?>
+                        <?php $redemptionId = (string) $redemption['redemption_id']; ?>
+                        <option value="<?= $e($redemptionId) ?>"
+                            <?= $redemptionId === $selectedRewardRedemptionId ? 'selected' : '' ?>>
+                            <?= $e($redemption['name']) ?> · hết hạn
+                            <?= $e(VietnameseFormatter::date(substr((string) $redemption['expires_at'], 0, 10))) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if ($reward_redemptions === []): ?>
+                    <small>Chưa có reward khả dụng. Bạn có thể đổi reward tại trang Điểm thưởng.</small>
+                <?php endif; ?>
+                <?php if (isset($errors['reward_redemption_id'])): ?>
+                    <span class="field-error" role="alert"><?= $e($errors['reward_redemption_id']) ?></span>
+                <?php endif; ?>
+            </label>
         </fieldset>
 
         <fieldset class="booking-fieldset">

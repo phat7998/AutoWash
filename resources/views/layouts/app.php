@@ -45,6 +45,8 @@ declare(strict_types=1);
                         <a class="nav-link" href="/admin/khung-gio">Khung giờ</a>
                         <a class="nav-link" href="/admin/diem-thuong">Điểm</a>
                         <a class="nav-link" href="/admin/xet-hang">Xét hạng</a>
+                        <a class="nav-link" href="/admin/hang-thanh-vien">Hạng &amp; perk</a>
+                        <a class="nav-link" href="/admin/promotion">Promotion</a>
                         <a class="nav-link" href="/admin/reward">Reward</a>
                     <?php endif; ?>
                     <form class="nav-form" method="post" action="/dang-xuat">

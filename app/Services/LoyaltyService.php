@@ -72,7 +72,9 @@ final readonly class LoyaltyService implements BookingCompletionProcessorInterfa
             $finalPrice,
             $monthlySpend,
             (int) $user['monthly_visits'] + 1,
-            $points
+            $points,
+            (bool) $eventContext['used_reward'],
+            (bool) $eventContext['used_promotion']
         );
     }
 

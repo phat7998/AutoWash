@@ -24,11 +24,20 @@ use App\Exceptions\ValidationException;
 use App\Exceptions\VehicleOwnershipException;
 use App\Middleware\CsrfMiddleware;
 use App\Repositories\BookingRepository;
+use App\Repositories\LoyaltyTransactionRepository;
+use App\Repositories\PromotionRepository;
 use App\Services\BookingService;
+use App\Services\BookingCompletionService;
 use App\Services\BookingResourceCalculator;
 use App\Services\BookingWindowPolicy;
 use App\Services\PriceCalculator;
+use App\Services\PromotionService;
+use App\Services\LoyaltyService;
+use App\Services\LoyaltyPointCalculator;
+use App\Services\LoyaltyDebitAllocator;
+use App\Services\LoyaltyExpirationPolicy;
 use App\Validation\BookingValidator;
+use App\Validation\LoyaltyAdjustmentValidator;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
@@ -127,6 +136,160 @@ final class BookingFlowTest extends TestCase
             "SELECT COUNT(*) FROM research_event_logs WHERE event_key = 'booking_created:"
             . (int) $booking['id'] . "' AND data_source = 'system'"
         )->fetchColumn());
+    }
+
+    public function testCheckoutSnapshotsPerkPromotionRewardAndCompletesUsageOnce(): void
+    {
+        $slot = $this->createSlot(1, '17:00:00', '18:00:00', 10);
+        $ownerId = $this->userId('0900000003');
+        $redemptionId = $this->insertAvailableRedemption(
+            $ownerId,
+            $this->rewardId('DISCOUNT_10K')
+        );
+        $code = $this->benefitService()->create(
+            $ownerId,
+            (string) $this->vehicleId('51AB12345'),
+            (string) $slot,
+            [(string) $this->serviceId('STANDARD_WASH')],
+            (string) $redemptionId
+        );
+        $booking = $this->bookingByCode($code);
+
+        self::assertSame('100000.00', $booking['subtotal']);
+        self::assertSame('5000.00', $booking['perk_discount']);
+        self::assertSame('10000.00', $booking['promotion_discount']);
+        self::assertSame('10000.00', $booking['reward_discount']);
+        self::assertSame('75000.00', $booking['final_price']);
+        self::assertNotNull($booking['promotion_id']);
+        self::assertSame(
+            (int) $booking['id'],
+            (int) $this->scalar(
+                'SELECT booking_id FROM reward_redemptions WHERE id = ' . $redemptionId
+            )
+        );
+
+        $service = $this->benefitService(true);
+        $service->confirmByAdmin($this->userId('0900000001'), (int) $booking['id']);
+        $service->completeByAdmin($this->userId('0900000001'), (int) $booking['id']);
+        self::assertSame('used', $this->scalar(
+            'SELECT status FROM reward_redemptions WHERE id = ' . $redemptionId
+        ));
+        self::assertSame(1, (int) $this->scalar(
+            'SELECT COUNT(*) FROM promotion_usages WHERE booking_id = ' . (int) $booking['id']
+        ));
+        $event = self::$database->query(
+            "SELECT used_reward, used_promotion FROM research_event_logs "
+            . "WHERE event_key = 'booking_completed:" . (int) $booking['id'] . "'"
+        )->fetch();
+        self::assertSame(1, (int) $event['used_reward']);
+        self::assertSame(1, (int) $event['used_promotion']);
+    }
+
+    public function testCancellationRestoresReservedRewardAndDoesNotRecordPromotionUsage(): void
+    {
+        $slot = $this->createSlot(1, '19:00:00', '20:00:00', 10);
+        $noShowSlot = $this->createSlot(1, '20:00:00', '21:00:00', 10);
+        $ownerId = $this->userId('0900000003');
+        $redemptionId = $this->insertAvailableRedemption(
+            $ownerId,
+            $this->rewardId('DISCOUNT_10K')
+        );
+        $service = $this->benefitService();
+        $code = $service->create(
+            $ownerId,
+            (string) $this->vehicleId('51AB12345'),
+            (string) $slot,
+            [(string) $this->serviceId('STANDARD_WASH')],
+            (string) $redemptionId
+        );
+        $booking = $this->bookingByCode($code);
+        $service->cancelByCustomer($ownerId, (int) $booking['id']);
+        $redemption = self::$database->query(
+            'SELECT status, booking_id FROM reward_redemptions WHERE id = ' . $redemptionId
+        )->fetch();
+
+        self::assertSame('available', $redemption['status']);
+        self::assertNull($redemption['booking_id']);
+        self::assertSame(0, (int) $this->scalar(
+            'SELECT COUNT(*) FROM promotion_usages WHERE booking_id = ' . (int) $booking['id']
+        ));
+
+        $noShowRedemptionId = $this->insertAvailableRedemption(
+            $ownerId,
+            $this->rewardId('DISCOUNT_10K')
+        );
+        $noShowCode = $service->create(
+            $ownerId,
+            (string) $this->vehicleId('51AB12345'),
+            (string) $noShowSlot,
+            [(string) $this->serviceId('STANDARD_WASH')],
+            (string) $noShowRedemptionId
+        );
+        $noShowBooking = $this->bookingByCode($noShowCode);
+        $adminId = $this->userId('0900000001');
+        $service->confirmByAdmin($adminId, (int) $noShowBooking['id']);
+        $service->markNoShowByAdmin($adminId, (int) $noShowBooking['id']);
+        $noShowRedemption = self::$database->query(
+            'SELECT status, booking_id FROM reward_redemptions WHERE id = ' . $noShowRedemptionId
+        )->fetch();
+
+        self::assertSame('available', $noShowRedemption['status']);
+        self::assertNull($noShowRedemption['booking_id']);
+        self::assertSame(0, (int) $this->scalar(
+            'SELECT COUNT(*) FROM promotion_usages WHERE booking_id = ' . (int) $noShowBooking['id']
+        ));
+    }
+
+    public function testConcurrentCheckoutDoesNotReservePromotionBeyondTotalLimit(): void
+    {
+        $slot = $this->createSlot(1, '20:00:00', '21:00:00', 10);
+        $this->createSlot(1, '21:00:00', '22:00:00', 10);
+        $promotionId = (int) $this->scalar(
+            "SELECT id FROM promotions WHERE code = 'SILVER_PLUS_10'"
+        );
+        self::$database->exec(
+            "UPDATE promotions SET minimum_order_value = 0, usage_limit = 1, per_user_limit = 1 "
+            . "WHERE id = {$promotionId}"
+        );
+        $barrier = sys_get_temp_dir() . '/autowash-promotion-barrier-' . bin2hex(random_bytes(6));
+        $resultOne = $barrier . '-one';
+        $resultTwo = $barrier . '-two';
+        $worker = dirname(__DIR__, 2) . '/Support/PromotionCheckoutConcurrencyWorker.php';
+        $processes = [
+            $this->startWorker(
+                $worker,
+                $barrier,
+                $resultOne,
+                $this->userId('0900000003'),
+                $this->vehicleId('51AB12345'),
+                $slot,
+                $this->serviceId('STANDARD_WASH')
+            ),
+            $this->startWorker(
+                $worker,
+                $barrier,
+                $resultTwo,
+                $this->userId('0900000004'),
+                $this->vehicleId('50C1234'),
+                $slot,
+                $this->serviceId('STANDARD_WASH')
+            ),
+        ];
+        touch($barrier);
+        foreach ($processes as $process) {
+            self::assertSame(0, proc_close($process));
+        }
+        self::assertStringStartsWith('success:', (string) file_get_contents($resultOne));
+        self::assertStringStartsWith('success:', (string) file_get_contents($resultTwo));
+        self::assertSame(1, (int) $this->scalar(
+            "SELECT COUNT(*) FROM bookings WHERE promotion_id = {$promotionId} "
+            . "AND booking_code LIKE 'AW%' AND status IN ('pending', 'confirmed')"
+        ));
+        foreach ([$barrier, $resultOne, $resultTwo] as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
     }
 
     public function testRejectsForeignVehicleUnsupportedServiceAndWindowBeyondTier(): void
@@ -412,6 +575,64 @@ final class BookingFlowTest extends TestCase
         );
     }
 
+    private function benefitService(bool $withCompletion = false): BookingService
+    {
+        $timezone = new DateTimeZone('Asia/Ho_Chi_Minh');
+        $promotions = new PromotionService(new PromotionRepository(self::$database), $timezone);
+        $completion = null;
+        if ($withCompletion) {
+            $loyalty = new LoyaltyService(
+                new LoyaltyTransactionRepository(self::$database),
+                new LoyaltyPointCalculator(10_000),
+                new LoyaltyAdjustmentValidator(),
+                new LoyaltyDebitAllocator(),
+                new LoyaltyExpirationPolicy($timezone),
+                $timezone
+            );
+            $completion = new BookingCompletionService($promotions, $loyalty);
+        }
+
+        return new BookingService(
+            new BookingRepository(self::$database),
+            new BookingValidator(),
+            new BookingWindowPolicy($timezone),
+            new PriceCalculator(),
+            new BookingResourceCalculator(),
+            $timezone,
+            completionProcessor: $completion,
+            promotionService: $promotions
+        );
+    }
+
+    private function insertAvailableRedemption(int $userId, int $rewardId): int
+    {
+        $statement = self::$database->prepare(
+            <<<'SQL'
+            INSERT INTO reward_redemptions (
+                user_id, reward_id, points_spent, status, redeemed_at, expires_at
+            ) VALUES (
+                :user_id, :reward_id, 100, 'available', CURRENT_TIMESTAMP,
+                DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 DAY)
+            )
+            SQL
+        );
+        $statement->execute(['user_id' => $userId, 'reward_id' => $rewardId]);
+
+        return (int) self::$database->lastInsertId();
+    }
+
+    private function rewardId(string $code): int
+    {
+        $statement = self::$database->prepare('SELECT id FROM rewards WHERE code = :code');
+        $statement->execute(['code' => $code]);
+        return (int) $statement->fetchColumn();
+    }
+
+    private function scalar(string $sql): mixed
+    {
+        return self::$database->query($sql)->fetchColumn();
+    }
+
     /**
      * @param array<string, mixed> $sessionData
      * @return array{Application, CsrfTokenManager}
@@ -472,12 +693,23 @@ final class BookingFlowTest extends TestCase
 
     private function deleteGeneratedBookings(): void
     {
-        self::$database->exec("DELETE FROM research_event_logs WHERE event_key LIKE 'booking_created:%'");
+        self::$database->exec("DELETE FROM research_event_logs WHERE event_key LIKE 'booking_created:%' "
+            . "OR event_key LIKE 'booking_completed:%'");
+        self::$database->exec("DELETE FROM promotion_usages WHERE booking_id IN "
+            . "(SELECT id FROM bookings WHERE booking_code LIKE 'AW%')");
+        self::$database->exec("DELETE FROM reward_redemptions WHERE booking_id IN "
+            . "(SELECT id FROM bookings WHERE booking_code LIKE 'AW%')");
+        self::$database->exec("DELETE FROM loyalty_transactions WHERE source_type = 'booking' "
+            . "AND source_id IN (SELECT id FROM bookings WHERE booking_code LIKE 'AW%')");
         self::$database->exec("DELETE FROM booking_slot_reservations WHERE booking_id IN "
             . "(SELECT id FROM bookings WHERE booking_code LIKE 'AW%')");
         self::$database->exec("DELETE FROM booking_items WHERE booking_id IN "
             . "(SELECT id FROM bookings WHERE booking_code LIKE 'AW%')");
         self::$database->exec("DELETE FROM bookings WHERE booking_code LIKE 'AW%'");
+        self::$database->exec(
+            "UPDATE users SET point_balance = (SELECT COALESCE(SUM(points_delta), 0) "
+            . "FROM loyalty_transactions WHERE loyalty_transactions.user_id = users.id)"
+        );
     }
 
     private function generatedBookingCount(): int

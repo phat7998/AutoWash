@@ -81,11 +81,24 @@ return [
         ['DEMO_FULL', '0900000003', '51AB12345', '2030-01-15', '10:00:00', 'STANDARD_WASH'],
     ],
     'rewards' => [
-        ['DISCOUNT_10K', 'Giảm 10.000 VND', 'fixed_discount', 100, '10000.00', null, 30],
-        ['DISCOUNT_30K', 'Giảm 30.000 VND', 'fixed_discount', 250, '30000.00', null, 30],
-        ['FREE_MOTORBIKE_STANDARD', 'Miễn phí rửa tiêu chuẩn xe máy', 'free_service', 300, '0.00', 'STANDARD_WASH', 30],
-        ['FREE_TIRE_CARE', 'Tặng dịch vụ dưỡng lốp', 'add_on', 400, '0.00', 'TIRE_CARE', 30],
-        ['DISCOUNT_100K', 'Giảm 100.000 VND', 'fixed_discount', 700, '100000.00', null, 30],
+        ['DISCOUNT_10K', 'Giảm 10.000 VND', 'fixed_discount', 100, '10000.00', null, 30, null],
+        ['DISCOUNT_30K', 'Giảm 30.000 VND', 'fixed_discount', 250, '30000.00', null, 30, null],
+        ['FREE_MOTORBIKE_STANDARD', 'Miễn phí rửa tiêu chuẩn xe máy', 'free_service', 300, '0.00', 'STANDARD_WASH', 30, null],
+        ['FREE_TIRE_CARE', 'Tặng dịch vụ dưỡng lốp', 'add_on', 400, '0.00', 'TIRE_CARE', 30, null],
+        ['DISCOUNT_100K', 'Giảm 100.000 VND', 'fixed_discount', 700, '100000.00', null, 30, null],
+        ['DISCOUNT_20_PERCENT', 'Giảm 20% tối đa 50.000 VND', 'percentage_discount', 500, '20.00', null, 30, '50000.00'],
+    ],
+    'tier_perks' => [
+        ['SILVER', 'percentage_discount', '5.00', null],
+        ['GOLD', 'fixed_discount', '15000.00', null],
+        ['PLATINUM', 'percentage_discount', '10.00', null],
+    ],
+    'promotions' => [
+        [
+            'SILVER_PLUS_10', 'Ưu đãi Silver+ 10%', 'percentage', '10.00', '50000.00',
+            '100000.00', -1, 3650, 1000, 5,
+            ['SILVER', 'GOLD', 'PLATINUM'], [], [],
+        ],
     ],
     'loyalty_credit_lots' => [
         ['0900000002', 'earn', 150, 1001, 20],

@@ -67,6 +67,8 @@ final readonly class BookingRepository
                 vehicle_types.is_active AS vehicle_type_active,
                 tiers.code AS tier_code,
                 tiers.name AS tier_name,
+                tiers.id AS tier_id,
+                tiers.rank_order AS tier_rank,
                 tiers.booking_window_days
             FROM vehicles
             INNER JOIN vehicle_types ON vehicle_types.id = vehicles.vehicle_type_id
@@ -450,7 +452,8 @@ final readonly class BookingRepository
                 perk_discount,
                 promotion_discount,
                 reward_discount,
-                final_price
+                final_price,
+                promotion_id
             ) VALUES (
                 :booking_code,
                 :user_id,
@@ -463,7 +466,8 @@ final readonly class BookingRepository
                 :perk_discount,
                 :promotion_discount,
                 :reward_discount,
-                :final_price
+                :final_price,
+                :promotion_id
             )
             SQL
         );
@@ -479,6 +483,7 @@ final readonly class BookingRepository
             'promotion_discount' => $price->promotionDiscount,
             'reward_discount' => $price->rewardDiscount,
             'final_price' => $price->finalPrice,
+            'promotion_id' => $price->promotionId,
         ]);
 
         return (int) $this->database->lastInsertId();
@@ -571,7 +576,9 @@ final readonly class BookingRepository
         string $vehicleTypeCode,
         int $leadDays,
         string $orderValue,
-        array $items
+        array $items,
+        bool $usedReward = false,
+        bool $usedPromotion = false
     ): void {
         $serviceCodes = array_values(array_map(
             static fn (array $item): string => (string) $item['service_code'],
@@ -603,8 +610,8 @@ final readonly class BookingRepository
                 :service_code,
                 :booking_lead_days,
                 :order_value,
-                FALSE,
-                FALSE,
+                :used_reward,
+                :used_promotion,
                 'system',
                 :metadata_json
             )
@@ -618,6 +625,8 @@ final readonly class BookingRepository
             'service_code' => count($serviceCodes) === 1 ? $serviceCodes[0] : null,
             'booking_lead_days' => $leadDays,
             'order_value' => $orderValue,
+            'used_reward' => $usedReward ? 1 : 0,
+            'used_promotion' => $usedPromotion ? 1 : 0,
             'metadata_json' => json_encode(
                 ['service_codes' => $serviceCodes],
                 JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE

@@ -177,6 +177,7 @@ erDiagram
         varchar reward_type
         int points_cost
         decimal value
+        decimal max_discount
         int valid_days_after_redeem
         boolean is_active
         datetime created_at
@@ -465,3 +466,6 @@ Slice 02 triển khai thứ tự này bằng 6 migration nhóm theo dependency. 
 | 027 | `lpr_attempts` | users; chỉ tạo khi Slice 13 được triển khai |
 
 Migration runner/history thuộc Slice 02 và không phải entity nghiệp vụ.
+
+Slice 12 thêm migration `008_add_reward_percentage_cap`, bổ sung `rewards.max_discount` nullable để hiện
+thực acceptance RWD-03 đã có trong đặc tả. Migration không tạo entity hoặc quan hệ mới.
