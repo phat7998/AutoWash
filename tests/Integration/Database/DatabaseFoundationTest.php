@@ -103,7 +103,7 @@ final class DatabaseFoundationTest extends TestCase
         )->fetchAll(PDO::FETCH_COLUMN);
 
         self::assertSame($expectedTables, $actualTables);
-        self::assertSame(6, (int) self::$database->query('SELECT COUNT(*) FROM migrations')->fetchColumn());
+        self::assertSame(7, (int) self::$database->query('SELECT COUNT(*) FROM migrations')->fetchColumn());
         self::assertSame([], self::$runner->migrate());
     }
 

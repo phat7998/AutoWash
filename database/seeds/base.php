@@ -87,4 +87,9 @@ return [
         ['FREE_TIRE_CARE', 'Tặng dịch vụ dưỡng lốp', 'add_on', 400, '0.00', 'TIRE_CARE', 30],
         ['DISCOUNT_100K', 'Giảm 100.000 VND', 'fixed_discount', 700, '100000.00', null, 30],
     ],
+    'loyalty_credit_lots' => [
+        ['0900000002', 'earn', 150, 1001, 20],
+        ['0900000002', 'adjust_credit', 250, 1002, null],
+        ['0900000004', 'adjust_credit', 800, 1003, null],
+    ],
 ];

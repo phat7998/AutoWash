@@ -2,14 +2,16 @@
 
 AutoWash Pro là hệ thống quản lý dịch vụ chăm sóc phương tiện, đặt lịch trước và khách hàng thân thiết được xây dựng bằng Modern PHP thuần. Phiên bản đồ án cũ được lưu tại nhánh `legacy-main`.
 
-Repository hiện hoàn thành Slice 09: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
+Repository hiện hoàn thành Slice 10: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
 authentication/RBAC, quản lý phương tiện, danh mục dịch vụ và khung giờ. Customer xem được giá/thời lượng
 theo loại xe, chọn nhiều dịch vụ và tạo booking theo booking window của tier. Backend tự tính giá, tổng thời
 lượng, capacity lớn nhất, khóa mọi slot chồng lấn và lưu booking/items/reservations atomically. Admin quản lý
 dịch vụ, khung giờ và vòng đời booking qua backend có validation, role guard và CSRF. Customer xem chi tiết,
 hủy trước/đúng cutoff 2 giờ và xem wash history từ item snapshot. Khi admin complete, monthly metrics, earn
 ledger, point balance, marker và research event được commit atomically; customer xem lịch sử điểm và admin
-điều chỉnh điểm có reason/audit/concurrency guard.
+điều chỉnh điểm có reason/audit/concurrency guard. Customer xem và đổi reward; mọi redeem, expiry và
+adjustment âm phân bổ FEFO vào generic credit lot. Adjustment dương tạo credit lot không hết hạn, còn
+expiry 12 tháng lịch chỉ trừ remaining points thực tế.
 
 ## Yêu cầu hệ thống
 
@@ -69,6 +71,9 @@ php database/seed.php --demo
 Migration runner lưu lịch sử và có advisory lock chống hai tiến trình chạy đồng thời. Seed có thể chạy lại
 mà không tạo thêm tier, loại xe, phương tiện, dịch vụ, slot hoặc reward trùng.
 
+Migration `007_generalize_loyalty_credit_lots` đổi allocation thành debit-to-credit, backfill adjustment cũ
+theo thứ tự lịch sử và fail rõ với transaction ID nếu dữ liệu cũ không thể reconcile an toàn.
+
 Reset chỉ dành cho `APP_ENV=local|testing`, xóa toàn bộ dữ liệu trong database đang cấu hình và bắt buộc xác nhận rõ:
 
 ```bash
@@ -100,9 +105,11 @@ Không chạy lệnh reset trên database có dữ liệu cần giữ. Seed có 
 - `/lich-dat`: customer xem danh sách trạng thái và lịch sử rửa xe đã hoàn thành.
 - `/lich-dat/{id}`: customer xem chi tiết snapshot của booking đúng owner và tự hủy khi còn ít nhất 2 giờ.
 - `/diem-thuong`: customer xem balance, hạng, điểm sắp hết hạn 30 ngày và lịch sử ledger đúng owner.
+- `/doi-thuong`: customer xem reward đủ hạng, đổi atomically và xem redemption đúng owner.
 - `/admin`: vùng admin đã xác thực và kiểm tra role.
 - `/admin/lich-dat`: admin xác nhận, hoàn thành, hủy có lý do/audit hoặc đánh dấu khách không đến.
 - `/admin/diem-thuong`: admin điều chỉnh điểm có reason, ledger, audit và không cho số dư âm.
+- `/admin/reward`: admin tạo, sửa, kích hoạt hoặc ngừng reward cùng tier/service/vehicle restriction.
 - `/admin/dich-vu`: admin tạo, sửa, kích hoạt hoặc ngừng dịch vụ và cấu hình theo loại xe.
 - `/admin/khung-gio`: admin tạo hoặc đóng khung giờ vận hành.
 - `/dang-xuat`: chỉ nhận POST có CSRF hợp lệ.
@@ -113,6 +120,10 @@ Seed demo có slot trống, gần đầy, đầy và đóng ngày `15/01/2030`. 
 booking nhiều slot. Hai fixture `DEMO_NEAR_FULL`/`DEMO_FULL` có thể được admin chuyển trạng thái để demo
 confirm/complete, capacity release, wash history và cộng điểm theo tier.
 
+Customer Member demo có 150 điểm earn sắp hết hạn trong 20 ngày và 250 điểm adjustment credit không hết
+hạn; customer Gold có 800 điểm adjustment credit. Các lot này chứng minh FEFO: lot có expiry dùng trước,
+lot không expiry dùng sau cùng theo FIFO.
+
 ## Kiểm tra chất lượng
 
 ```bash
@@ -121,6 +132,7 @@ composer lint
 composer test
 composer check
 php scripts/reconcile-loyalty.php
+php scripts/expire-points.php
 ```
 
 - `composer lint`: kiểm tra PSR-12 bằng PHP_CodeSniffer.
@@ -136,6 +148,7 @@ AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Database
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Vehicle
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/CatalogSlot
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Booking
+AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Loyalty tests/Integration/Reward
 ```
 
 ## Cấu trúc chính

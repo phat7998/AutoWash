@@ -29,6 +29,8 @@ use App\Services\BookingResourceCalculator;
 use App\Services\BookingService;
 use App\Services\BookingWindowPolicy;
 use App\Services\LoyaltyPointCalculator;
+use App\Services\LoyaltyDebitAllocator;
+use App\Services\LoyaltyExpirationPolicy;
 use App\Services\LoyaltyService;
 use App\Services\PriceCalculator;
 use App\Validation\BookingLifecycleValidator;
@@ -119,12 +121,12 @@ final class LoyaltyFlowTest extends TestCase
         self::assertSame(1, $this->eventCount('booking_completed:' . $bookingId));
     }
 
-    public function testZeroPriceStillCreatesIdempotencyMarkerAndZeroPointLedger(): void
+    public function testZeroPriceCreatesIdempotencyMarkerWithoutInvalidZeroCredit(): void
     {
         $bookingId = $this->createConfirmedBooking('0900000002', '0.00');
         $this->bookingService()->completeByAdmin($this->userId('0900000001'), $bookingId);
 
-        self::assertSame(0, (int) $this->earnForBooking($bookingId)['points_delta']);
+        self::assertSame(0, $this->earnCount($bookingId));
         self::assertSame(1, $this->metrics('0900000002')['monthly_visits']);
         self::assertSame('0.00', $this->metrics('0900000002')['monthly_spend']);
         self::assertNotNull($this->booking($bookingId)['loyalty_processed_at']);
@@ -323,6 +325,8 @@ final class LoyaltyFlowTest extends TestCase
             new LoyaltyTransactionRepository(self::$database),
             new LoyaltyPointCalculator(10_000),
             new LoyaltyAdjustmentValidator(),
+            new LoyaltyDebitAllocator(),
+            new LoyaltyExpirationPolicy($this->timezone()),
             $this->timezone()
         );
     }
@@ -570,7 +574,8 @@ final class LoyaltyFlowTest extends TestCase
     private function adjustmentCount(int $userId): int
     {
         return (int) self::$database->query(
-            "SELECT COUNT(*) FROM loyalty_transactions WHERE type = 'adjust' AND user_id = " . $userId
+            "SELECT COUNT(*) FROM loyalty_transactions "
+            . "WHERE type IN ('adjust_credit', 'adjust_debit') AND user_id = " . $userId
         )->fetchColumn();
     }
 

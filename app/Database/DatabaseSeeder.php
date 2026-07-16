@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Database;
 
 use App\Services\LicensePlateService;
+use App\Services\LoyaltyExpirationPolicy;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
@@ -42,6 +43,7 @@ final readonly class DatabaseSeeder
             $this->seedCapacityFixtures($data['capacity_fixtures']);
             $this->seedRewards($data['rewards']);
             $this->seedRewardVehicleRestrictions();
+            $this->seedLoyaltyCreditLots($data['loyalty_credit_lots'] ?? []);
             $this->database->commit();
         } catch (Throwable $throwable) {
             if ($this->database->inTransaction()) {
@@ -49,6 +51,84 @@ final readonly class DatabaseSeeder
             }
 
             throw $throwable;
+        }
+    }
+
+    /** @param list<array{string, string, int, int, int|null}> $creditLots */
+    private function seedLoyaltyCreditLots(array $creditLots): void
+    {
+        $schemaReady = $this->database->query(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'loyalty_allocations'
+              AND column_name = 'credit_transaction_id'
+            SQL
+        )->fetchColumn();
+
+        if ((int) $schemaReady !== 1) {
+            return;
+        }
+
+        $timezone = new DateTimeZone('Asia/Ho_Chi_Minh');
+        $expiration = new LoyaltyExpirationPolicy($timezone);
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            INSERT IGNORE INTO loyalty_transactions (
+                user_id, type, points_delta, remaining_points, source_type, source_id,
+                description, earned_at, expires_at, created_at, updated_at
+            ) VALUES (
+                :user_id, :type, :points, :remaining_points, 'demo_seed', :source_id,
+                :description, :earned_at, :expires_at, :created_at, :updated_at
+            )
+            SQL
+        );
+        $userIds = [];
+
+        foreach ($creditLots as [$phone, $type, $points, $sourceId, $expiresInDays]) {
+            $userId = $this->idByPhone($phone);
+            $createdAt = new DateTimeImmutable('now', $timezone);
+            $earnedAt = null;
+            $expiresAt = null;
+
+            if ($type === 'earn') {
+                $earnedAt = $createdAt->modify('-1 year')->modify('+' . (int) $expiresInDays . ' days');
+                $expiresAt = $expiration->expiresAt($earnedAt);
+                $createdAt = $earnedAt;
+            }
+
+            $statement->execute([
+                'user_id' => $userId,
+                'type' => $type,
+                'points' => $points,
+                'remaining_points' => $points,
+                'source_id' => $sourceId,
+                'description' => $type === 'earn'
+                    ? 'Credit lot demo sắp hết hạn.'
+                    : 'Điều chỉnh tăng điểm dành cho demo reward.',
+                'earned_at' => $earnedAt?->format('Y-m-d H:i:s'),
+                'expires_at' => $expiresAt?->format('Y-m-d H:i:s'),
+                'created_at' => $createdAt->format('Y-m-d H:i:s'),
+                'updated_at' => $createdAt->format('Y-m-d H:i:s'),
+            ]);
+            $userIds[$userId] = $userId;
+        }
+
+        $balance = $this->database->prepare(
+            <<<'SQL'
+            UPDATE users
+            SET point_balance = (
+                SELECT COALESCE(SUM(points_delta), 0)
+                FROM loyalty_transactions
+                WHERE loyalty_transactions.user_id = users.id
+            ), updated_at = CURRENT_TIMESTAMP
+            WHERE id = :user_id
+            SQL
+        );
+
+        foreach ($userIds as $userId) {
+            $balance->execute(['user_id' => $userId]);
         }
     }
 

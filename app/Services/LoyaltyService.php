@@ -19,6 +19,8 @@ final readonly class LoyaltyService implements BookingCompletionProcessorInterfa
         private LoyaltyTransactionRepository $transactions,
         private LoyaltyPointCalculator $calculator,
         private LoyaltyAdjustmentValidator $adjustmentValidator,
+        private LoyaltyDebitAllocator $allocator,
+        private LoyaltyExpirationPolicy $expirationPolicy,
         private DateTimeZone $timezone
     ) {
     }
@@ -46,14 +48,16 @@ final readonly class LoyaltyService implements BookingCompletionProcessorInterfa
         $finalPrice = (string) $lockedBooking['final_price'];
         $points = $this->calculator->earnedPoints($finalPrice, (string) $user['point_rate']);
         $earnedAt = new DateTimeImmutable('now', $this->timezone);
-        $expiresAt = $this->expirationAt($earnedAt);
-        $this->transactions->insertEarn(
-            $userId,
-            $bookingId,
-            $points,
-            $earnedAt->format('Y-m-d H:i:s'),
-            $expiresAt->format('Y-m-d H:i:s')
-        );
+        $expiresAt = $this->expirationPolicy->expiresAt($earnedAt);
+        if ($points > 0) {
+            $this->transactions->insertEarn(
+                $userId,
+                $bookingId,
+                $points,
+                $earnedAt->format('Y-m-d H:i:s'),
+                $expiresAt->format('Y-m-d H:i:s')
+            );
+        }
         $this->transactions->applyCompletionMetrics($userId, $finalPrice, $points);
         $this->transactions->markBookingLoyaltyProcessed(
             $bookingId,
@@ -146,15 +150,31 @@ final readonly class LoyaltyService implements BookingCompletionProcessorInterfa
                 throw new InsufficientPointsException();
             }
 
-            $transactionId = $this->transactions->insertAdjustment(
-                $input['user_id'],
-                $adminId,
-                $input['points'],
-                $input['reason'],
-                $input['source_transaction_id'],
-                random_int(1, PHP_INT_MAX)
-            );
-            $this->transactions->updatePointBalance($input['user_id'], $input['points']);
+            $sourceId = random_int(1, PHP_INT_MAX);
+
+            if ($input['points'] > 0) {
+                $transactionId = $this->transactions->insertAdjustmentCredit(
+                    $input['user_id'],
+                    $adminId,
+                    $input['points'],
+                    $input['reason'],
+                    $input['source_transaction_id'],
+                    $sourceId
+                );
+                $this->transactions->updatePointBalance($input['user_id'], $input['points']);
+            } else {
+                $transactionId = $this->createDebitForLockedUser(
+                    $input['user_id'],
+                    'adjust_debit',
+                    abs($input['points']),
+                    'admin_adjustment',
+                    $sourceId,
+                    $input['reason'],
+                    $adminId,
+                    $input['source_transaction_id'],
+                    new DateTimeImmutable('now', $this->timezone)
+                );
+            }
             $this->transactions->insertAdjustmentAudit(
                 $adminId,
                 $input['user_id'],
@@ -175,26 +195,180 @@ final readonly class LoyaltyService implements BookingCompletionProcessorInterfa
         return array_map(static function (array $row): array {
             $row['cached_balance'] = (int) $row['cached_balance'];
             $row['ledger_balance'] = (int) $row['ledger_balance'];
-            $row['matches'] = $row['cached_balance'] === $row['ledger_balance'];
+            $row['credit_lot_balance'] = (int) $row['credit_lot_balance'];
+            $row['matches'] = $row['cached_balance'] === $row['ledger_balance']
+                && $row['cached_balance'] === $row['credit_lot_balance'];
 
             return $row;
         }, $this->transactions->reconciliationReport());
     }
 
-    private function expirationAt(DateTimeImmutable $earnedAt): DateTimeImmutable
+    /** @return list<array{debit_transaction_id: int, debit_points: int, allocated_points: int, matches: bool}> */
+    public function debitAllocationReport(): array
     {
-        $targetYear = (int) $earnedAt->format('Y') + 1;
-        $targetMonth = (int) $earnedAt->format('n');
-        $lastDay = (int) (new DateTimeImmutable(
-            sprintf('%04d-%02d-01', $targetYear, $targetMonth),
-            $this->timezone
-        ))->format('t');
-        $targetDay = min(
-            (int) $earnedAt->format('j'),
-            $lastDay
+        return array_map(static function (array $row): array {
+            $row['matches'] = $row['debit_points'] === $row['allocated_points'];
+
+            return $row;
+        }, $this->transactions->debitAllocationReport());
+    }
+
+    public function debitInCurrentTransaction(
+        int $userId,
+        string $type,
+        int $points,
+        string $sourceType,
+        int $sourceId,
+        string $description,
+        ?int $createdBy = null,
+        ?int $sourceTransactionId = null,
+        ?DateTimeImmutable $at = null
+    ): int {
+        if (!$this->transactions->inTransaction()) {
+            throw new RuntimeException('Debit loyalty phải chạy trong transaction nghiệp vụ hiện tại.');
+        }
+
+        $user = $this->transactions->lockCustomerContext($userId);
+        if ($user === null || $user['role'] !== 'customer' || $user['status'] !== 'active') {
+            throw new ValidationException(['user' => 'Khách hàng không tồn tại hoặc đã bị vô hiệu.']);
+        }
+
+        if ((int) $user['point_balance'] < $points) {
+            throw new InsufficientPointsException();
+        }
+
+        return $this->createDebitForLockedUser(
+            $userId,
+            $type,
+            $points,
+            $sourceType,
+            $sourceId,
+            $description,
+            $createdBy,
+            $sourceTransactionId,
+            $at ?? new DateTimeImmutable('now', $this->timezone)
+        );
+    }
+
+    /** @return array<string, mixed> */
+    public function customerForMutationInCurrentTransaction(int $userId): array
+    {
+        if (!$this->transactions->inTransaction()) {
+            throw new RuntimeException('Customer loyalty phải được khóa trong transaction hiện tại.');
+        }
+
+        $user = $this->transactions->lockCustomerContext($userId);
+
+        if ($user === null || $user['role'] !== 'customer' || $user['status'] !== 'active') {
+            throw new ValidationException(['user' => 'Khách hàng không tồn tại hoặc đã bị vô hiệu.']);
+        }
+
+        return $user;
+    }
+
+    /** @return array{expired_lots: int, expired_points: int} */
+    public function expirePoints(?DateTimeImmutable $at = null): array
+    {
+        $at = ($at ?? new DateTimeImmutable('now', $this->timezone))->setTimezone($this->timezone);
+        $formattedAt = $at->format('Y-m-d H:i:s');
+        $expiredLots = 0;
+        $expiredPoints = 0;
+
+        foreach ($this->transactions->expiredCreditLotCandidates($formattedAt) as $candidate) {
+            $points = $this->transactions->transactional(function () use ($candidate, $formattedAt): int {
+                $user = $this->transactions->lockCustomerContext($candidate['user_id']);
+
+                if ($user === null || $user['role'] !== 'customer') {
+                    throw new RuntimeException('Credit lot hết hạn không thuộc customer hợp lệ.');
+                }
+
+                $lot = $this->transactions->lockExpiredCreditLot(
+                    $candidate['id'],
+                    $candidate['user_id'],
+                    $formattedAt
+                );
+
+                if ($lot === null) {
+                    return 0;
+                }
+
+                $points = $lot['remaining_points'];
+
+                if ((int) $user['point_balance'] < $points) {
+                    throw new RuntimeException(
+                        'Số dư cache không đủ để expire credit lot #' . $candidate['id'] . '.'
+                    );
+                }
+
+                $debitId = $this->transactions->insertDebit(
+                    $candidate['user_id'],
+                    'expire',
+                    $points,
+                    'credit_lot',
+                    $candidate['id'],
+                    'Hết hạn điểm từ credit lot #' . $candidate['id'] . '.',
+                    null,
+                    null,
+                    $formattedAt
+                );
+                $this->transactions->allocateDebit(
+                    $debitId,
+                    $candidate['id'],
+                    $points,
+                    $formattedAt
+                );
+                $this->transactions->updatePointBalance($candidate['user_id'], -$points);
+
+                return $points;
+            });
+
+            if ($points > 0) {
+                $expiredLots++;
+                $expiredPoints += $points;
+            }
+        }
+
+        return ['expired_lots' => $expiredLots, 'expired_points' => $expiredPoints];
+    }
+
+    private function createDebitForLockedUser(
+        int $userId,
+        string $type,
+        int $points,
+        string $sourceType,
+        int $sourceId,
+        string $description,
+        ?int $createdBy,
+        ?int $sourceTransactionId,
+        DateTimeImmutable $at
+    ): int {
+        $formattedAt = $at->setTimezone($this->timezone)->format('Y-m-d H:i:s');
+        $lots = $this->transactions->lockAvailableCreditLots($userId, $formattedAt);
+        $allocations = $this->allocator->allocate($points, $lots);
+        $debitId = $this->transactions->insertDebit(
+            $userId,
+            $type,
+            $points,
+            $sourceType,
+            $sourceId,
+            $description,
+            $createdBy,
+            $sourceTransactionId,
+            $formattedAt
         );
 
-        return $earnedAt->setDate($targetYear, $targetMonth, $targetDay);
+        foreach ($allocations as $allocation) {
+            $this->transactions->allocateDebit(
+                $debitId,
+                $allocation['credit_transaction_id'],
+                $allocation['allocated_points'],
+                $formattedAt
+            );
+        }
+
+        $this->transactions->updatePointBalance($userId, -$points);
+
+        return $debitId;
     }
 
     private function addMoney(string $left, string $right): string
@@ -234,7 +408,8 @@ final readonly class LoyaltyService implements BookingCompletionProcessorInterfa
                 'earn' => 'Cộng điểm',
                 'redeem' => 'Đổi thưởng',
                 'expire' => 'Hết hạn',
-                'adjust' => 'Điều chỉnh',
+                'adjust_credit' => 'Điều chỉnh tăng',
+                'adjust_debit' => 'Điều chỉnh giảm',
                 default => 'Giao dịch',
             };
             $transaction['is_credit'] = (int) $transaction['points_delta'] >= 0;

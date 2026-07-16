@@ -36,6 +36,7 @@ declare(strict_types=1);
                         <a class="nav-link" href="/dat-lich">Đặt lịch</a>
                         <a class="nav-link" href="/lich-dat">Lịch sử</a>
                         <a class="nav-link" href="/diem-thuong">Điểm</a>
+                        <a class="nav-link" href="/doi-thuong">Reward</a>
                         <a class="nav-link" href="/phuong-tien">Phương tiện</a>
                         <a class="nav-link" href="/khung-gio">Khung giờ</a>
                     <?php else: ?>
@@ -43,6 +44,7 @@ declare(strict_types=1);
                         <a class="nav-link" href="/admin/dich-vu">Dịch vụ</a>
                         <a class="nav-link" href="/admin/khung-gio">Khung giờ</a>
                         <a class="nav-link" href="/admin/diem-thuong">Điểm</a>
+                        <a class="nav-link" href="/admin/reward">Reward</a>
                     <?php endif; ?>
                     <form class="nav-form" method="post" action="/dang-xuat">
                         <input type="hidden" name="_csrf_token" value="<?= $e($csrfToken ?? '') ?>">

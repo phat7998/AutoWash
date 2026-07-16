@@ -8,8 +8,10 @@ use App\Controllers\AdminBookingController;
 use App\Controllers\AdminLoyaltyController;
 use App\Controllers\AdminServiceController;
 use App\Controllers\AdminSlotController;
+use App\Controllers\AdminRewardController;
 use App\Controllers\BookingController;
 use App\Controllers\LoyaltyController;
+use App\Controllers\RewardController;
 use App\Controllers\CatalogController;
 use App\Controllers\VehicleController;
 use App\Controllers\WashSlotController;
@@ -36,7 +38,9 @@ return static function (
     ?callable $bookingControllerFactory = null,
     ?callable $adminBookingControllerFactory = null,
     ?callable $loyaltyControllerFactory = null,
-    ?callable $adminLoyaltyControllerFactory = null
+    ?callable $adminLoyaltyControllerFactory = null,
+    ?callable $rewardControllerFactory = null,
+    ?callable $adminRewardControllerFactory = null
 ): void {
     $router->get('/', static function () use ($view, $session, $tokens): Response {
         return Response::html($view->render('home', [
@@ -179,6 +183,33 @@ return static function (
             $adminLoyalty()->index($request), $authenticated, $admin);
         $router->post('/admin/diem-thuong/dieu-chinh', static fn (Request $request): Response =>
             $adminLoyalty()->adjust($request), $authenticated, $admin);
+    }
+
+    if ($rewardControllerFactory !== null) {
+        $rewards = static fn (): RewardController => $rewardControllerFactory();
+        $customer = new RoleMiddleware($session, 'customer');
+        $router->get('/doi-thuong', static fn (Request $request): Response =>
+            $rewards()->index($request), $authenticated, $customer);
+        $router->post('/doi-thuong/{id}', static fn (Request $request): Response =>
+            $rewards()->redeem($request), $authenticated, $customer);
+    }
+
+    if ($adminRewardControllerFactory !== null) {
+        $adminRewards = static fn (): AdminRewardController => $adminRewardControllerFactory();
+        $router->get('/admin/reward', static fn (Request $request): Response =>
+            $adminRewards()->index($request), $authenticated, $admin);
+        $router->get('/admin/reward/them', static fn (Request $request): Response =>
+            $adminRewards()->create($request), $authenticated, $admin);
+        $router->post('/admin/reward/them', static fn (Request $request): Response =>
+            $adminRewards()->store($request), $authenticated, $admin);
+        $router->get('/admin/reward/{id}/sua', static fn (Request $request): Response =>
+            $adminRewards()->edit($request), $authenticated, $admin);
+        $router->post('/admin/reward/{id}/sua', static fn (Request $request): Response =>
+            $adminRewards()->update($request), $authenticated, $admin);
+        $router->post('/admin/reward/{id}/ngung-hoat-dong', static fn (Request $request): Response =>
+            $adminRewards()->deactivate($request), $authenticated, $admin);
+        $router->post('/admin/reward/{id}/kich-hoat', static fn (Request $request): Response =>
+            $adminRewards()->activate($request), $authenticated, $admin);
     }
 
     if ($vehicleControllerFactory === null) {

@@ -3,7 +3,7 @@
 > **Mã đề tài:** SU26SWP01  
 > **Tên tiếng Việt:** Hệ thống quản lý rửa xe tự động thông minh với đặt lịch trước và chương trình khách hàng thân thiết  
 > **Tên tiếng Anh:** Smart Automated Car Wash Management System with Advance Booking & Loyalty Program  
-> **Phiên bản đặc tả:** 2.2 — Mini-Slice 00B Closure Patch  
+> **Phiên bản đặc tả:** 2.3 — Slice 10 Generic Credit Lot Approval
 > **Múi giờ nghiệp vụ:** `Asia/Ho_Chi_Minh`  
 > **Trạng thái:** Nguồn sự thật kỹ thuật dùng cho nhóm phát triển và AI Agent
 > **Nguồn đã audit tại Slice 00:** `SE_SWP_TopicList_SU26.xlsx`, dòng đề tài `SU26SWP01`; không phát hiện Q&A đã có câu trả lời trong repository tại thời điểm audit.
@@ -171,7 +171,7 @@ Theo yêu cầu đề tài, nhóm **không triển khai**:
 - Chạy hoặc xem kết quả monthly review.
 - Chạy point expiry.
 - Xem báo cáo và xuất dữ liệu nghiên cứu.
-- Điều chỉnh điểm bằng giao dịch `adjust`, bắt buộc có lý do và audit log.
+- Điều chỉnh điểm bằng `adjust_credit` hoặc `adjust_debit`, bắt buộc có lý do và audit log.
 
 ---
 
@@ -525,9 +525,9 @@ Dùng snapshot để lịch sử không đổi khi admin cập nhật giá dịc
 
 - `id`
 - `user_id`
-- `type`: earn/redeem/expire/adjust
-- `points_delta`: số dương khi earn, số âm khi redeem/expire
-- `remaining_points`: chỉ dùng cho lô earn
+- `type`: `earn`/`adjust_credit`/`redeem`/`expire`/`adjust_debit`
+- `points_delta`: số dương cho credit, số âm cho debit; không tạo credit transaction 0 điểm
+- `remaining_points`: bắt buộc cho credit lot (`earn`, `adjust_credit`), null cho debit
 - `source_type`
 - `source_id`
 - `source_transaction_id` nullable — self-FK khi adjustment sửa một giao dịch trước đó
@@ -538,18 +538,21 @@ Dùng snapshot để lịch sử không đổi khi admin cập nhật giá dịc
 - timestamps
 - unique phù hợp để chống xử lý lặp, ví dụ `(type, source_type, source_id)`
 
-`reversal` chưa được thêm vì hiện không có yêu cầu hoàn tác booking đã completed; nếu phát sinh phải có decision riêng.
+`adjust_credit` mặc định không hết hạn; `adjust_debit` phải phân bổ FEFO giống redeem. `reversal` chưa được
+thêm vì hiện không có yêu cầu hoàn tác booking đã completed; nếu phát sinh phải có decision riêng.
 
 ## 6.11. `loyalty_allocations`
 
 - `id`
-- `debit_transaction_id` — FK tới transaction redeem/expire
-- `earn_transaction_id` — FK tới earn lot nguồn
-- `points_allocated`
+- `debit_transaction_id` — FK tới transaction `redeem`/`expire`/`adjust_debit`
+- `credit_transaction_id` — FK tới credit lot `earn`/`adjust_credit`
+- `allocated_points`
 - `allocated_at`
-- unique `(debit_transaction_id, earn_transaction_id)`
+- unique `(debit_transaction_id, credit_transaction_id)`
 
-Allocation truy vết FEFO cho cả redeem và expire. Tổng allocation của debit phải bằng trị tuyệt đối `points_delta`; tổng allocation khỏi earn lot không vượt điểm đã earn.
+Allocation truy vết FEFO cho mọi debit. Tổng allocation của debit phải bằng trị tuyệt đối `points_delta`;
+tổng allocation khỏi credit lot không vượt credit ban đầu. Đây là thay đổi được nhóm phê duyệt để giải quyết
+blocker Slice 10, không phải mở rộng tính năng ngoài roadmap.
 
 ## 6.12. `rewards`
 
@@ -921,7 +924,7 @@ earned_points = floor(base_points * tier_point_rate)
 ```
 
 - Tính theo tier tại thời điểm booking completed.
-- `final_price = 0` có thể nhận 0 điểm.
+- `final_price = 0` có thể nhận 0 điểm; booking vẫn được đánh dấu đã xử lý loyalty nhưng không tạo credit lot 0 điểm.
 - Chỉ completed booking được cộng.
 - Ví dụ `250.000 VND` ở rate `1.25`: base 25, earn 31.
 
@@ -932,13 +935,15 @@ earned_points = floor(base_points * tier_point_rate)
 - Update balance và insert ledger trong cùng transaction.
 - Balance không âm.
 - `point_balance` chỉ là cache/tổng hợp; ledger và allocations là nguồn lịch sử.
+- Sau mọi mutation: `point_balance = ledger net = tổng remaining_points của credit lot`.
+- Mọi debit phải có allocation đầy đủ; không được chỉ giảm cache.
 
 ### LOY-03 Redeem
 
 - Chỉ trừ point balance.
 - Không thay đổi monthly spend hoặc monthly visits.
-- Dùng các lô earn gần hết hạn trước (FEFO).
-- Mỗi phần điểm debit ghi allocation tới earn lot nguồn.
+- Dùng credit lot gần hết hạn trước; lot không hết hạn dùng sau cùng theo FIFO.
+- Mỗi phần điểm debit ghi allocation tới credit lot nguồn.
 - Không đủ điểm thì toàn bộ transaction rollback.
 - Reward tier requirement phải được kiểm tra ở backend.
 
@@ -948,9 +953,9 @@ earned_points = floor(base_points * tier_point_rate)
 - Dùng calendar-month clamp: nếu ngày tương ứng không có trong tháng đích, dùng ngày hợp lệ cuối cùng; ví dụ `29/02/2024 -> 28/02/2025`.
 - Điểm được xem là hết hạn khi `current_time >= expires_at`; toàn bộ tính toán dùng timezone hệ thống `Asia/Ho_Chi_Minh`.
 - CLI command `loyalty:expire-points` chạy hằng ngày.
-- Chỉ expire `remaining_points > 0`.
+- Chỉ expire credit lot `earn` có `remaining_points > 0`; `adjust_credit` mặc định không hết hạn.
 - Tạo transaction `expire`.
-- Ghi allocation từ expire transaction tới earn lot; không expire điểm đã redeem.
+- Ghi allocation từ expire transaction tới credit lot; không expire điểm đã redeem hoặc adjust debit đã dùng.
 - Chạy lại an toàn, không transaction/allocation trùng và không làm balance âm.
 - Hiển thị tổng điểm sẽ hết hạn trong 30 ngày tới.
 
@@ -1081,10 +1086,11 @@ Promotion chỉ hợp lệ khi:
 
 ### ADM-06 Điều chỉnh điểm
 
-- Admin adjust point bằng giao dịch `adjust`; reason là bắt buộc.
+- Admin điều chỉnh dương bằng `adjust_credit`, âm bằng `adjust_debit`; reason là bắt buộc.
+- `adjust_credit` tạo credit lot không hết hạn mặc định; `adjust_debit` phân bổ FEFO vào credit lot.
 - Adjustment âm chỉ hợp lệ khi `available_points + adjustment_points >= 0`; vượt số dư bị từ chối toàn bộ, không clamp về 0.
 - Balance và ledger được cập nhật atomically trong transaction có locking, không để hai request đồng thời làm balance âm.
-- Không cập nhật trực tiếp cached balance khi không có ledger entry; ledger và cache phải reconcile được.
+- Không cập nhật trực tiếp cached balance khi không có ledger entry/allocation phù hợp; ledger, credit lot và cache phải reconcile được.
 - Adjustment sửa giao dịch trước có thể tham chiếu `source_transaction_id`.
 - Thao tác phải có audit log chứa actor và lý do, không chứa secret.
 
@@ -1582,7 +1588,7 @@ AI Agent phải:
 7. Tier qualification dùng spend **AND** completed visits với seed tại mục 6.1.
 8. Booking completed mới ghi nhận spend, visits, points, usage và research event; xử lý idempotent.
 9. Công thức điểm là `floor(floor(final_price / 10.000) × point_rate)`.
-10. Redeem/expire dùng FEFO và `loyalty_allocations`.
+10. Mọi debit (`redeem`, `expire`, `adjust_debit`) dùng FEFO và generic `loyalty_allocations` vào credit lot.
 11. Điểm hết hạn sau đúng 12 tháng lịch.
 12. Customer chỉ tự hủy trước/đúng mốc 2 giờ; dưới 2 giờ cần admin ngoại lệ.
 13. Một booking dùng tối đa một reward, một promotion và một perk.
@@ -1594,7 +1600,8 @@ AI Agent phải:
 19. Booking nhiều dịch vụ cộng tổng duration, lấy capacity lớn nhất (không cộng) và giữ capacity trên mọi slot chồng lấn.
 20. Expiry dùng calendar-month clamp và boundary `current_time >= expires_at` trong timezone hệ thống.
 21. Biển số baseline là biển dân sự Việt Nam thông dụng, chuẩn hóa/validate tập trung và unique theo `normalized_plate`.
-22. Adjustment âm vượt available points bị từ chối, không clamp; mọi adjust phải có reason, ledger và transaction locking.
+22. Adjustment dương tạo non-expiring credit lot; adjustment âm vượt available points bị từ chối, không clamp
+    và phải có FEFO allocation; mọi adjustment có reason, ledger, audit và transaction locking.
 
 ---
 

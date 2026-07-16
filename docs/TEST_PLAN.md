@@ -44,8 +44,8 @@
 | IT-BKG-05 | Cancel boundary/capacity/reward restore | BKG-05 | ≥2h cho phép, <2h chặn customer; capacity/reward đúng |
 | IT-BKG-06 | Complete transaction/idempotency | BKG-06 | Status, metrics, point, usage, event atomic; không lặp |
 | IT-LOY-02 | Ledger/balance consistency | LOY-02 | Mutation atomic; balance không âm; reconcile bằng nhau |
-| IT-LOY-03 | Redeem FEFO/allocation/concurrency | LOY-03 | Qua nhiều lot, allocation đúng; rollback khi thiếu; metrics không đổi |
-| IT-LOY-04 | Expiry calendar/allocation/idempotency | LOY-04 | Không expire redeemed points; transaction/allocation duy nhất |
+| IT-LOY-03 | Redeem FEFO/generic allocation/concurrency | LOY-03 | Qua earn + adjustment credit; allocation đúng; rollback khi thiếu; metrics không đổi |
+| IT-LOY-04 | Expiry calendar/allocation/idempotency | LOY-04 | Chỉ expire remaining earn credit; transaction/allocation duy nhất |
 | IT-TIER-01 | Chọn kỳ tháng vừa kết thúc | TIER-01 | Review period chính xác và unique |
 | IT-TIER-03 | Upgrade/downgrade và snapshot/reset | TIER-03 | Nhiều bậc; metrics reset; point giữ nguyên |
 | IT-TIER-04 | Monthly review lặp/failure recovery | TIER-04 | Mỗi user/period một history; completed run không lặp |
@@ -60,7 +60,7 @@
 | IT-ADM-03 | Slot admin validation | ADM-03 | Từ chối capacity/time/date/duplicate sai |
 | IT-ADM-04 | Reward admin validation | ADM-04 | Type/value/tier/service hợp lệ |
 | IT-ADM-05 | Promotion admin validation | ADM-05 | Time/value/limit/target hợp lệ |
-| IT-ADM-06 | Point adjust atomic + audit | ADM-06 | Reason/actor bắt buộc; ledger khớp balance |
+| IT-ADM-06 | Point adjust credit/debit atomic + audit | ADM-06 | Reason/actor; debit FEFO; cache = ledger net = remaining credit lots |
 | IT-ADM-08 | Config log | ADM-08 | Log có actor/action, không có secret |
 | IT-REP-02 | Report aggregation | REP-02 | Revenue chỉ completed; số liệu đúng fixture |
 | IT-RBL-02 | Event persistence/idempotency | RBL-02 | Snapshot đủ data dictionary; completion không ghi lặp |
@@ -181,12 +181,12 @@
 | LOY-00B-01 | Unit | Earn theo bốn tier rates | Floor hai bước đúng |
 | LOY-00B-02 | Integration | Booking chưa completed | Không earn |
 | LOY-00B-03 | Integration | Complete request gửi hai lần | Không lặp point/spend/visit/event/usage |
-| LOY-00B-04 | Integration | Redeem FEFO một lot | Allocation trỏ lot sớm nhất |
+| LOY-00B-04 | Integration | Redeem FEFO một credit lot | Allocation trỏ lot có expiry sớm nhất |
 | LOY-00B-05 | Integration | Redeem qua nhiều earn lots | Allocation sum bằng debit |
 | LOY-00B-06 | Integration | Redeem thiếu điểm | Rollback toàn bộ |
 | LOY-00B-07 | Integration | Redeem điểm đã expired/remaining=0 | Không sử dụng |
 | LOY-00B-08 | Integration | Expiry command chạy hai lần | Không transaction/allocation trùng |
-| LOY-00B-09 | Concurrency | Hai redeem đồng thời | point_balance không âm |
+| LOY-00B-09 | Concurrency | Hai redeem đồng thời | point_balance và remaining credit lot không âm |
 | LOY-00B-10 | Integration | Redeem thành công | Spend/visits không giảm |
 | TIER-00B-01 | Unit | Chỉ đạt spend hoặc visits | Không đạt tier; dùng AND |
 | TIER-00B-02 | Integration | Monthly review chạy hai lần | Run/history/reset không lặp |
@@ -289,13 +289,25 @@
 
 | Case ID | Loại | Test case | Expected |
 |---|---|---|---|
-| LOY-ADJ-01 | Integration | Adjustment dương có reason | Ledger/cache cùng tăng, audit đúng actor/reason |
-| LOY-ADJ-02 | Integration | Adjustment âm nhỏ hơn available points | Commit đúng delta, số dư dương |
-| LOY-ADJ-03 | Integration | Adjustment âm bằng available points | Commit, số dư bằng 0 |
+| LOY-ADJ-01 | Integration | Adjustment dương có reason | `adjust_credit` non-expiring lot; ledger/cache cùng tăng, audit đúng |
+| LOY-ADJ-02 | Integration | Adjustment âm nhỏ hơn available points | `adjust_debit` FEFO allocation, remaining và cache cùng giảm |
+| LOY-ADJ-03 | Integration | Adjustment âm bằng available points | Allocation đủ, remaining/cache bằng 0 |
 | LOY-ADJ-04 | Integration | Adjustment âm vượt available points | Từ chối toàn bộ, không clamp/ledger rác |
 | LOY-ADJ-05 | Validation/Security | Adjustment không có reason | Từ chối trước mutation |
 | LOY-ADJ-06 | Concurrency | Hai adjustment âm đồng thời | Lock/transaction không cho overspend hoặc balance âm |
-| LOY-ADJ-07 | Integration | Reconcile sau adjustment | Tổng ledger và cached balance nhất quán; source transaction lưu được khi có |
+| LOY-ADJ-07 | Integration | Reconcile sau adjustment | Cache = ledger net = remaining credits; debit allocation đủ; source lưu được |
+| LOY-CREDIT-01 | Integration | Booking tính ra 0 điểm | Vẫn đánh dấu loyalty đã xử lý, không tạo credit transaction 0 điểm |
+
+### 9.4.1. Generic credit lot migration được phê duyệt tại Slice 10
+
+| Case ID | Loại | Test case | Expected |
+|---|---|---|---|
+| LOY-MIG-01 | Integration | Backfill positive `adjust` lịch sử | Thành `adjust_credit`, remaining bằng credit, expiry null |
+| LOY-MIG-02 | Integration | Backfill negative `adjust` lịch sử | Thành `adjust_debit`, phân bổ FEFO vào credit lịch sử |
+| LOY-MIG-03 | Integration | Allocation redeem cũ qua migration | Đổi tên generic nhưng giữ debit, credit, points và timestamp |
+| LOY-MIG-04 | Integration | Negative adjustment không có credit trước nó | Migration fail-fast và báo chính xác transaction ID |
+| LOY-MIG-05 | Integration | Legacy credit transaction có 0 điểm | Migration fail-fast và báo chính xác transaction ID |
+| LOY-CON-01 | Integration | Reconcile sau earn/adjust/redeem/expire | Cache = ledger net = tổng remaining credit lots; debit allocation đủ |
 
 ### 9.5. Research deliverable boundary
 

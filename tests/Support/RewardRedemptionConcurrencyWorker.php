@@ -5,17 +5,19 @@ declare(strict_types=1);
 use App\Core\Database;
 use App\Exceptions\InsufficientPointsException;
 use App\Repositories\LoyaltyTransactionRepository;
-use App\Services\LoyaltyPointCalculator;
+use App\Repositories\RewardRepository;
 use App\Services\LoyaltyDebitAllocator;
 use App\Services\LoyaltyExpirationPolicy;
+use App\Services\LoyaltyPointCalculator;
 use App\Services\LoyaltyService;
+use App\Services\RewardService;
 use App\Validation\LoyaltyAdjustmentValidator;
+use App\Validation\RewardValidator;
 
 $projectRoot = dirname(__DIR__, 2);
 require $projectRoot . '/vendor/autoload.php';
 require $projectRoot . '/bootstrap/environment.php';
-
-[$script, $barrierFile, $resultFile, $adminId, $userId, $points] = $argv;
+[$script, $barrierFile, $resultFile, $userId, $rewardId] = $argv;
 $deadline = microtime(true) + 10;
 
 while (!is_file($barrierFile) && microtime(true) < $deadline) {
@@ -27,22 +29,24 @@ if (!is_file($barrierFile)) {
     exit(2);
 }
 
-$service = new LoyaltyService(
+$timezone = new DateTimeZone('Asia/Ho_Chi_Minh');
+$loyalty = new LoyaltyService(
     new LoyaltyTransactionRepository(Database::connection()),
     new LoyaltyPointCalculator(10_000),
     new LoyaltyAdjustmentValidator(),
     new LoyaltyDebitAllocator(),
-    new LoyaltyExpirationPolicy(new DateTimeZone('Asia/Ho_Chi_Minh')),
-    new DateTimeZone('Asia/Ho_Chi_Minh')
+    new LoyaltyExpirationPolicy($timezone),
+    $timezone
+);
+$rewards = new RewardService(
+    new RewardRepository(Database::connection()),
+    $loyalty,
+    new RewardValidator(),
+    $timezone
 );
 
 try {
-    $service->adjust(
-        (int) $adminId,
-        $userId,
-        $points,
-        'Kiểm thử hai điều chỉnh âm đồng thời.'
-    );
+    $rewards->redeem((int) $userId, (int) $rewardId);
     file_put_contents($resultFile, 'success');
 } catch (InsufficientPointsException) {
     file_put_contents($resultFile, 'insufficient');

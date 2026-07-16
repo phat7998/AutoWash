@@ -15,7 +15,7 @@
 | 07 | Booking create, multi-service/multi-slot reservations, price/window/capacity race | BKG-01..03/07, SLOT-02, DEC-017 | 06 | Duration sum, capacity max, overlap holds, tamper/concurrency/rollback |
 | 08 | Lifecycle, cancellation cutoff 2h, history, completion hook | BKG-04..06 partial, DEC-021 | 07 | Cancellation boundary/capacity/history tests |
 | 09 | Loyalty ledger, adjustment rule, allocation foundation, earn/atomic completion | LOY-01/02, ADM-06, DEC-018/020/032 | 08 | Formula, adjust reject/no-clamp, idempotent completion, reconcile |
-| 10 | Reward redemption, FEFO allocations, calendar-clamp expiry command | LOY-03/04, RWD-01/02/04, DEC-005 | 09 | Leap-day/boundary, multi-lot, rerun, no-negative/concurrency |
+| 10 | Generic credit lots, reward redemption, FEFO allocations, calendar-clamp expiry | LOY-02..04, RWD-01/02/04, ADM-04, DEC-005/018/032 | 09 | Migration/backfill, credit/debit invariant, leap-day, multi-lot, rerun, concurrency |
 | 11 | Monthly tier review/history | TIER-01..04, DEC-003/019 | 09–10 | AND/upgrade/downgrade/hold/history/rerun |
 | 12 | Tier/perk/promotion/reward checkout integration | BKG-03, RWD-03, PRO-01..05, ADM-01/04/05/06 | 10–11 | Tier/service/type eligibility, limits, snapshots |
 | 13 | Safe upload, `LprProviderInterface`, mock/external adapter, fallback | LPR-02, NFR-16, DEC-024 | 05 | Success/error/low-confidence/manual/security tests |

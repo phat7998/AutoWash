@@ -28,6 +28,7 @@ final readonly class LoyaltyTransactionRepository
                 users.point_balance,
                 tiers.code AS tier_code,
                 tiers.name AS tier_name,
+                tiers.rank_order AS tier_rank,
                 tiers.point_rate
             FROM users
             INNER JOIN tiers ON tiers.id = users.current_tier_id
@@ -290,7 +291,7 @@ final readonly class LoyaltyTransactionRepository
         return $statement->fetchColumn() !== false;
     }
 
-    public function insertAdjustment(
+    public function insertAdjustmentCredit(
         int $userId,
         int $adminId,
         int $points,
@@ -304,7 +305,7 @@ final readonly class LoyaltyTransactionRepository
                 user_id, type, points_delta, remaining_points, source_type, source_id,
                 source_transaction_id, description, created_by
             ) VALUES (
-                :user_id, 'adjust', :points_delta, NULL, 'admin_adjustment', :source_id,
+                :user_id, 'adjust_credit', :points_delta, :remaining_points, 'admin_adjustment', :source_id,
                 :source_transaction_id, :description, :created_by
             )
             SQL
@@ -312,6 +313,7 @@ final readonly class LoyaltyTransactionRepository
         $statement->execute([
             'user_id' => $userId,
             'points_delta' => $points,
+            'remaining_points' => $points,
             'source_id' => $sourceId,
             'source_transaction_id' => $sourceTransactionId,
             'description' => $reason,
@@ -321,16 +323,181 @@ final readonly class LoyaltyTransactionRepository
         return (int) $this->database->lastInsertId();
     }
 
+    public function insertDebit(
+        int $userId,
+        string $type,
+        int $points,
+        string $sourceType,
+        int $sourceId,
+        string $description,
+        ?int $createdBy = null,
+        ?int $sourceTransactionId = null,
+        ?string $createdAt = null
+    ): int {
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            INSERT INTO loyalty_transactions (
+                user_id, type, points_delta, remaining_points, source_type, source_id,
+                source_transaction_id, description, created_by, created_at, updated_at
+            ) VALUES (
+                :user_id, :type, :points_delta, NULL, :source_type, :source_id,
+                :source_transaction_id, :description, :created_by,
+                COALESCE(:created_at, CURRENT_TIMESTAMP), COALESCE(:updated_at, CURRENT_TIMESTAMP)
+            )
+            SQL
+        );
+        $statement->execute([
+            'user_id' => $userId,
+            'type' => $type,
+            'points_delta' => -$points,
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
+            'source_transaction_id' => $sourceTransactionId,
+            'description' => $description,
+            'created_by' => $createdBy,
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt,
+        ]);
+
+        return (int) $this->database->lastInsertId();
+    }
+
+    /** @return list<array{id: int, remaining_points: int}> */
+    public function lockAvailableCreditLots(int $userId, string $at): array
+    {
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            SELECT id, remaining_points
+            FROM loyalty_transactions
+            WHERE user_id = :user_id
+              AND type IN ('earn', 'adjust_credit')
+              AND remaining_points > 0
+              AND created_at <= :created_at
+              AND (expires_at IS NULL OR expires_at > :at)
+            ORDER BY expires_at IS NULL, expires_at, created_at, id
+            FOR UPDATE
+            SQL
+        );
+        $statement->execute(['user_id' => $userId, 'created_at' => $at, 'at' => $at]);
+
+        return array_map(static fn (array $row): array => [
+            'id' => (int) $row['id'],
+            'remaining_points' => (int) $row['remaining_points'],
+        ], $statement->fetchAll());
+    }
+
+    /** @return list<array{id: int, user_id: int}> */
+    public function expiredCreditLotCandidates(string $at): array
+    {
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            SELECT id, user_id
+            FROM loyalty_transactions
+            WHERE type = 'earn' AND remaining_points > 0 AND expires_at <= :at
+            ORDER BY expires_at, created_at, id
+            SQL
+        );
+        $statement->execute(['at' => $at]);
+
+        return array_map(static fn (array $row): array => [
+            'id' => (int) $row['id'],
+            'user_id' => (int) $row['user_id'],
+        ], $statement->fetchAll());
+    }
+
+    /** @return array{id: int, remaining_points: int}|null */
+    public function lockExpiredCreditLot(int $lotId, int $userId, string $at): ?array
+    {
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            SELECT id, remaining_points
+            FROM loyalty_transactions
+            WHERE id = :id AND user_id = :user_id AND type = 'earn'
+              AND remaining_points > 0 AND expires_at <= :at
+            LIMIT 1
+            FOR UPDATE
+            SQL
+        );
+        $statement->execute(['id' => $lotId, 'user_id' => $userId, 'at' => $at]);
+        $row = $statement->fetch();
+
+        return is_array($row) ? [
+            'id' => (int) $row['id'],
+            'remaining_points' => (int) $row['remaining_points'],
+        ] : null;
+    }
+
+    public function allocateDebit(
+        int $debitTransactionId,
+        int $creditTransactionId,
+        int $points,
+        string $allocatedAt
+    ): void {
+        $update = $this->database->prepare(
+            <<<'SQL'
+            UPDATE loyalty_transactions
+            SET remaining_points = remaining_points - :points, updated_at = CURRENT_TIMESTAMP
+            WHERE id = :credit_id
+              AND type IN ('earn', 'adjust_credit')
+              AND remaining_points >= :minimum_points
+            SQL
+        );
+        $update->execute([
+            'points' => $points,
+            'minimum_points' => $points,
+            'credit_id' => $creditTransactionId,
+        ]);
+
+        if ($update->rowCount() !== 1) {
+            throw new \RuntimeException('Credit lot không còn đủ điểm để phân bổ.');
+        }
+
+        $allocation = $this->database->prepare(
+            <<<'SQL'
+            INSERT INTO loyalty_allocations (
+                debit_transaction_id, credit_transaction_id, allocated_points, allocated_at
+            )
+            SELECT :debit_id, :credit_id, :points, :allocated_at
+            FROM loyalty_transactions AS debit
+            INNER JOIN loyalty_transactions AS credit ON credit.id = :credit_id_join
+            WHERE debit.id = :debit_id_join
+              AND debit.type IN ('redeem', 'expire', 'adjust_debit')
+              AND credit.type IN ('earn', 'adjust_credit')
+              AND debit.user_id = credit.user_id
+            SQL
+        );
+        $allocation->execute([
+            'debit_id' => $debitTransactionId,
+            'debit_id_join' => $debitTransactionId,
+            'credit_id' => $creditTransactionId,
+            'credit_id_join' => $creditTransactionId,
+            'points' => $points,
+            'allocated_at' => $allocatedAt,
+        ]);
+
+        if ($allocation->rowCount() !== 1) {
+            throw new \RuntimeException('Allocation không nối đúng debit transaction với credit lot.');
+        }
+    }
+
     public function updatePointBalance(int $userId, int $points): void
     {
         $statement = $this->database->prepare(
             <<<'SQL'
             UPDATE users
             SET point_balance = point_balance + :points, updated_at = CURRENT_TIMESTAMP
-            WHERE id = :user_id
+            WHERE id = :user_id AND point_balance + :points_guard >= 0
             SQL
         );
-        $statement->execute(['points' => $points, 'user_id' => $userId]);
+        $statement->execute([
+            'points' => $points,
+            'points_guard' => $points,
+            'user_id' => $userId,
+        ]);
+
+        if ($statement->rowCount() !== 1) {
+            throw new \RuntimeException('Không thể cập nhật point balance mà vẫn giữ số dư không âm.');
+        }
     }
 
     public function insertAdjustmentAudit(
@@ -373,7 +540,14 @@ final readonly class LoyaltyTransactionRepository
                 users.id AS user_id,
                 users.full_name,
                 users.point_balance AS cached_balance,
-                COALESCE(SUM(loyalty_transactions.points_delta), 0) AS ledger_balance
+                COALESCE(SUM(loyalty_transactions.points_delta), 0) AS ledger_balance,
+                COALESCE(SUM(
+                    CASE
+                        WHEN loyalty_transactions.type IN ('earn', 'adjust_credit')
+                        THEN loyalty_transactions.remaining_points
+                        ELSE 0
+                    END
+                ), 0) AS credit_lot_balance
             FROM users
             LEFT JOIN loyalty_transactions ON loyalty_transactions.user_id = users.id
             WHERE users.role = 'customer'
@@ -381,6 +555,31 @@ final readonly class LoyaltyTransactionRepository
             ORDER BY users.id
             SQL
         )->fetchAll();
+    }
+
+    /** @return list<array{debit_transaction_id: int, debit_points: int, allocated_points: int}> */
+    public function debitAllocationReport(): array
+    {
+        $rows = $this->database->query(
+            <<<'SQL'
+            SELECT
+                loyalty_transactions.id AS debit_transaction_id,
+                ABS(loyalty_transactions.points_delta) AS debit_points,
+                COALESCE(SUM(loyalty_allocations.allocated_points), 0) AS allocated_points
+            FROM loyalty_transactions
+            LEFT JOIN loyalty_allocations
+                ON loyalty_allocations.debit_transaction_id = loyalty_transactions.id
+            WHERE loyalty_transactions.type IN ('redeem', 'expire', 'adjust_debit')
+            GROUP BY loyalty_transactions.id
+            ORDER BY loyalty_transactions.id
+            SQL
+        )->fetchAll();
+
+        return array_map(static fn (array $row): array => [
+            'debit_transaction_id' => (int) $row['debit_transaction_id'],
+            'debit_points' => (int) $row['debit_points'],
+            'allocated_points' => (int) $row['allocated_points'],
+        ], $rows);
     }
 
     public function transactional(callable $callback): mixed

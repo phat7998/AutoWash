@@ -1,10 +1,10 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
 > Cập nhật: 2026-07-16  
-> Slice hiện tại: Slice 09 — Complete
+> Slice hiện tại: Slice 10 — Complete
 >
 > Product code: đã có nền repository/database, HTTP/security, authentication/RBAC, quản lý phương tiện,
-> danh mục dịch vụ, quản lý khung giờ/capacity, booking, vòng đời booking và loyalty earn/adjustment.
+> danh mục dịch vụ, booking, loyalty generic credit lots, FEFO redemption/expiry và reward management.
 
 ## Tổng quan
 
@@ -21,7 +21,59 @@
 | 07 | Complete | Booking window theo tier, server pricing, multi-service/multi-slot snapshot, transaction/locking và concurrency test hai tiến trình |
 | 08 | Complete | State matrix, customer cutoff 2 giờ/ownership, admin lifecycle/audit, capacity release, wash history và completion hook |
 | 09 | Complete | Earn formula, ledger/cache, atomic completion, metrics/event, customer history, admin adjustment/audit/concurrency và reconcile |
-| 10–15 | Not started | Xem `ROADMAP.md` |
+| 10 | Complete | Generic credit/debit allocation, migration/backfill, reward CRUD/redemption, FEFO, expiry CLI và concurrency |
+| 11–15 | Not started | Xem `ROADMAP.md` |
+
+## Slice 10 — Generic Credit Lots, Reward Redemption and Point Expiry
+
+- Requirements: hoàn tất LOY-02, LOY-03, LOY-04, RWD-01, RWD-02 và ADM-04; phần Slice 10 của RWD-04
+  và REP-01; tiếp tục NFR-03, NFR-05, NFR-09, NFR-11..13, NFR-15, NFR-17 và NFR-19..23.
+- Hoàn thành:
+  - Theo phê duyệt blocker Slice 10, sửa DEC-011/018/032: credit transaction gồm `earn` và
+    `adjust_credit`; debit gồm `redeem`, `expire`, `adjust_debit`; mọi debit bắt buộc có generic allocation.
+  - Migration `007_generalize_loyalty_credit_lots` đổi `earn_transaction_id`/`points_allocated` thành
+    `credit_transaction_id`/`allocated_points`, sửa type/check/FK/index và giữ unique debit+credit.
+  - Preflight migration kiểm tra ledger/cache và mô phỏng lịch sử; backfill positive adjustment thành
+    non-expiring credit lot, negative adjustment thành FEFO debit; dữ liệu không thể phân bổ làm migration
+    fail rõ với transaction ID, không clamp hoặc âm thầm sửa balance.
+  - `LoyaltyDebitAllocator` và LoyaltyService giữ đồng thời cache = ledger net = tổng remaining credit lots;
+    adjustment âm, redeem và expiry lock/allocate/update cache trong cùng transaction.
+  - FEFO dùng lot có expiry sớm nhất, tie-break `created_at,id`; non-expiring adjustment credit dùng sau cùng
+    theo FIFO. Expiry chỉ trừ phần remaining của earn lot và chạy lại không tạo debit/allocation trùng.
+  - Tạo `LoyaltyExpirationPolicy` cho 12 calendar months có leap-day clamp và CLI `expire-points.php`.
+  - Tạo RewardRepository/RewardService/RewardValidator, customer/admin controllers, route và UI tiếng Việt;
+    customer xem reward đủ hạng, redeem atomically và chỉ xem redemption của mình; admin CRUD/inactivate
+    cùng tier/service/vehicle restriction, RBAC, CSRF, validation và escaped output.
+  - Seed Member có earn lot 150 điểm sắp hết hạn trong 20 ngày + 250 adjustment credit không expiry; Gold
+    có 800 adjustment credit để demo reward/FEFO. Seeder idempotent không phục hồi lot đã tiêu thụ.
+  - Reconcile CLI kiểm tra ba balance invariant và tổng allocation của từng debit.
+- Chưa hoàn thành: áp reward vào checkout, service/vehicle restriction khi sử dụng, use-once/used/cancel
+  restore và percentage cap thuộc Slice 12; monthly tier review thuộc Slice 11. RWD-04/REP-01 tổng thể còn
+  `In Progress`; không triển khai promotion/perk hoặc Slice 11.
+- File thay đổi: migration 007; loyalty/reward Controller/Service/Repository/Validator/exceptions; bootstrap,
+  routes, views/layout; expiry/reconcile CLI; demo seed; unit/integration/migration/concurrency tests; README,
+  Decisions, ERD, Specification, RTM, Test Plan và file status này.
+- Migration: có `007_generalize_loyalty_credit_lots`; fresh reset và legacy positive/negative adjustment
+  backfill đều có automated evidence. Không tạo entity/table mới ngoài schema loyalty đã duyệt.
+- Test đã chạy:
+  - `vendor/bin/phpunit tests/Unit/RewardRulesTest.php` — pass, 5 tests/15 assertions.
+  - Migration + Loyalty + Reward integration — pass, 17 tests/148 assertions.
+  - `AUTOWASH_DB_TESTS=1 ... composer check` trên host PHP 8.5/MySQL 8.4 — pass, PHPCS 129/129 file;
+    PHPUnit 137 tests/578 assertions, không skip.
+  - `docker compose exec -T -e AUTOWASH_DB_TESTS=1 web composer check` trên PHP 8.2.32/MySQL 8.4 — pass,
+    PHPCS 129/129 file; PHPUnit 137 tests/578 assertions, không skip.
+  - Fresh reset/migrate/seed, `expire-points.php` chạy hai lần theo automated test và reconcile CLI thật —
+    cache, ledger net, credit lot balance và debit allocations đều `KHỚP`.
+  - HTTP smoke Apache port 8081 — customer login/reward/redeem `303/200/303`; admin login/reward/create
+    `303/200/303`; parser CSRF smoke ban đầu được sửa để lấy đúng một token trước khi kết luận.
+- Kết quả: đạt acceptance riêng Slice 10; migration/backfill, generic allocation, reward redemption, expiry,
+  adjustment và concurrency có evidence thật.
+- Quyết định: DEC-011/018/032 được sửa đúng phê duyệt blocker; không phát sinh thay đổi ngoài loyalty Slice 10.
+- Rủi ro còn lại: reward redemption mới ở trạng thái `available`; checkout use-once và restore khi cancel phải
+  hoàn tất ở Slice 12. Migration DDL của MySQL không transactional hoàn toàn, nên preflight fail-fast chạy
+  trước mọi ALTER để ngăn dữ liệu lịch sử không thể backfill.
+- Lệnh chạy tiếp: sau khi accept Slice 10, thực hiện duy nhất Slice 11.
+- Commit đề xuất: `feat(LOY): hoàn tất credit lot, đổi thưởng và hết hạn điểm [Slice 10]`.
 
 ## Slice 09 — Loyalty Ledger, Earn Points and Completion Integration
 

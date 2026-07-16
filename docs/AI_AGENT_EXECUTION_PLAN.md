@@ -202,7 +202,8 @@ Hãy dừng sau khi hoàn tất đúng slice được giao.
 - Bốn loại xe qua `vehicle_types`; không ENUM.
 - Giá/thời lượng/capacity theo `service_vehicle_prices`.
 - Slot dùng capacity units; multi-service cộng duration, lấy max capacity và giữ trên mọi slot chồng lấn bằng reservations atomically.
-- Loyalty dùng `loyalty_transactions` + `loyalty_allocations`, FEFO và expiry 12 calendar months có clamp/boundary thống nhất.
+- Loyalty dùng generic credit lot/debit allocation trong `loyalty_transactions` + `loyalty_allocations`;
+  mọi debit có allocation đủ, FEFO và expiry 12 calendar months có clamp/boundary thống nhất theo phê duyệt Slice 10.
 - Biển số dân sự Việt Nam thông dụng được normalize/validate trong shared service theo DEC-031.
 - Adjustment âm vượt available points bị từ chối, không clamp; reason/ledger/locking bắt buộc.
 - Tier seed/rate và công thức point theo `DECISIONS.md`.
@@ -811,14 +812,16 @@ Nhiệm vụ:
 2. Admin CRUD/inactivate reward.
 3. Customer xem reward đủ điều kiện theo tier.
 4. Redeem atomically:
-   - lock user và các earning lots
+   - lock user và các credit lots
    - kiểm tra reward active/tier/points
    - trừ theo FEFO: expires_at sớm nhất trước
-   - update remaining_points của earning lots
+   - update remaining_points của credit lots
    - insert redeem transaction
    - giảm point_balance
    - tạo reward_redemption available
 5. Không thay đổi monthly_spend/monthly_visits.
+5a. Adjustment dương là `adjust_credit` không hết hạn mặc định; adjustment âm là `adjust_debit` và dùng
+    cùng generic FEFO allocation. Cache phải bằng ledger net và tổng remaining credit lots.
 6. Implement expire-points CLI:
    - lô hết hạn và còn remaining_points
    - insert expire transaction

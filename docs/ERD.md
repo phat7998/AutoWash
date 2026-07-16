@@ -147,7 +147,7 @@ erDiagram
         bigint id PK
         bigint user_id FK
         bigint created_by FK
-        varchar type
+        varchar type "earn|adjust_credit|redeem|expire|adjust_debit"
         int points_delta
         int remaining_points
         varchar source_type
@@ -163,8 +163,8 @@ erDiagram
     LOYALTY_ALLOCATIONS {
         bigint id PK
         bigint debit_transaction_id FK
-        bigint earn_transaction_id FK
-        int points_allocated
+        bigint credit_transaction_id FK
+        int allocated_points
         datetime allocated_at
     }
 
@@ -354,7 +354,7 @@ erDiagram
     USERS ||--o{ LOYALTY_TRANSACTIONS : owns_ledger
     USERS o|--o{ LOYALTY_TRANSACTIONS : created_by
     LOYALTY_TRANSACTIONS ||--o{ LOYALTY_ALLOCATIONS : debit
-    LOYALTY_TRANSACTIONS ||--o{ LOYALTY_ALLOCATIONS : earn_lot
+    LOYALTY_TRANSACTIONS ||--o{ LOYALTY_ALLOCATIONS : credit_lot
     LOYALTY_TRANSACTIONS o|--o{ LOYALTY_TRANSACTIONS : correction_source
 
     TIERS o|--o{ REWARDS : minimum_tier
@@ -396,8 +396,8 @@ erDiagram
 | Booking capacity | Unique `(booking_id,wash_slot_id)`; tổng reservation pending/confirmed không vượt từng slot; mọi slot chồng lấn được lock theo thứ tự và giữ atomically |
 | Booking history | Item snapshot giữ service name, type code, price, duration, capacity; config đổi không sửa lịch sử |
 | Active vehicle/time | Một vehicle không có hai booking active có khoảng thời gian chồng lấn; enforce bằng transaction và constraint/index phù hợp |
-| Loyalty source | Unique idempotency cho earn/expire/adjust theo source; adjustment correction có nullable self-FK; balance cache không âm và không clamp |
-| Allocation | Unique `(debit_transaction_id,earn_transaction_id)`; debit là redeem/expire, source là earn; allocated total không vượt lot |
+| Loyalty source | Unique idempotency theo type/source; `earn` và `adjust_credit` là credit lot; `redeem`, `expire`, `adjust_debit` là debit; adjustment correction có nullable self-FK |
+| Allocation | Unique `(debit_transaction_id,credit_transaction_id)`; `allocated_points > 0`; mọi debit phân bổ đủ vào credit lot và không vượt `remaining_points` |
 | Tier review | `monthly_review_runs.review_period` unique; `tier_histories(user_id,review_period)` unique |
 | Reward use | Reward redemption owner-only/use-once; vehicle restriction kiểm tra backend |
 | Promotion | Association composite PK; usage unique `(promotion_id,booking_id)`; limits kiểm tra có lock |
@@ -416,13 +416,17 @@ erDiagram
 
 ## Loyalty FEFO và expiry
 
-1. Lock user và earn lots còn `remaining_points > 0`, sắp xếp `expires_at ASC, id ASC`.
-2. Tạo debit transaction redeem/expire.
-3. Tạo một allocation cho mỗi earn lot được dùng và giảm remaining points.
+1. Lock user và credit lots còn `remaining_points > 0`; lot có expiry dùng trước theo
+   `expires_at ASC, created_at ASC, id ASC`, lot không expiry dùng sau cùng theo FIFO.
+2. Tạo debit transaction `redeem`, `expire` hoặc `adjust_debit`.
+3. Tạo một allocation cho mỗi credit lot được dùng và giảm remaining points.
 4. Tổng allocation bằng trị tuyệt đối debit; update balance trong cùng transaction.
 5. Expiry dùng `expires_at = earned_at + 12 calendar months` với clamp ngày cuối tháng; expired khi `current_time >= expires_at` trong `Asia/Ho_Chi_Minh`; command `loyalty:expire-points` idempotent.
 
-Adjustment âm lock user/balance trong transaction và chỉ commit khi `available_points + adjustment_points >= 0`; không clamp. Mỗi adjust có reason, ledger entry và audit; `source_transaction_id` cho phép liên kết giao dịch được sửa.
+Adjustment dương tạo `adjust_credit` với `remaining_points = points_delta`, `expires_at = NULL`.
+Adjustment âm tạo `adjust_debit`, lock user/credit lots, phân bổ FEFO và chỉ commit khi
+`available_points + adjustment_points >= 0`; không clamp. Mỗi adjust có reason, ledger, allocation khi debit
+và audit; `source_transaction_id` cho phép liên kết giao dịch được sửa.
 
 Không có `reversal` trong baseline vì chưa có post-completion refund/reversal requirement.
 
