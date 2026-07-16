@@ -14,9 +14,9 @@
 | VEH-01 | Biển dân sự VN thông dụng; uppercase/bỏ separator; shared validator pattern tập trung | Spec §7.2; DEC-031 | MUST | Vehicle / 05 | Planned | UT-VEH-01, VEH-PLATE-01..07 | DEMO-01 | Planned |
 | VEH-02 | `normalized_plate` unique; display khác nhưng normalized trùng thành domain error | Spec §7.2; DEC-031 | MUST | Vehicle / 05 | Planned | IT-VEH-02, VEH-PLATE-03 | DEMO-01 | Planned |
 | VEH-03 | Ownership cho view/edit/booking vehicle | Spec §7.2 | MUST | Vehicle / 05 | Planned | IT-VEH-03, ST-AUTH-03 | DEMO-01 | Planned |
-| VEH-04 | Bốn vehicle types qua bảng cấu hình; inactive và không hard-delete khi referenced | Spec §7.2; DEC-015/029 | MUST | Vehicle type / 02,05 | Planned | VEH-00B-01..09 | DEMO-01 | Planned |
+| VEH-04 | Bốn vehicle types qua bảng cấu hình; inactive và không hard-delete khi referenced | Spec §7.2; DEC-015/029 | MUST | Vehicle type / 02,05 | `database/migrations/002_create_catalog_tables.php`, `database/seeds/base.php` | `DatabaseFoundationTest`, VEH-00B-01..09 | DEMO-01 | In Progress |
 | CAT-01 | Chỉ service/cặp giá active, supported, đúng type; giá từ DB | Spec §7.3 | MUST | Catalog / 06 | Planned | IT-CAT-01, CAT-00B-02..05 | DEMO-02 | Planned |
-| CAT-02 | Price/duration/capacity override theo unique service + vehicle type và snapshot | Spec §7.3; DEC-016 | MUST | Pricing / 02,06,07 | Planned | CAT-00B-01..08 | DEMO-02 | Planned |
+| CAT-02 | Price/duration/capacity override theo unique service + vehicle type và snapshot | Spec §7.3; DEC-016 | MUST | Pricing / 02,06,07 | `database/migrations/002_create_catalog_tables.php`, `database/seeds/base.php` | `DatabaseFoundationTest`, CAT-00B-01..08 | DEMO-02 | In Progress |
 | SLOT-01 | Capacity = max(default, service overrides), không cộng; mọi slot chồng lấn phải đủ | Spec §7.3; DEC-017 | MUST | Slot / 06,07 | Planned | IT-SLOT-01, SLOT-00B-01..05,09, BKG-CL-02..05 | DEMO-02 | Planned |
 | SLOT-02 | Lock mọi slot chồng lấn và tạo reservations atomically, không race/orphan | Spec §7.3; DEC-017 | MUST | Booking / 07 | Planned | IT-SLOT-02, SLOT-00B-06,08, BKG-CL-04..06 | DEMO-03 | Planned |
 | BKG-01 | Booking window boundary theo timezone | Spec §7.4 | MUST | Booking / 07 | Planned | UT-BKG-01, FT-BKG-01 | DEMO-02 | Planned |
@@ -49,7 +49,7 @@
 | ADM-04 | Reward CRUD/inactive và validation | Spec §7.9 | MUST | Admin Reward / 10 | Planned | IT-ADM-04 | DEMO-05 | Planned |
 | ADM-05 | Promotion CRUD/inactive/conditions/target tiers | Spec §7.9 | MUST | Admin Promotion / 12 | Planned | IT-ADM-05 | DEMO-07 | Planned |
 | ADM-06 | Adjust có reason/ledger/audit; âm vượt available bị reject, không clamp; concurrent-safe | Spec §7.9; DEC-032 | MUST | Admin Loyalty / 09,12 | Planned | IT-ADM-06, LOY-ADJ-01..07 | DEMO-08 | Planned |
-| ADM-07 | Không sửa/xóa lịch sử tài chính/loyalty snapshot | Spec §7.9 | MUST | Persistence / 02+ | Planned | IT-ADM-02 | DEMO-04 | Planned |
+| ADM-07 | Không sửa/xóa lịch sử tài chính/loyalty snapshot | Spec §7.9 | MUST | Persistence / 02+ | `database/migrations/001_create_core_tables.php`..`006_create_operations_tables.php` | `DatabaseFoundationTest`, IT-ADM-02 | DEMO-04 | In Progress |
 | ADM-08 | Log thay đổi config quan trọng | Spec §7.9, §13 | SHOULD | Audit / 12,15 | Planned | IT-ADM-08 | DEMO-08 | Planned |
 | REP-01 | Customer dashboard đúng owner và có empty state | Spec §7.10 | MUST | Dashboard / 09,10,14 | Planned | FT-REP-01 | DEMO-04 | Planned |
 | REP-02 | Admin aggregate; revenue completed-only; admin-only | Spec §7.10 | MUST | Report / 14 | Planned | IT-REP-02, FT-REP-02 | DEMO-08 | Planned |
@@ -72,10 +72,10 @@
 | NFR-05 | Đúng layer, không SQL/formula trong Controller/View | Spec §5, §14 | MUST | 01+ | `composer.json`, `app/` structure | QT-NFR-05 | — | In Progress |
 | NFR-06 | Không TODO/placeholder/code giả ở luồng MUST | Spec §14 | MUST | 15 | Planned | QT-NFR-06 | DEMO-01..08 | Planned |
 | NFR-07 | Mọi MUST có test/demo evidence | Spec §14, §15 | MUST | Mọi slice | Planned | QT-NFR-07 | DEMO-01..08 | Planned |
-| NFR-08 | Migrate/seed/reset/backup-export tái lập | Spec §12, §14 | MUST | 02,15 | Planned | IT-NFR-08 | DEMO setup | Planned |
+| NFR-08 | Migrate/seed/reset/backup-export tái lập | Spec §12, §14 | MUST | 02,15 | `app/Database/`, `database/migrate.php`, `database/seed.php`, `database/reset.php` | `DatabaseFoundationTest`, IT-NFR-08 | DEMO setup | In Progress |
 | NFR-09 | Timezone Asia/Ho_Chi_Minh | Spec §5, §14 | MUST | 01+ | `.env.example`, `config/app.php`, `docker/php/Dockerfile` | UT-NFR-09 | DEMO-02 | In Progress |
-| NFR-10 | DECIMAL, không float cho tiền | Spec §14 | MUST | 02+ | Planned | UT-NFR-10 | DEMO-07 | Planned |
-| NFR-11 | PDO prepared statement thật, utf8mb4 | Spec §5.4, §8 | MUST | 02+ | Planned | ST-SQL-01 | — | Planned |
+| NFR-10 | DECIMAL, không float cho tiền | Spec §14 | MUST | 02+ | `database/migrations/` | `DatabaseFoundationTest`, UT-NFR-10 | DEMO-07 | In Progress |
+| NFR-11 | PDO prepared statement thật, utf8mb4 | Spec §5.4, §8 | MUST | 02+ | `app/Core/Database.php`, `app/Database/DatabaseSeeder.php` | `DatabaseFoundationTest`, ST-SQL-01 | — | In Progress |
 | NFR-12 | Escape HTML mặc định | Spec §8 | MUST | 03+ | Planned | ST-XSS-01 | — | Planned |
 | NFR-13 | CSRF cho mọi mutation | Spec §8 | MUST | 03+ | Planned | ST-CSRF-01 | — | Planned |
 | NFR-14 | Session cookie hardening + regenerate/logout | Spec §8 | MUST | 03,04 | Planned | ST-SESSION-01 | DEMO-01 | Planned |
@@ -86,11 +86,11 @@
 | NFR-19 | Backend validation đủ trust boundary | Spec §8.2 | MUST | 04+ | Planned | ST-VALIDATION-01 | DEMO-01..07 | Planned |
 | NFR-20 | Chống client tamper giá/điểm/quyền lợi | Spec §8.3 | MUST | 07,09,10,12 | Planned | ST-PRICE-01 | DEMO-07 | Planned |
 | NFR-21 | Transaction cho critical flows | Spec §9 | MUST | 07,09..12 | Planned | IT-NFR-21 | DEMO-03..07 | Planned |
-| NFR-22 | Lock/unique/idempotency giữ invariant | Spec §9 | MUST | 02,07,09..12 | Planned | IT-NFR-22 | DEMO-03,06 | Planned |
+| NFR-22 | Lock/unique/idempotency giữ invariant | Spec §9 | MUST | 02,07,09..12 | `database/migrations/`, `app/Database/MigrationRunner.php` | `DatabaseFoundationTest`, IT-NFR-22 | DEMO-03,06 | In Progress |
 | NFR-23 | Không network call dài trong DB transaction | Spec §9 | MUST | 03+ | Planned | QT-NFR-23 | — | Planned |
 | NFR-24 | Research privacy và data_source | Spec §7.12, §14 | MUST | 14 | Planned | ST-PRIVACY-01 | DEMO-08 | Planned |
 | NFR-25 | Chạy từ môi trường sạch theo README | Spec §1.2, §12, §14 | MUST | 01,15 | `README.md`, `composer.json`, `docker-compose.yml` | FT-NFR-25; Slice 01 install/config evidence | DEMO setup | In Progress |
-| NFR-26 | PHP 8.2+, Composer PSR-4, MySQL 8, PDO, PHPUnit, không framework | Spec §5, §14 | MUST | 01,02 | `composer.json`, `composer.lock`, `docker-compose.yml` | QT-NFR-26; Composer autoload smoke test | — | In Progress |
+| NFR-26 | PHP 8.2+, Composer PSR-4, MySQL 8, PDO, PHPUnit, không framework | Spec §5, §14 | MUST | 01,02 | `composer.json`, `composer.lock`, `docker-compose.yml`, `app/Core/Database.php` | QT-NFR-26; Composer autoload và MySQL integration test | — | Done |
 
 ## Decision–ERD–Acceptance–Test trace cho Mini-Slice 00B
 

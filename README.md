@@ -2,14 +2,14 @@
 
 AutoWash Pro là hệ thống quản lý dịch vụ chăm sóc phương tiện, đặt lịch trước và khách hàng thân thiết được xây dựng bằng Modern PHP thuần. Phiên bản đồ án cũ được lưu tại nhánh `legacy-main`.
 
-Repository hiện hoàn thành nền tảng Slice 01: Composer/PSR-4, cấu hình môi trường, PHPUnit, PSR-12 và Docker Compose. HTTP Front Controller, database nghiệp vụ và giao diện thuộc các slice sau nên chưa có route ứng dụng ở giai đoạn này.
+Repository hiện hoàn thành Slice 02: Composer/PSR-4, cấu hình môi trường, PDO, migration/seed/reset database, PHPUnit, PSR-12 và Docker Compose. HTTP Front Controller và giao diện thuộc các slice sau nên chưa có route ứng dụng ở giai đoạn này.
 
 ## Yêu cầu hệ thống
 
 - PHP 8.2 trở lên với extension PDO.
 - Composer 2.
 - Docker và Docker Compose nếu dùng môi trường container.
-- MySQL 8 sẽ được dùng từ Slice 02; Compose hiện cấu hình MySQL 8.4.
+- MySQL 8; Docker Compose hiện cấu hình MySQL 8.4.
 
 ## Cài đặt bằng PHP trên máy
 
@@ -20,6 +20,7 @@ composer dump-autoload --strict-psr
 ```
 
 Chỉnh các giá trị local trong `.env` khi cần. File `.env` đã được Git ignore; không đưa secret thật vào repository.
+Khi chạy PHP trực tiếp trên máy, đặt `DB_HOST=127.0.0.1`; giá trị `mysql` dùng cho container web.
 
 ## Môi trường Docker
 
@@ -39,7 +40,26 @@ docker compose ps
 docker compose down
 ```
 
-Port mặc định của Apache là `8080`, MySQL là `3306`. Có thể đặt `APP_PORT` hoặc `DB_FORWARD_PORT` trong `.env` nếu port local đã được sử dụng. Slice 01 chưa tạo `public/index.php`; route web đầu tiên sẽ được triển khai đúng kế hoạch ở Slice 03.
+Port mặc định của Apache là `8080`, MySQL là `3306`. Có thể đặt `APP_PORT` hoặc `DB_FORWARD_PORT` trong `.env` nếu port local đã được sử dụng. Route web đầu tiên sẽ được triển khai đúng kế hoạch ở Slice 03.
+
+## Database
+
+Sau khi MySQL đã sẵn sàng và `.env` chứa đúng thông tin kết nối:
+
+```bash
+php database/migrate.php
+php database/seed.php --demo
+```
+
+Migration runner lưu lịch sử và có advisory lock chống hai tiến trình chạy đồng thời. Seed có thể chạy lại mà không tạo thêm tier, loại xe, dịch vụ, slot hoặc reward trùng.
+
+Reset chỉ dành cho `APP_ENV=local|testing`, xóa toàn bộ dữ liệu trong database đang cấu hình và bắt buộc xác nhận rõ:
+
+```bash
+php database/reset.php --force --seed
+```
+
+Không chạy lệnh reset trên database có dữ liệu cần giữ. Dữ liệu seed Slice 02 chỉ là cấu hình và demo nền tảng; tài khoản demo thuộc Slice 04.
 
 ## Kiểm tra chất lượng
 
@@ -54,13 +74,19 @@ composer check
 - `composer test`: chạy PHPUnit.
 - `composer check`: chạy lint rồi toàn bộ test hiện có.
 
+Integration test database cần MySQL riêng có thể reset an toàn:
+
+```bash
+AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Database
+```
+
 ## Cấu trúc chính
 
 ```text
 app/                 Mã nguồn ứng dụng theo namespace App\
 bootstrap/           Khởi tạo dependency và môi trường
 config/              Cấu hình app, database và loyalty từ biến môi trường
-database/            Migration và seed từ Slice 02
+database/            Migration, seed và CLI migrate/reset
 docker/              Image PHP/Apache cho môi trường local
 public/              Document root; Front Controller thuộc Slice 03
 resources/views/     View customer/admin theo Design System

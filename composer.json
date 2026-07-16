@@ -25,6 +25,8 @@
     "scripts": {
         "test": "phpunit",
         "lint": "phpcs",
+        "db:migrate": "php database/migrate.php",
+        "db:seed": "php database/seed.php --demo",
         "check": [
             "@lint",
             "@test"

@@ -1,6 +1,6 @@
 # AUTO WASH PRO — ERD VÀ KẾ HOẠCH MIGRATION
 
-> Baseline: Mini-Slice 00B Closure Patch, chưa tạo migration/SQL/database.  
+> Baseline: Mini-Slice 00B Closure Patch; schema được hiện thực tại Slice 02, riêng `lpr_attempts` giữ cho Slice 13.
 > Quy ước: InnoDB, `utf8mb4`, money dùng `DECIMAL`, timestamp theo `Asia/Ho_Chi_Minh`.
 
 ## ERD Mermaid
@@ -426,9 +426,9 @@ Adjustment âm lock user/balance trong transaction và chỉ commit khi `availab
 
 Không có `reversal` trong baseline vì chưa có post-completion refund/reversal requirement.
 
-## Thứ tự migration dự kiến theo dependency
+## Thứ tự schema theo dependency
 
-Danh sách thiết kế, **không phải migration đã tạo**:
+Slice 02 triển khai thứ tự này bằng 6 migration nhóm theo dependency. `lpr_attempts` chưa được tạo vì thuộc Slice 13:
 
 | # | Bảng | Phụ thuộc |
 |---:|---|---|

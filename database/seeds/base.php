@@ -1,0 +1,59 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'settings' => [
+        ['loyalty.point_unit_amount', '10000', 'integer'],
+        ['app.timezone', 'Asia/Ho_Chi_Minh', 'string'],
+    ],
+    'tiers' => [
+        ['MEMBER', 'Thành viên', 1, 7, '0.00', 0, '1.00'],
+        ['SILVER', 'Bạc', 2, 10, '300000.00', 2, '1.10'],
+        ['GOLD', 'Vàng', 3, 12, '800000.00', 5, '1.25'],
+        ['PLATINUM', 'Bạch kim', 4, 14, '1500000.00', 8, '1.50'],
+    ],
+    'vehicle_types' => [
+        ['motorbike', 'Xe máy', 20, 1],
+        ['car', 'Ô tô con', 40, 2],
+        ['truck', 'Xe tải', 90, 4],
+        ['bus', 'Xe khách', 120, 5],
+    ],
+    'services' => [
+        ['STANDARD_WASH', 'Rửa tiêu chuẩn', 'Làm sạch ngoại thất cơ bản.'],
+        ['PREMIUM_WASH', 'Rửa cao cấp', 'Làm sạch kỹ ngoại thất và chăm sóc bề mặt.'],
+        ['ENGINE_CLEAN', 'Vệ sinh khoang máy', 'Vệ sinh khoang máy theo loại phương tiện được hỗ trợ.'],
+        ['TIRE_CARE', 'Dưỡng lốp', 'Dịch vụ bổ sung chăm sóc lốp.'],
+    ],
+    'service_vehicle_prices' => [
+        ['STANDARD_WASH', 'motorbike', '40000.00', 20, null, true],
+        ['STANDARD_WASH', 'car', '100000.00', 40, null, true],
+        ['STANDARD_WASH', 'truck', '220000.00', 90, null, true],
+        ['STANDARD_WASH', 'bus', '300000.00', 120, null, true],
+        ['PREMIUM_WASH', 'motorbike', '80000.00', 35, 1, true],
+        ['PREMIUM_WASH', 'car', '200000.00', 60, 3, true],
+        ['PREMIUM_WASH', 'truck', '420000.00', 120, 5, true],
+        ['PREMIUM_WASH', 'bus', '550000.00', 150, 6, true],
+        ['ENGINE_CLEAN', 'motorbike', null, null, null, false],
+        ['ENGINE_CLEAN', 'car', '180000.00', 45, 2, true],
+        ['ENGINE_CLEAN', 'truck', '320000.00', 70, 4, true],
+        ['ENGINE_CLEAN', 'bus', null, null, null, false],
+        ['TIRE_CARE', 'motorbike', '30000.00', 15, null, true],
+        ['TIRE_CARE', 'car', '60000.00', 20, null, true],
+        ['TIRE_CARE', 'truck', '100000.00', 30, null, true],
+        ['TIRE_CARE', 'bus', '120000.00', 35, null, true],
+    ],
+    'wash_slots' => [
+        ['2030-01-15', '08:00:00', '09:00:00', 10, 'open'],
+        ['2030-01-15', '09:00:00', '10:00:00', 5, 'open'],
+        ['2030-01-15', '10:00:00', '11:00:00', 2, 'open'],
+        ['2030-01-15', '11:00:00', '12:00:00', 10, 'closed'],
+    ],
+    'rewards' => [
+        ['DISCOUNT_10K', 'Giảm 10.000 VND', 'fixed_discount', 100, '10000.00', null, 30],
+        ['DISCOUNT_30K', 'Giảm 30.000 VND', 'fixed_discount', 250, '30000.00', null, 30],
+        ['FREE_MOTORBIKE_STANDARD', 'Miễn phí rửa tiêu chuẩn xe máy', 'free_service', 300, '0.00', 'STANDARD_WASH', 30],
+        ['FREE_TIRE_CARE', 'Tặng dịch vụ dưỡng lốp', 'add_on', 400, '0.00', 'TIRE_CARE', 30],
+        ['DISCOUNT_100K', 'Giảm 100.000 VND', 'fixed_discount', 700, '100000.00', null, 30],
+    ],
+];

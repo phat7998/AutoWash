@@ -1,9 +1,9 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
 > Cập nhật: 2026-07-16  
-> Slice hiện tại: Slice 01 — Complete
+> Slice hiện tại: Slice 02 — Complete
 >
-> Product code: đã có nền repository/môi trường; chưa có database nghiệp vụ, HTTP route hoặc UI.
+> Product code: đã có nền repository/môi trường và database foundation; chưa có HTTP route hoặc UI.
 
 ## Tổng quan
 
@@ -12,7 +12,33 @@
 | 00 | Complete | Specification audit, 75-requirement RTM baseline, ERD/test/roadmap và static check |
 | 00B | Complete | Locked decisions DEC-001..033, Closure Patch, ERD/test trace, Design System và docs synchronization |
 | 01 | Complete | Composer install, PSR-4 autoload smoke test, PSR-12 lint, env safety và Docker Compose config |
-| 02–15 | Not started | Xem `ROADMAP.md` |
+| 02 | Complete | PDO native prepares, 6 migration/26 bảng nghiệp vụ, seed idempotent, reset an toàn và MySQL 8 integration test |
+| 03–15 | Not started | Xem `ROADMAP.md` |
+
+## Slice 02 — Database Foundation, Migrations, Seeds and PDO
+
+- Requirements: NFR-08, NFR-10, NFR-11, NFR-26; foundation cho NFR-09, NFR-22, VEH-04, CAT-02 và ADM-07.
+- Hoàn thành:
+  - Tạo PDO lazy singleton với exception mode, associative fetch, native prepares, `utf8mb4` và MySQL session timezone `+07:00` tương ứng `Asia/Ho_Chi_Minh`.
+  - Tạo migration runner có history, batch và advisory lock; 6 migration dựng 26 bảng nghiệp vụ theo dependency và constraint đã khóa.
+  - Tạo seed idempotent cho app settings, 4 tier, 4 vehicle type, 4 dịch vụ cùng 16 cặp giá, 4 slot và 5 reward theo DEC-015/019/022.
+  - Tạo CLI migrate/seed/reset; reset chỉ chấp nhận local/testing và cờ `--force`.
+  - Không tạo `lpr_attempts`; bảng này giữ đúng Slice 13 theo ERD. Không seed user vì tài khoản/password thuộc Slice 04.
+- Chưa hoàn thành: backup/export và các invariant cần Service/transaction ở slice nghiệp vụ tiếp tục giữ trạng thái In Progress; chưa có Controller/View/HTTP.
+- File thay đổi: `app/Core/Database.php`, `app/Database/`, `database/migrations/`, `database/seeds/base.php`, `database/migrate.php`, `database/seed.php`, `database/reset.php`, config/env/Compose/Composer, test database, README, ERD, RTM và file status này.
+- Migration: 6 migration (`001_create_core_tables` đến `006_create_operations_tables`), 26 bảng nghiệp vụ và bảng `migrations`; không sửa decision/schema ngoài baseline.
+- Test đã chạy:
+  - `composer dump-autoload --strict-psr --no-interaction` — pass.
+  - `composer validate --strict` và `composer lint` — pass.
+  - `APP_ENV=testing DB_HOST=127.0.0.1 DB_PORT=3307 DB_PASSWORD=autowash_local php database/reset.php --force --seed` — pass trên MySQL 8.4 Docker.
+  - `AUTOWASH_DB_TESTS=1 DB_HOST=127.0.0.1 DB_PORT=3307 DB_PASSWORD=autowash_local vendor/bin/phpunit tests/Integration/Database` — pass, 7 tests/24 assertions.
+  - `AUTOWASH_DB_TESTS=1 DB_HOST=127.0.0.1 DB_PORT=3307 DB_PASSWORD=autowash_local composer check` — pass, PHPCS 14/14 file; PHPUnit 11 tests/34 assertions.
+  - `docker compose config --quiet` — pass.
+- Kết quả: đạt acceptance Slice 02; migrate/seed lặp an toàn, constraint và full regression đều có evidence thành công.
+- Quyết định: giữ nguyên DEC-001..033; không phát sinh ADR.
+- Rủi ro còn lại: máy kiểm thử đã dùng host port 3307 vì port 3306 đang bận; Compose hỗ trợ `DB_FORWARD_PORT` để xử lý. Backup/export thuộc hardening Slice 15.
+- Lệnh chạy tiếp: sau khi accept Slice 02, thực hiện duy nhất Slice 03.
+- Commit đề xuất: `feat(NFR): hoàn tất nền tảng cơ sở dữ liệu [Slice 02]`.
 
 ## Slice 01 — Project Bootstrap and Development Environment
 

@@ -11,4 +11,5 @@ return [
     'username' => Env::string('DB_USER', 'autowash'),
     'password' => Env::string('DB_PASSWORD'),
     'charset' => Env::string('DB_CHARSET', 'utf8mb4'),
+    'timezone' => Env::string('DB_TIMEZONE', '+07:00'),
 ];
