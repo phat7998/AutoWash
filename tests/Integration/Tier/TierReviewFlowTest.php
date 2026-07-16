@@ -20,8 +20,10 @@ use App\Database\MigrationRunner;
 use App\Exceptions\MonthlyReviewAlreadyCompletedException;
 use App\Middleware\CsrfMiddleware;
 use App\Repositories\TierRepository;
+use App\Repositories\ResearchEventRepository;
 use App\Services\TierReviewPolicy;
 use App\Services\TierReviewService;
+use App\Services\ResearchEventService;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
@@ -162,7 +164,8 @@ final class TierReviewFlowTest extends TestCase
         return new TierReviewService(
             new TierRepository(self::$database),
             new TierReviewPolicy($this->timezone()),
-            $this->timezone()
+            $this->timezone(),
+            new ResearchEventService(new ResearchEventRepository(self::$database))
         );
     }
 

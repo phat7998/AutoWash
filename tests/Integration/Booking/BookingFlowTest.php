@@ -26,12 +26,14 @@ use App\Middleware\CsrfMiddleware;
 use App\Repositories\BookingRepository;
 use App\Repositories\LoyaltyTransactionRepository;
 use App\Repositories\PromotionRepository;
+use App\Repositories\ResearchEventRepository;
 use App\Services\BookingService;
 use App\Services\BookingCompletionService;
 use App\Services\BookingResourceCalculator;
 use App\Services\BookingWindowPolicy;
 use App\Services\PriceCalculator;
 use App\Services\PromotionService;
+use App\Services\ResearchEventService;
 use App\Services\LoyaltyService;
 use App\Services\LoyaltyPointCalculator;
 use App\Services\LoyaltyDebitAllocator;
@@ -183,6 +185,10 @@ final class BookingFlowTest extends TestCase
         )->fetch();
         self::assertSame(1, (int) $event['used_reward']);
         self::assertSame(1, (int) $event['used_promotion']);
+        self::assertSame(1, (int) $this->scalar(
+            "SELECT COUNT(*) FROM research_event_logs WHERE event_key = 'promotion_used:"
+            . (int) $booking['id'] . "'"
+        ));
     }
 
     public function testCancellationRestoresReservedRewardAndDoesNotRecordPromotionUsage(): void
@@ -204,6 +210,10 @@ final class BookingFlowTest extends TestCase
         );
         $booking = $this->bookingByCode($code);
         $service->cancelByCustomer($ownerId, (int) $booking['id']);
+        self::assertSame('cancelled', $this->scalar(
+            "SELECT cancellation_status FROM research_event_logs WHERE event_key = 'booking_created:"
+            . (int) $booking['id'] . "'"
+        ));
         $redemption = self::$database->query(
             'SELECT status, booking_id FROM reward_redemptions WHERE id = ' . $redemptionId
         )->fetch();
@@ -229,6 +239,10 @@ final class BookingFlowTest extends TestCase
         $adminId = $this->userId('0900000001');
         $service->confirmByAdmin($adminId, (int) $noShowBooking['id']);
         $service->markNoShowByAdmin($adminId, (int) $noShowBooking['id']);
+        self::assertSame('no_show', $this->scalar(
+            "SELECT cancellation_status FROM research_event_logs WHERE event_key = 'booking_created:"
+            . (int) $noShowBooking['id'] . "'"
+        ));
         $noShowRedemption = self::$database->query(
             'SELECT status, booking_id FROM reward_redemptions WHERE id = ' . $noShowRedemptionId
         )->fetch();
@@ -581,15 +595,17 @@ final class BookingFlowTest extends TestCase
         $promotions = new PromotionService(new PromotionRepository(self::$database), $timezone);
         $completion = null;
         if ($withCompletion) {
+            $research = new ResearchEventService(new ResearchEventRepository(self::$database));
             $loyalty = new LoyaltyService(
                 new LoyaltyTransactionRepository(self::$database),
                 new LoyaltyPointCalculator(10_000),
                 new LoyaltyAdjustmentValidator(),
                 new LoyaltyDebitAllocator(),
                 new LoyaltyExpirationPolicy($timezone),
-                $timezone
+                $timezone,
+                $research
             );
-            $completion = new BookingCompletionService($promotions, $loyalty);
+            $completion = new BookingCompletionService($promotions, $loyalty, $research);
         }
 
         return new BookingService(
@@ -694,7 +710,7 @@ final class BookingFlowTest extends TestCase
     private function deleteGeneratedBookings(): void
     {
         self::$database->exec("DELETE FROM research_event_logs WHERE event_key LIKE 'booking_created:%' "
-            . "OR event_key LIKE 'booking_completed:%'");
+            . "OR event_key LIKE 'booking_completed:%' OR event_key LIKE 'promotion_used:%'");
         self::$database->exec("DELETE FROM promotion_usages WHERE booking_id IN "
             . "(SELECT id FROM bookings WHERE booking_code LIKE 'AW%')");
         self::$database->exec("DELETE FROM reward_redemptions WHERE booking_id IN "

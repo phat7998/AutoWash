@@ -23,11 +23,13 @@ use App\Exceptions\RewardNotEligibleException;
 use App\Middleware\CsrfMiddleware;
 use App\Repositories\LoyaltyTransactionRepository;
 use App\Repositories\RewardRepository;
+use App\Repositories\ResearchEventRepository;
 use App\Services\LoyaltyDebitAllocator;
 use App\Services\LoyaltyExpirationPolicy;
 use App\Services\LoyaltyPointCalculator;
 use App\Services\LoyaltyService;
 use App\Services\RewardService;
+use App\Services\ResearchEventService;
 use App\Validation\LoyaltyAdjustmentValidator;
 use App\Validation\RewardValidator;
 use DateTimeImmutable;
@@ -302,7 +304,8 @@ final class RewardFlowTest extends TestCase
             new LoyaltyAdjustmentValidator(),
             new LoyaltyDebitAllocator(),
             new LoyaltyExpirationPolicy($this->timezone()),
-            $this->timezone()
+            $this->timezone(),
+            new ResearchEventService(new ResearchEventRepository(self::$database))
         );
     }
 
@@ -312,7 +315,8 @@ final class RewardFlowTest extends TestCase
             new RewardRepository(self::$database),
             $this->loyalty(),
             new RewardValidator(),
-            $this->timezone()
+            $this->timezone(),
+            new ResearchEventService(new ResearchEventRepository(self::$database))
         );
     }
 

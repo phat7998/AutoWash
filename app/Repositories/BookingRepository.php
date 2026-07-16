@@ -296,6 +296,21 @@ final readonly class BookingRepository
         $statement->execute(['reason' => $reason, 'id' => $bookingId]);
     }
 
+    public function updateResearchCancellationStatus(int $bookingId, string $status): void
+    {
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            UPDATE research_event_logs
+            SET cancellation_status = :status
+            WHERE event_key = :event_key AND event_type = 'booking_created'
+            SQL
+        );
+        $statement->execute([
+            'status' => $status,
+            'event_key' => 'booking_created:' . $bookingId,
+        ]);
+    }
+
     public function insertTransitionAudit(
         int $actorId,
         int $bookingId,

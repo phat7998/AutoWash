@@ -211,7 +211,7 @@ Hãy dừng sau khi hoàn tất đúng slice được giao.
 - Promotion/reward kiểm tra service/vehicle type ở backend.
 - LPR dùng `LprProviderInterface` + mock + manual fallback.
 - Synthetic minimum 2.000; performance target theo NFR-02.
-- Survey/ML/paper là external academic deliverable pending lecturer confirmation, non-blocking cho Slice 01; checkpoint trước Slice 14.
+- Survey/ML/kiểm định chuyên sâu/paper là OPTIONAL/SHOULD, Deferred bonus work theo DEC-034 và non-blocking cho Slice 14/release.
 - Sản phẩm được gọi là “phạm vi hoàn thiện để nộp đồ án”, không phải prototype/MVP sơ sài.
 
 Nếu chi tiết prompt slice cũ bên dưới mâu thuẫn danh sách này, phải dùng baseline 00B và ghi cập nhật trong status/traceability.
@@ -1008,7 +1008,7 @@ Nếu chưa có mô hình thật, hoàn thành bằng adapter + mock + manual fa
 - RBL-01 đến RBL-05.
 - REP.
 
-Trước phần Research/RBL chuyên sâu, kiểm tra Q-020 với giảng viên. Trạng thái mặc định là **External academic deliverable — Pending lecturer confirmation** và không hồi tố chặn Slice 01.
+Q-020 đã Resolved theo DEC-034: survey/ML/kiểm định chuyên sâu/paper là Deferred bonus work, không chặn Slice 14 hoặc release. Slice này chỉ dùng descriptive analytics.
 
 ## Prompt
 

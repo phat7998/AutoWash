@@ -1199,11 +1199,16 @@ Dùng anonymous key không thể suy ngược trực tiếp trong file export.
 - Mục tiêu quy mô do kế hoạch nghiên cứu quyết định; hệ thống phải hỗ trợ export.
 - Synthetic dataset sinh được tối thiểu 2.000 records và bao phủ bốn loại phương tiện.
 
-### RBL-05 Survey, ML và paper (SHOULD, deliverable nghiên cứu riêng)
+### RBL-05 Survey, ML và paper (OPTIONAL/SHOULD, deliverable nghiên cứu riêng)
 
-**External academic deliverable — Pending lecturer confirmation.** Chưa xác nhận survey thật, ML model, paper/conference-format report có bắt buộc hoặc được chấm riêng ngoài website hay không, và quy mô dataset chính xác. Trạng thái này không chặn Slice 01.
+**Deferred bonus work — Non-blocking.** Checkpoint Q-020 trước Slice 14 xác nhận survey thật, ML model,
+kiểm định chuyên sâu và paper/conference-format report không bắt buộc để hoàn thành sản phẩm chính hoặc release.
+Các hạng mục này chỉ triển khai để lấy điểm cộng nếu còn thời gian.
 
-Cho đến checkpoint trước Slice 14, hệ thống vẫn phải hỗ trợ research event log, CSV ẩn danh và synthetic dataset theo specification. Không tự tạo kết quả survey, bịa accuracy/hypothesis result/kết luận nghiên cứu hoặc tuyên bố paper hoàn thành. Survey/ML không trực tiếp quyết định tier và không thay rule-based loyalty engine.
+Hệ thống vẫn phải hỗ trợ research event log, CSV ẩn danh, synthetic dataset, descriptive analytics/dashboard
+và dữ liệu đủ làm evidence cho báo cáo. Không tự tạo kết quả survey, accuracy, p-value, hypothesis result,
+kết luận nghiên cứu, nguồn dataset ngoài hoặc tuyên bố paper hoàn thành. Survey/ML không trực tiếp quyết định
+tier và không thay rule-based loyalty engine.
 
 ---
 
@@ -1604,6 +1609,7 @@ AI Agent phải:
 21. Biển số baseline là biển dân sự Việt Nam thông dụng, chuẩn hóa/validate tập trung và unique theo `normalized_plate`.
 22. Adjustment dương tạo non-expiring credit lot; adjustment âm vượt available points bị từ chối, không clamp
     và phải có FEFO allocation; mọi adjustment có reason, ledger, audit và transaction locking.
+23. Survey/ML/kiểm định chuyên sâu/paper là OPTIONAL/SHOULD, Deferred bonus work; descriptive analytics là giới hạn Slice 14.
 
 ---
 
@@ -1611,7 +1617,7 @@ AI Agent phải:
 
 Các câu hỏi kỹ thuật về booking nhiều dịch vụ, expiry boundary, biển số và negative adjustment đã được khóa tại DEC-017, DEC-005, DEC-031 và DEC-032.
 
-Chỉ còn Q-020 ở trạng thái **External academic deliverable — Pending lecturer confirmation**:
+Q-020 đã được checkpoint trước Slice 14 xác nhận:
 
 1. Survey thật có bắt buộc không?
 2. ML model có bắt buộc không?
@@ -1619,9 +1625,10 @@ Chỉ còn Q-020 ở trạng thái **External academic deliverable — Pending l
 4. Các deliverable này có được chấm riêng ngoài website không?
 5. Quy mô dataset chính xác là bao nhiêu?
 
-Q-020 không chặn Slice 01; phải có checkpoint trước Slice 14.
+Kết quả: các deliverable trên không bắt buộc cho sản phẩm chính; chỉ là điểm cộng nếu còn thời gian,
+không chặn Slice 14 hoặc release. Synthetic acceptance vẫn tối thiểu 2.000 record.
 
-Khi có câu trả lời, cập nhật mục 18 và `docs/CHANGELOG_REQUIREMENTS.md`.
+Quyết định được ghi tại DEC-034 và `docs/CHANGELOG_REQUIREMENTS.md`.
 
 ---
 

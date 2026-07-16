@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 use App\Core\Database;
 use App\Repositories\LoyaltyTransactionRepository;
+use App\Repositories\ResearchEventRepository;
 use App\Services\LoyaltyPointCalculator;
 use App\Services\LoyaltyDebitAllocator;
 use App\Services\LoyaltyExpirationPolicy;
 use App\Services\LoyaltyService;
+use App\Services\ResearchEventService;
 use App\Validation\LoyaltyAdjustmentValidator;
 
 $projectRoot = require dirname(__DIR__) . '/bootstrap/environment.php';
@@ -20,7 +22,8 @@ $service = new LoyaltyService(
     new LoyaltyAdjustmentValidator(),
     new LoyaltyDebitAllocator(),
     new LoyaltyExpirationPolicy(new DateTimeZone((string) $appConfig['timezone'])),
-    new DateTimeZone((string) $appConfig['timezone'])
+    new DateTimeZone((string) $appConfig['timezone']),
+    new ResearchEventService(new ResearchEventRepository(Database::connection()))
 );
 $hasMismatch = false;
 

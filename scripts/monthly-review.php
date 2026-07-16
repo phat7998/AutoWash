@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Core\Database;
 use App\Repositories\TierRepository;
+use App\Repositories\ResearchEventRepository;
+use App\Services\ResearchEventService;
 use App\Services\TierReviewPolicy;
 use App\Services\TierReviewService;
 
@@ -13,7 +15,8 @@ $timezone = new DateTimeZone((string) $appConfig['timezone']);
 $service = new TierReviewService(
     new TierRepository(Database::connection()),
     new TierReviewPolicy($timezone),
-    $timezone
+    $timezone,
+    new ResearchEventService(new ResearchEventRepository(Database::connection()))
 );
 
 try {

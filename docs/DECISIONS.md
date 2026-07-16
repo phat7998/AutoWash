@@ -1,6 +1,6 @@
 # AUTO WASH PRO — CÁC QUYẾT ĐỊNH ĐÃ KHÓA
 
-> Cập nhật: 2026-07-16 — Slice 10, blocker loyalty được nhóm phê duyệt
+> Cập nhật: 2026-07-17 — checkpoint Q-020 trước Slice 14 được nhóm xác nhận
 > Nguồn: đề tài `SU26SWP01`, `PROJECT_SPECIFICATION.md` và quyết định nhóm được khóa trong prompt 00B.
 
 Các quyết định này là baseline trước Slice 01. Thay đổi sau 00B phải có decision/changelog rõ ràng.
@@ -40,6 +40,7 @@ Các quyết định này là baseline trước Slice 01. Thay đổi sau 00B ph
 | DEC-031 | Hỗ trợ biển số dân sự Việt Nam thông dụng theo pattern chuẩn hóa tập trung. | Uppercase, bỏ space/`-`/`.`; unique `normalized_plate`; pattern `2 chữ số + 1–2 chữ cái + 4–5 chữ số`; các nhóm biển đặc biệt nằm ngoài phạm vi. | VEH-01/02, LPR-01 |
 | DEC-032 | Adjustment tách thành `adjust_credit` và `adjust_debit`; adjustment âm vượt available points bị từ chối, không clamp. | Credit dương mặc định không hết hạn và dùng sau lot có expiry theo FIFO; debit âm dùng cùng FEFO, allocation, reason/audit và locking; có thể tham chiếu source transaction. | LOY-02..04, ADM-06, NFR-21/22 |
 | DEC-033 | Survey/ML/paper có trạng thái **External academic deliverable — Pending lecturer confirmation**. | Không chặn Slice 01; vẫn làm research log, CSV ẩn danh, synthetic data; không bịa survey/kết quả/accuracy/kết luận; checkpoint trước Research/RBL chuyên sâu. | RBL-01..05 |
+| DEC-034 | Q-020 được chốt: survey thật, mô hình ML, kiểm định chuyên sâu và paper/conference-format report là deliverable mở rộng OPTIONAL/SHOULD, trạng thái **Deferred bonus work**, không chặn Slice 14 hoặc release cuối kỳ. | Slice 14 chỉ làm event log, CSV ẩn danh, synthetic ≥2.000, descriptive analytics/dashboard và data evidence; không bịa survey, accuracy, p-value, hypothesis result, kết luận hoặc nguồn dataset ngoài. External production LPR là future enhancement vì adapter/mock/manual fallback đã hoàn tất phạm vi Slice 13. | RBL-01..05, LPR-02 |
 
 ## Reward seed ban đầu
 
@@ -65,7 +66,7 @@ Các quyết định này là baseline trước Slice 01. Thay đổi sau 00B ph
 - Q-019 được DEC-032 khóa: adjust âm vượt available points bị từ chối, không clamp.
 - Blocker Slice 10 được nhóm phê duyệt: tổng quát hóa earn lot thành credit lot và bắt buộc mọi debit,
   kể cả adjustment âm, phải có allocation; migration 007 backfill adjustment lịch sử và fail-fast nếu không reconcile.
-- Q-020 chuyển thành xác nhận deliverable học thuật bên ngoài theo DEC-033 và không chặn Slice 01.
+- Q-020 đã được checkpoint trước Slice 14 khóa bằng DEC-034; DEC-033 chỉ còn là trạng thái lịch sử trước xác nhận.
 
 ## Ngoài phạm vi vẫn giữ
 

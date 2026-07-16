@@ -12,6 +12,7 @@ use App\Controllers\AdminRewardController;
 use App\Controllers\AdminTierReviewController;
 use App\Controllers\AdminTierController;
 use App\Controllers\AdminPromotionController;
+use App\Controllers\DashboardController;
 use App\Controllers\BookingController;
 use App\Controllers\LoyaltyController;
 use App\Controllers\RewardController;
@@ -46,7 +47,8 @@ return static function (
     ?callable $adminRewardControllerFactory = null,
     ?callable $adminTierReviewControllerFactory = null,
     ?callable $adminTierControllerFactory = null,
-    ?callable $adminPromotionControllerFactory = null
+    ?callable $adminPromotionControllerFactory = null,
+    ?callable $dashboardControllerFactory = null
 ): void {
     $router->get('/', static function () use ($view, $session, $tokens): Response {
         return Response::html($view->render('home', [
@@ -89,7 +91,12 @@ return static function (
     $router->post('/dang-xuat', static fn (Request $request): Response =>
         $controller()->logout($request), $authenticated);
 
-    if ($loyaltyControllerFactory !== null) {
+    if ($dashboardControllerFactory !== null) {
+        $dashboard = static fn (): DashboardController => $dashboardControllerFactory();
+        $customer = new RoleMiddleware($session, 'customer');
+        $router->get('/tai-khoan', static fn (Request $request): Response =>
+            $dashboard()->customer($request), $authenticated, $customer);
+    } elseif ($loyaltyControllerFactory !== null) {
         $loyalty = static fn (): LoyaltyController => $loyaltyControllerFactory();
         $customer = new RoleMiddleware($session, 'customer');
         $router->get('/tai-khoan', static fn (Request $request): Response =>
@@ -109,14 +116,20 @@ return static function (
         }, $authenticated, new RoleMiddleware($session, 'customer'));
     }
 
-    $router->get('/admin', static function () use ($view, $session, $tokens): Response {
-        return Response::html($view->render('admin/dashboard', [
-            'title' => 'Khu vực quản trị',
-            'authUser' => $session->get('auth_user'),
-            'csrfToken' => $tokens->token(),
-            'flashSuccess' => $session->get('success'),
-        ]));
-    }, $authenticated, $admin);
+    if ($dashboardControllerFactory !== null) {
+        $dashboard = static fn (): DashboardController => $dashboardControllerFactory();
+        $router->get('/admin', static fn (Request $request): Response =>
+            $dashboard()->admin($request), $authenticated, $admin);
+    } else {
+        $router->get('/admin', static function () use ($view, $session, $tokens): Response {
+            return Response::html($view->render('admin/dashboard', [
+                'title' => 'Khu vực quản trị',
+                'authUser' => $session->get('auth_user'),
+                'csrfToken' => $tokens->token(),
+                'flashSuccess' => $session->get('success'),
+            ]));
+        }, $authenticated, $admin);
+    }
 
     if ($adminServiceControllerFactory !== null) {
         $adminServices = static fn (): AdminServiceController => $adminServiceControllerFactory();

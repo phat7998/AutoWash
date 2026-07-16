@@ -21,6 +21,7 @@ use App\Controllers\AdminRewardController;
 use App\Controllers\AdminTierReviewController;
 use App\Controllers\AdminTierController;
 use App\Controllers\AdminPromotionController;
+use App\Controllers\DashboardController;
 use App\Controllers\BookingController;
 use App\Controllers\LoyaltyController;
 use App\Controllers\RewardController;
@@ -38,6 +39,8 @@ use App\Repositories\RewardRepository;
 use App\Repositories\TierRepository;
 use App\Repositories\TierConfigurationRepository;
 use App\Repositories\PromotionRepository;
+use App\Repositories\ResearchEventRepository;
+use App\Repositories\ResearchReportRepository;
 use App\Services\AuthService;
 use App\Services\LicensePlateService;
 use App\Services\ServiceCatalogService;
@@ -60,6 +63,8 @@ use App\Services\TierReviewService;
 use App\Services\TierConfigurationService;
 use App\Services\PromotionService;
 use App\Services\BookingCompletionService;
+use App\Services\DashboardService;
+use App\Services\ResearchEventService;
 use App\Providers\MockLprProvider;
 use App\Validation\AuthValidator;
 use App\Validation\ServiceCatalogValidator;
@@ -176,13 +181,17 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $session,
         $tokens
     );
+    $researchEventServiceFactory = static fn (): ResearchEventService => new ResearchEventService(
+        new ResearchEventRepository(Database::connection())
+    );
     $loyaltyServiceFactory = static fn (): LoyaltyService => new LoyaltyService(
         new LoyaltyTransactionRepository(Database::connection()),
         new LoyaltyPointCalculator((int) $loyaltyConfig['point_unit_amount']),
         new LoyaltyAdjustmentValidator(),
         new LoyaltyDebitAllocator(),
         new LoyaltyExpirationPolicy(new DateTimeZone($timezone)),
-        new DateTimeZone($timezone)
+        new DateTimeZone($timezone),
+        $researchEventServiceFactory()
     );
     $promotionServiceFactory = static fn (): PromotionService => new PromotionService(
         new PromotionRepository(Database::connection()),
@@ -198,7 +207,11 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         new DateTimeZone($timezone),
         new BookingLifecyclePolicy(),
         new BookingLifecycleValidator(),
-        new BookingCompletionService($promotionServiceFactory(), $loyaltyServiceFactory()),
+        new BookingCompletionService(
+            $promotionServiceFactory(),
+            $loyaltyServiceFactory(),
+            $researchEventServiceFactory()
+        ),
         $promotionServiceFactory(),
         $logger
     );
@@ -230,7 +243,8 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         new RewardRepository(Database::connection()),
         $loyaltyServiceFactory(),
         new RewardValidator(),
-        new DateTimeZone($timezone)
+        new DateTimeZone($timezone),
+        $researchEventServiceFactory()
     );
     $rewardControllerFactory = static fn (): RewardController => new RewardController(
         $rewardServiceFactory(),
@@ -247,7 +261,8 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
     $tierReviewServiceFactory = static fn (): TierReviewService => new TierReviewService(
         new TierRepository(Database::connection()),
         new TierReviewPolicy(new DateTimeZone($timezone)),
-        new DateTimeZone($timezone)
+        new DateTimeZone($timezone),
+        $researchEventServiceFactory()
     );
     $adminTierReviewControllerFactory = static fn (): AdminTierReviewController =>
         new AdminTierReviewController(
@@ -267,6 +282,15 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
     );
     $adminPromotionControllerFactory = static fn (): AdminPromotionController =>
         new AdminPromotionController($promotionServiceFactory(), $view, $session, $tokens);
+    $dashboardControllerFactory = static fn (): DashboardController => new DashboardController(
+        new DashboardService(
+            new ResearchReportRepository(Database::connection()),
+            $loyaltyServiceFactory()
+        ),
+        $view,
+        $session,
+        $tokens
+    );
     $registerRoutes = require $projectRoot . '/routes/web.php';
     $registerRoutes(
         $router,
@@ -287,7 +311,8 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $adminRewardControllerFactory,
         $adminTierReviewControllerFactory,
         $adminTierControllerFactory,
-        $adminPromotionControllerFactory
+        $adminPromotionControllerFactory,
+        $dashboardControllerFactory
     );
 
     $errorHandler = new ErrorHandler(

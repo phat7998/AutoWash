@@ -300,6 +300,7 @@ final readonly class BookingService
                 $now
             );
             $this->bookings->markCancelled($bookingId, 'Khách hàng tự hủy lịch đặt.');
+            $this->bookings->updateResearchCancellationStatus($bookingId, 'cancelled');
             $this->promotionService?->releaseReward($bookingId, $now);
 
             return $currentStatus;
@@ -457,6 +458,9 @@ final readonly class BookingService
                 if ($targetStatus === 'no_show') {
                     $this->promotionService?->releaseReward($bookingId);
                 }
+            }
+            if (in_array($targetStatus, ['cancelled', 'no_show'], true)) {
+                $this->bookings->updateResearchCancellationStatus($bookingId, $targetStatus);
             }
 
             return $currentStatus;

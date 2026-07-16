@@ -51,15 +51,15 @@
 | ADM-06 | Adjust có reason/ledger/audit; âm vượt available bị reject, không clamp; concurrent-safe | Spec §7.9; DEC-032 | MUST | Admin Loyalty / 09,12 | `app/Controllers/AdminLoyaltyController.php`, `app/Services/LoyaltyService.php`, `app/Repositories/LoyaltyTransactionRepository.php` | `LoyaltyRulesTest`, `LoyaltyFlowTest` | DEMO-08 | Done |
 | ADM-07 | Không sửa/xóa lịch sử tài chính/loyalty snapshot | Spec §7.9 | MUST | Persistence / 02+ | `database/migrations/001_create_core_tables.php`..`006_create_operations_tables.php` | `DatabaseFoundationTest`, IT-ADM-02 | DEMO-04 | In Progress |
 | ADM-08 | Log thay đổi config quan trọng | Spec §7.9, §13 | SHOULD | Audit / 12,15 | Audit tier/perk/promotion đã có; service price và special rerun tiếp tục Slice 15 | `PromotionConfigurationFlowTest`; IT-ADM-08 tiếp tục | DEMO-08 | In Progress |
-| REP-01 | Customer dashboard đúng owner và có empty state | Spec §7.10 | MUST | Dashboard / 09,10,14 | `app/Controllers/BookingController.php`, `app/Controllers/LoyaltyController.php`, `resources/views/customer/dashboard.php`, `resources/views/customer/bookings/` | `BookingLifecycleFlowTest`, `LoyaltyFlowTest`; reward tiếp tục Slice 10/14 | DEMO-04 | In Progress |
-| REP-02 | Admin aggregate; revenue completed-only; admin-only | Spec §7.10 | MUST | Report / 14 | Planned | IT-REP-02, FT-REP-02 | DEMO-08 | Planned |
+| REP-01 | Customer dashboard đúng owner và có empty state | Spec §7.10 | MUST | Dashboard / 09,10,14 | `DashboardController`, `DashboardService`, `ResearchReportRepository`, `resources/views/customer/dashboard.php` | `ResearchFlowTest`, `BookingLifecycleFlowTest`, `LoyaltyFlowTest` | DEMO-04 | Done |
+| REP-02 | Admin aggregate; revenue completed-only; admin-only | Spec §7.10 | MUST | Report / 14 | `DashboardController`, `DashboardService`, `ResearchReportRepository`, `resources/views/admin/dashboard.php` | `ResearchFlowTest`, `AuthAuthorizationTest` | DEMO-08 | Done |
 | LPR-01 | Manual input + normalize/validate; không gọi là LPR | Spec §7.11 | MUST | Vehicle / 05 | `app/Controllers/VehicleController.php`, `resources/views/customer/vehicles/form.php`, `app/Services/LicensePlateService.php` | `LicensePlateServiceTest`, `VehicleFlowTest` | DEMO-01 | Done |
 | LPR-02 | LprProvider adapter + safe upload + confirm/edit + fallback/log | Spec §7.11; DEC-008/024 | MUST | LPR / 13 | `LprService`, `LprUploadService`, `LprAttemptRepository`, `MockLprProvider`, migration 009, vehicle recognition UI | `LprFlowTest`, `RequestResponseTest`, `DatabaseFoundationTest` | DEMO LPR | Done |
-| RBL-01 | Giữ đúng research question về tier progression | Spec §7.12; SU26SWP01 | MUST | Research docs / 14 | Planned | QT-RBL-01 | DEMO-08 | Planned |
-| RBL-02 | Log đủ feature nghiên cứu với schema/data dictionary | Spec §7.12; SU26SWP01 | MUST | Research / 14 | Planned | IT-RBL-02 | DEMO-08 | Planned |
-| RBL-03 | Export không PII, anonymous key an toàn | Spec §7.12 | MUST | Research / 14 | Planned | FT-RBL-03, ST-PRIVACY-01 | DEMO-08 | Planned |
-| RBL-04 | Synthetic deterministic ≥2.000 records, bốn vehicle types, data_source rõ | Spec §7.12; DEC-025 | MUST | Research / 14 | Planned | IT-RBL-04, FT-RBL-04, RBL-00B-02..03 | DEMO-08 | Planned |
-| RBL-05 | External academic deliverable pending lecturer confirmation; không bịa survey/ML/paper | Spec §7.12; SU26SWP01; DEC-033 | SHOULD | Research docs / 14 | Planned | FT-RBL-05, RBL-CL-01..02 | Optional demo | Pending external confirmation |
+| RBL-01 | Giữ đúng research question về tier progression | Spec §7.12; SU26SWP01 | MUST | Research docs / 14 | `docs/RESEARCH_DATA_DICTIONARY.md` | QT-RBL-01, documentation review | DEMO-08 | Done |
+| RBL-02 | Log đủ feature nghiên cứu với schema/data dictionary | Spec §7.12; SU26SWP01 | MUST | Research / 14 | `ResearchEventService`, `ResearchEventRepository`, business event hooks, data dictionary | `ResearchFlowTest`, `BookingFlowTest`, `LoyaltyFlowTest` | DEMO-08 | Done |
+| RBL-03 | Export không PII, anonymous key an toàn | Spec §7.12 | MUST | Research / 14 | `ResearchExportService`, `ResearchCsvExporter`, `scripts/export-research-data.php` | `ResearchDataTest`, `ResearchFlowTest` | DEMO-08 | Done |
+| RBL-04 | Synthetic deterministic ≥2.000 records, bốn vehicle types, data_source rõ | Spec §7.12; DEC-025 | MUST | Research / 14 | `SyntheticResearchDataGenerator`, `scripts/generate-synthetic-research-data.php` | `ResearchDataTest`, acceptance CLI 2.000 records | DEMO-08 | Done |
+| RBL-05 | Survey/ML/kiểm định/paper là Deferred bonus work; không quyết định tier, không bịa kết quả | Spec §7.12; DEC-034 | OPTIONAL/SHOULD | Research / Bonus | `docs/DECISIONS.md`, `docs/ASSUMPTIONS.md` | RBL-CL-01..02 | Optional | Deferred bonus work |
 
 ## Non-functional requirements
 
@@ -88,7 +88,7 @@
 | NFR-21 | Transaction cho critical flows | Spec §9 | MUST | 07,09..12 | `app/Services/BookingService.php`, `app/Repositories/BookingRepository.php` | `BookingFlowTest` (rollback/race); luồng critical khác tiếp tục Slice 09–12 | DEMO-03..07 | In Progress |
 | NFR-22 | Lock/unique/idempotency giữ invariant | Spec §9 | MUST | 02,07,09..12 | `database/migrations/`, `app/Repositories/BookingRepository.php`, `tests/Support/BookingConcurrencyWorker.php` | `DatabaseFoundationTest`, `BookingFlowTest`; loyalty/reward tiếp tục Slice 09–12 | DEMO-03,06 | In Progress |
 | NFR-23 | Không network call dài trong DB transaction | Spec §9 | MUST | 03+ | `app/Services/BookingService.php`, `app/Repositories/BookingRepository.php` | Review transaction Slice 07; QT-NFR-23 tiếp tục toàn dự án | — | In Progress |
-| NFR-24 | Research privacy và data_source | Spec §7.12, §14 | MUST | 14 | Planned | ST-PRIVACY-01 | DEMO-08 | Planned |
+| NFR-24 | Research privacy và data_source | Spec §7.12, §14 | MUST | 14 | CSV allowlist, anonymous key, source filter, synthetic source marker | `ResearchDataTest`, `ResearchFlowTest`, CSV privacy scan | DEMO-08 | Done |
 | NFR-25 | Chạy từ môi trường sạch theo README | Spec §1.2, §12, §14 | MUST | 01,15 | `README.md`, `composer.json`, `docker-compose.yml` | FT-NFR-25; Slice 01 install/config evidence | DEMO setup | In Progress |
 | NFR-26 | PHP 8.2+, Composer PSR-4, MySQL 8, PDO, PHPUnit, không framework | Spec §5, §14 | MUST | 01,02 | `composer.json`, `composer.lock`, `docker-compose.yml`, `app/Core/Database.php` | QT-NFR-26; Composer autoload và MySQL integration test | — | Done |
 
@@ -109,7 +109,7 @@
 | PRO-01/02/05 | DEC-023 | promotion tier/service/vehicle association tables | Silver+ và service/type/time/active restrictions đúng backend | PRO-00B-01..06 |
 | VEH-01/02, LPR-01/02 | DEC-008/024/031 | `VEHICLES.normalized_plate` UK; shared validator; `LPR_ATTEMPTS` | Normalize/pattern/scope/duplicate đúng; mock/fallback an toàn; regex ≠ LPR | VEH-PLATE-01..07, LPR-00B-01..06 |
 | RBL-02/03/04 | DEC-014/025 | `RESEARCH_EVENT_LOGS.event_key` UK và snapshot fields | No PII; ≥2.000; đủ 4 types; event không lặp | RBL-00B-01..04 |
-| RBL-05 | DEC-033 | Không yêu cầu schema core mới trước xác nhận | External pending, non-blocking; không bịa deliverable/kết quả; checkpoint trước Slice 14 | RBL-CL-01..02 |
+| RBL-05 | DEC-033/034 | Không yêu cầu schema core cho bonus work | Resolved, deferred và non-blocking; không bịa deliverable/kết quả | RBL-CL-01..02 |
 | NFR-02 | DEC-026 | Không thay schema core; performance fixture/report | 10k/20VU; P95/error target; ghi môi trường; loại external LPR latency | PERF-00B-01..08 |
 | NFR-01/03 | DEC-027 | `DESIGN_SYSTEM.md` token/component/state/layout rules | Customer/Admin nhất quán, responsive, accessible, đủ UI states | QT-NFR-01, FT-NFR-03 |
 | NFR-26 | DEC-012 | Architecture decision; không ERD-specific | PHP 8.2+, PDO/MySQL, Composer/Dotenv/PHPUnit, no full-stack framework | QT-NFR-26 |
@@ -127,7 +127,7 @@
 | Multi-branch, SMS thật, real-time, self-trained LPR | COULD | Không lập schema trong phạm vi nộp đồ án |
 | Online payment/refund/wallet | OUT | Không tạo module/migration |
 | Accounting/full inventory/microservices/native app/facial recognition | OUT | Không triển khai |
-| Survey thật/ML model/paper-conference report | External pending | Q-020/DEC-033; không chặn Slice 01, checkpoint trước Slice 14 và không bịa deliverable/kết quả |
+| Survey thật/ML model/kiểm định/paper-conference report | OPTIONAL/SHOULD | Q-020/DEC-034; Deferred bonus work, không chặn Slice 14/release và không bịa deliverable/kết quả |
 
 ## Quy tắc cập nhật
 

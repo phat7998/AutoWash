@@ -1,12 +1,12 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
 > Cập nhật: 2026-07-17
-> Slice hiện tại: Slice 13 — Complete
+> Slice hiện tại: Slice 14 — Complete
 >
 > Product code: đã có nền repository/database, HTTP/security, authentication/RBAC, quản lý phương tiện,
 > danh mục dịch vụ, booking, loyalty generic credit lots, FEFO redemption/expiry, reward management và
-> monthly tier review, tier/perk/promotion configuration, checkout benefit integration và LPR adapter/mock
-> với safe upload + manual fallback.
+> monthly tier review, tier/perk/promotion configuration, checkout benefit integration, LPR adapter/mock,
+> research event/CSV/synthetic data và descriptive dashboard.
 
 ## Tổng quan
 
@@ -27,7 +27,54 @@
 | 11 | Complete | Review tháng trước, spend AND visits, upgrade/downgrade/hold, history/reset, idempotency và recovery |
 | 12 | Complete | Tier/perk/promotion admin, best-benefit pricing, reward use-once và limit concurrency |
 | 13 | Complete | Safe upload ngoài public, provider interface/mock, confidence, owner-only image, attempt log và manual fallback |
-| 14–15 | Not started | Xem `ROADMAP.md` |
+| 14 | Complete | Sáu event type, CSV privacy allowlist, synthetic deterministic ≥2.000/four types, owner/admin dashboards và data dictionary |
+| 15 | Not started | Xem `ROADMAP.md` |
+
+## Slice 14 — Research Data, Synthetic Generator and Dashboards
+
+- Requirements: hoàn tất RBL-01..04, REP-01/02, NFR-24; RBL-05 được checkpoint Q-020 khóa thành
+  OPTIONAL/SHOULD, `Deferred bonus work`, non-blocking theo DEC-034.
+- Hoàn thành:
+  - Giữ `booking_created`/`booking_completed` đã có và nối `reward_redeemed`, `points_expired`,
+    `tier_changed`, `promotion_used` vào transaction nghiệp vụ; mọi event dùng `event_key` unique và
+    anonymous key, không có FK/user ID trực tiếp trong export.
+  - Tạo CSV schema `1.0` với allowlist 22 cột, lọc `from/to/source`, UTF-8 và không xuất raw metadata/PII;
+    data dictionary giải thích feature, nguồn, privacy boundary và giới hạn suy diễn.
+  - Tạo generator deterministic theo seed; CLI acceptance từ chối count dưới 2.000, dataset thực chạy có
+    2.000 record, đủ motorbike/car/truck/bus và `data_source=synthetic`.
+  - Customer dashboard tải tier/point, booking gần nhất, wash history và reward đúng owner; admin dashboard
+    có booking hôm nay, completed-only revenue, capacity utilization, tier distribution, earn/redeem/expire,
+    reward/promotion usage và biểu đồ progress responsive cơ bản.
+  - Q-020 đã Resolved trong DEC-034/ASSUMPTIONS/ROADMAP/Specification/RTM; không tạo survey result, ML,
+    accuracy, p-value, hypothesis conclusion, paper hoặc external dataset.
+- File thay đổi: Research/Dashboard Controller–Service–Repository; hook Booking/Loyalty/Reward/Tier;
+  bootstrap/routes; customer/admin dashboard/CSS; hai CLI; unit/integration test; README, data dictionary,
+  requirement changelog, Decisions/Assumptions/Roadmap/Specification/RTM/Test Plan và file status này.
+- Migration: không tạo. `research_event_logs` và unique `event_key` đã tồn tại đúng schema khóa từ migration
+  `006_create_operations_tables`; không thay schema hoặc business rule ngoài Slice 14.
+- Test đã chạy:
+  - `ResearchDataTest` — pass, 2 tests/11 assertions; deterministic seed, 2.000 record, four types, CSV
+    privacy allowlist và UTF-8 row.
+  - `ResearchFlowTest` — pass, 3 tests/18 assertions; operational event/anonymity, CSV columns/filter/privacy,
+    completed-only revenue và owner scope.
+  - Host PHP 8.5/MySQL 8.4 `composer check` — pass, PHPCS 174/174 file; PHPUnit 163 tests/826 assertions,
+    không skip.
+  - Docker PHP 8.2.32/MySQL 8.4 `composer check` với `AUTOWASH_DB_TESTS=1` — pass, PHPCS 174/174 file;
+    PHPUnit 163 tests/826 assertions, không skip.
+  - Synthetic acceptance CLI — pass: 2.000 record + header (2.001 dòng), cùng seed cho SHA-256 giống nhau,
+    đủ bốn vehicle type; system export CLI chạy được với cả dataset 3 record và empty-state sau test reset,
+    privacy header/content scan không có sensitive key.
+  - HTTP Apache port 8081 — admin/customer login `303`, `/admin` và `/tai-khoan` đều `200`, có đúng nội dung
+    dashboard mới.
+- Kết quả: đạt acceptance Slice 14; chỉ thực hiện descriptive analytics và không mở survey/ML/paper/Slice 15.
+- Quyết định: thêm DEC-034 để khóa Q-020; giữ DEC-025 minimum 2.000 và DEC-014 privacy/source boundary.
+- Known Limitations/Future Enhancements:
+  - External production LPR provider chưa có endpoint/model/credential/evidence; không còn blocker vì Slice 13
+    đã hoàn thành adapter, mock offline và manual fallback.
+  - Survey/ML/kiểm định chuyên sâu/paper là deferred bonus work; dataset hiện không chứng minh quan hệ nhân quả.
+  - Performance/security/release hardening thuộc duy nhất Slice 15 và chưa được thực hiện trong session này.
+- Lệnh chạy tiếp: sau khi nhóm accept Slice 14, thực hiện duy nhất Slice 15.
+- Commit đề xuất: `feat(RBL): hoàn tất dữ liệu nghiên cứu và dashboard [Slice 14]`.
 
 ## Slice 13 — License Plate Recognition Adapter and Safe Upload
 
@@ -49,8 +96,8 @@
     index; không sửa schema/business rule ngoài Slice 13.
   - Docker dùng volume riêng cho logs/uploads và entrypoint cấp quyền tối thiểu để Apache ghi runtime mà không
     đưa ảnh vào bind mount/public/Git.
-- Chưa hoàn thành: external/production LPR provider hoặc self-trained model; research CSV/dashboard Slice 14;
-  hardening/performance/release Slice 15. Q-020 vẫn cần checkpoint trước phần Research/RBL chuyên sâu.
+- Chưa hoàn thành tại thời điểm Slice 13: external/production LPR provider hoặc self-trained model;
+  research CSV/dashboard Slice 14; hardening/performance/release Slice 15. Q-020 sau đó đã Resolved ở Slice 14.
 - File thay đổi: LPR contract/provider/DTO/Service/Repository/exceptions; HTTP Request/VehicleController,
   bootstrap/routes/view/CSS; config/env/Compose entrypoint; migration 009; unit/integration/database test;
   README, Specification, RTM và file status này.

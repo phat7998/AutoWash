@@ -2,7 +2,7 @@
 
 AutoWash Pro là hệ thống quản lý dịch vụ chăm sóc phương tiện, đặt lịch trước và khách hàng thân thiết được xây dựng bằng Modern PHP thuần. Phiên bản đồ án cũ được lưu tại nhánh `legacy-main`.
 
-Repository hiện hoàn thành Slice 13: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
+Repository hiện hoàn thành Slice 14: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
 authentication/RBAC, quản lý phương tiện, danh mục dịch vụ và khung giờ. Customer xem được giá/thời lượng
 theo loại xe, chọn nhiều dịch vụ và tạo booking theo booking window của tier. Backend tự tính giá, tổng thời
 lượng, capacity lớn nhất, khóa mọi slot chồng lấn và lưu booking/items/reservations atomically. Admin quản lý
@@ -21,6 +21,9 @@ promotion limit được giữ bằng locking, complete ghi usage/use-once còn 
 Customer vẫn có thể nhập biển số thủ công độc lập, hoặc tải ảnh JPEG/PNG/WebP để adapter LPR mock offline
 đưa ra gợi ý và confidence trước khi xác nhận/sửa. Ảnh được kiểm tra MIME/kích thước, đổi tên ngẫu nhiên,
 lưu ngoài public và chỉ owner đọc lại qua controller; failure/timeout/độ tin cậy thấp không chặn manual fallback.
+Research event cho booking/reward/expiry/tier/promotion được ghi theo unique event key; CLI xuất CSV ẩn danh
+và sinh deterministic synthetic dataset tối thiểu 2.000 record đủ bốn loại xe. Customer/admin dashboard hiển
+thị số liệu owner-scoped hoặc aggregate completed-only cùng biểu đồ descriptive cơ bản.
 
 ## Yêu cầu hệ thống
 
@@ -151,6 +154,8 @@ composer check
 php scripts/reconcile-loyalty.php
 php scripts/expire-points.php
 php scripts/monthly-review.php
+php scripts/generate-synthetic-research-data.php --output=storage/research/synthetic.csv --count=2000 --seed=20260717
+php scripts/export-research-data.php --output=storage/research/system.csv --source=system
 ```
 
 - `composer lint`: kiểm tra PSR-12 bằng PHP_CodeSniffer.
@@ -169,10 +174,28 @@ AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/CatalogSlot
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Booking
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Loyalty tests/Integration/Reward
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Tier
+AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Research
 ```
 
 `monthly-review.php` mặc định xét tháng lịch vừa kết thúc. Run completed bị từ chối chạy lại; run failed
 được tiếp tục bằng cách bỏ qua customer đã có history cho kỳ đó.
+
+## Research data và dashboard
+
+Slice 14 ghi sáu nhóm event `booking_created`, `booking_completed`, `reward_redeemed`, `points_expired`,
+`tier_changed`, `promotion_used` bằng event key unique. Admin dashboard tại `/admin` hiển thị descriptive
+analytics trực tiếp từ database: booking hôm nay, completed-only revenue, capacity utilization, tier
+distribution, biến động điểm và reward/promotion usage. Customer dashboard `/tai-khoan` chỉ tải summary,
+booking, wash history và reward của user trong session.
+
+CSV export dùng allowlist cột schema `1.0`, hỗ trợ `--from`, `--to`, `--source` và không chứa họ tên, điện
+thoại, email, password/hash, biển số, raw IP hoặc user ID trực tiếp. Synthetic generator yêu cầu acceptance
+count tối thiểu 2.000, deterministic theo seed, bao phủ `motorbike|car|truck|bus` và luôn ghi
+`data_source=synthetic`. Xem định nghĩa chi tiết tại `docs/RESEARCH_DATA_DICTIONARY.md`.
+
+Survey thật, ML, kiểm định chuyên sâu và paper/conference-format report là OPTIONAL/SHOULD,
+`Deferred bonus work`; không chặn Slice 14/release. Project không cung cấp survey result, accuracy, p-value,
+hypothesis conclusion hoặc external dataset giả.
 
 ## LPR adapter và upload ảnh
 
@@ -181,7 +204,9 @@ không phải OCR hoặc mô hình production. Có thể điều chỉnh text/co
 `LPR_MOCK_CONFIDENCE`; giới hạn mặc định là 5 MB qua `LPR_MAX_UPLOAD_BYTES`. Ảnh runtime nằm trong
 `storage/uploads/lpr`, đã bị Git ignore và được Docker mount bằng volume riêng ngoài document root.
 
-Repository chưa có endpoint/model/secret cho provider thật. Khi tích hợp sau này, adapter phải implement
+Known Limitation/Future Enhancement: repository chưa có endpoint/model/secret cho external production LPR.
+Đây không còn là blocker vì Slice 13 đã hoàn thành provider adapter, mock offline và manual fallback. Khi tích
+hợp sau này, adapter phải implement
 `LprProviderInterface`, chuyển timeout/lỗi provider thành `LprProviderException`, và vẫn giữ toàn bộ upload
 validation, owner guard, backend plate validation cùng manual fallback hiện có.
 

@@ -20,7 +20,8 @@ final readonly class RewardService
         private RewardRepository $rewards,
         private LoyaltyService $loyalty,
         private RewardValidator $validator,
-        private DateTimeZone $timezone
+        private DateTimeZone $timezone,
+        private ResearchEventService $researchEvents
     ) {
     }
 
@@ -107,6 +108,7 @@ final readonly class RewardService
                 null,
                 $at
             );
+            $this->researchEvents->rewardRedeemed($userId, $redemptionId, $points, $at);
 
             return $redemptionId;
         });

@@ -19,7 +19,7 @@
 | 11 | Monthly tier review/history | TIER-01..04, DEC-003/019 | 09–10 | AND/upgrade/downgrade/hold/history/rerun |
 | 12 | Tier/perk/promotion/reward checkout integration | BKG-03, RWD-03, PRO-01..05, ADM-01/04/05/06 | 10–11 | Tier/service/type eligibility, limits, snapshots |
 | 13 | Safe upload, `LprProviderInterface`, mock/external adapter, fallback | LPR-02, NFR-16, DEC-024 | 05 | Success/error/low-confidence/manual/security tests |
-| 14 | Research events, ≥2k synthetic, CSV/data dictionary, dashboards | RBL-01..05, REP-01/02, DEC-025/033 | 09–13; checkpoint Q-020 trước deep Research/RBL | No-PII, four types, deterministic/idempotent export; không bịa external deliverable |
+| 14 | Research events, ≥2k synthetic, CSV/data dictionary, descriptive dashboards | RBL-01..05, REP-01/02, DEC-025/034 | 09–13; Q-020 Resolved | No-PII, four types, deterministic/idempotent export; không bịa external deliverable |
 | 15 | Security/business/performance audit, demo/release | Toàn bộ MUST, DEC-026/028 | 01–14 | Full suite; 10k/20VU report; clean setup; defense docs |
 
 ## Gating bắt buộc
@@ -33,8 +33,8 @@
 ## Điểm cần xác nhận còn lại
 
 - Q-016..Q-019 đã đóng bằng DEC-017/005/031/032 và không còn gate kỹ thuật.
-- Q-020: **External academic deliverable — Pending lecturer confirmation**. Không chặn Slice 01; checkpoint trước Slice 14 để xác nhận survey/ML/paper, cách chấm riêng và quy mô dataset.
+- Q-020: **Resolved theo DEC-034**. Survey/ML/kiểm định chuyên sâu/paper là OPTIONAL/SHOULD, Deferred bonus work và không chặn Slice 14/release.
 
 ## Cắt scope khi thiếu thời gian
 
-Không cắt Auth/RBAC, ownership, service/type pricing, capacity units, booking/concurrency, completed idempotency, ledger/allocation/FEFO/expiry, tier review, Silver+, research export, tests/demo. Có thể không tích hợp external LPR thật nhưng phải giữ provider pattern + mock + manual fallback. AI personalization, SMS thật, animation/chart nâng cao, multi-branch và real-time vẫn ngoài core.
+Không cắt Auth/RBAC, ownership, service/type pricing, capacity units, booking/concurrency, completed idempotency, ledger/allocation/FEFO/expiry, tier review, Silver+, research export, tests/demo. External production LPR là Future Enhancement; provider pattern + mock + manual fallback đã hoàn thành core. Survey/ML/paper, AI personalization, SMS thật, animation/chart nâng cao, multi-branch và real-time vẫn ngoài core.

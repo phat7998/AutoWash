@@ -313,7 +313,7 @@
 
 | Case ID | Loại | Test case | Expected |
 |---|---|---|---|
-| RBL-CL-01 | Documentation | Review trạng thái Survey/ML/Paper | Ghi đúng “External academic deliverable — Pending lecturer confirmation”; không chặn Slice 01 |
+| RBL-CL-01 | Documentation | Review trạng thái Survey/ML/Paper | Ghi đúng “Deferred bonus work — Non-blocking” theo DEC-034; không chặn Slice 14/release |
 | RBL-CL-02 | Documentation/Security | Review research output trước xác nhận | Có log/export ẩn danh/synthetic plan; không có survey/kết quả/accuracy/kết luận/paper bị bịa |
 
 ## 10. Entry/exit criteria

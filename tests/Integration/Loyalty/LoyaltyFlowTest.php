@@ -24,6 +24,7 @@ use App\Exceptions\ValidationException;
 use App\Middleware\CsrfMiddleware;
 use App\Repositories\BookingRepository;
 use App\Repositories\LoyaltyTransactionRepository;
+use App\Repositories\ResearchEventRepository;
 use App\Services\BookingLifecyclePolicy;
 use App\Services\BookingResourceCalculator;
 use App\Services\BookingService;
@@ -32,6 +33,7 @@ use App\Services\LoyaltyPointCalculator;
 use App\Services\LoyaltyDebitAllocator;
 use App\Services\LoyaltyExpirationPolicy;
 use App\Services\LoyaltyService;
+use App\Services\ResearchEventService;
 use App\Services\PriceCalculator;
 use App\Validation\BookingLifecycleValidator;
 use App\Validation\BookingValidator;
@@ -327,7 +329,8 @@ final class LoyaltyFlowTest extends TestCase
             new LoyaltyAdjustmentValidator(),
             new LoyaltyDebitAllocator(),
             new LoyaltyExpirationPolicy($this->timezone()),
-            $this->timezone()
+            $this->timezone(),
+            new ResearchEventService(new ResearchEventRepository(self::$database))
         );
     }
 

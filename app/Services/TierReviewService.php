@@ -17,7 +17,8 @@ final readonly class TierReviewService
     public function __construct(
         private TierRepository $tiers,
         private TierReviewPolicy $policy,
-        private DateTimeZone $timezone
+        private DateTimeZone $timezone,
+        private ResearchEventService $researchEvents
     ) {
     }
 
@@ -58,7 +59,7 @@ final readonly class TierReviewService
 
             foreach ($this->tiers->unprocessedCustomerIds($reviewPeriod) as $userId) {
                 $currentUserId = $userId;
-                $this->reviewCustomer($userId, $reviewPeriod, $activeTiers);
+                $this->reviewCustomer($userId, $reviewPeriod, $activeTiers, $now);
                 $this->tiers->updateProgress($reviewPeriod, $this->tiers->historyCount($reviewPeriod));
             }
 
@@ -101,9 +102,13 @@ final readonly class TierReviewService
     }
 
     /** @param list<array<string, mixed>> $activeTiers */
-    private function reviewCustomer(int $userId, string $reviewPeriod, array $activeTiers): void
-    {
-        $this->tiers->transactional(function () use ($userId, $reviewPeriod, $activeTiers): void {
+    private function reviewCustomer(
+        int $userId,
+        string $reviewPeriod,
+        array $activeTiers,
+        DateTimeImmutable $at
+    ): void {
+        $this->tiers->transactional(function () use ($userId, $reviewPeriod, $activeTiers, $at): void {
             $customer = $this->tiers->lockCustomer($userId);
 
             if ($customer === null || $this->tiers->historyExists($userId, $reviewPeriod)) {
@@ -116,7 +121,7 @@ final readonly class TierReviewService
                 $activeTiers
             );
             $reason = $this->reason($customer, $qualifiedTier);
-            $this->tiers->insertHistory(
+            $historyId = $this->tiers->insertHistory(
                 $userId,
                 (int) $customer['current_tier_id'],
                 (int) $qualifiedTier['id'],
@@ -124,6 +129,16 @@ final readonly class TierReviewService
                 (string) $customer['monthly_spend'],
                 (int) $customer['monthly_visits'],
                 $reason
+            );
+            $this->researchEvents->tierChanged(
+                $userId,
+                $historyId,
+                (string) $customer['current_tier_code'],
+                (string) $qualifiedTier['code'],
+                (string) $customer['monthly_spend'],
+                (int) $customer['monthly_visits'],
+                $reviewPeriod,
+                $at
             );
             $this->tiers->updateTierAndResetMetrics($userId, (int) $qualifiedTier['id']);
         });

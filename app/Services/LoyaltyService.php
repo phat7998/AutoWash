@@ -21,7 +21,8 @@ final readonly class LoyaltyService implements BookingCompletionProcessorInterfa
         private LoyaltyAdjustmentValidator $adjustmentValidator,
         private LoyaltyDebitAllocator $allocator,
         private LoyaltyExpirationPolicy $expirationPolicy,
-        private DateTimeZone $timezone
+        private DateTimeZone $timezone,
+        private ResearchEventService $researchEvents
     ) {
     }
 
@@ -277,7 +278,7 @@ final readonly class LoyaltyService implements BookingCompletionProcessorInterfa
         $expiredPoints = 0;
 
         foreach ($this->transactions->expiredCreditLotCandidates($formattedAt) as $candidate) {
-            $points = $this->transactions->transactional(function () use ($candidate, $formattedAt): int {
+            $points = $this->transactions->transactional(function () use ($candidate, $formattedAt, $at): int {
                 $user = $this->transactions->lockCustomerContext($candidate['user_id']);
 
                 if ($user === null || $user['role'] !== 'customer') {
@@ -320,6 +321,13 @@ final readonly class LoyaltyService implements BookingCompletionProcessorInterfa
                     $formattedAt
                 );
                 $this->transactions->updatePointBalance($candidate['user_id'], -$points);
+                $this->researchEvents->pointsExpired(
+                    $candidate['user_id'],
+                    $debitId,
+                    $candidate['id'],
+                    $points,
+                    $at
+                );
 
                 return $points;
             });

@@ -1,6 +1,6 @@
 # AUTO WASH PRO — GIẢ ĐỊNH VÀ CÂU HỎI CÒN MỞ
 
-> Cập nhật: 2026-07-16 — Mini-Slice 00B Closure Patch  
+> Cập nhật: 2026-07-17 — checkpoint Q-020 trước Slice 14
 > Nội dung đã được 00B khóa không còn là câu hỏi. Chỉ các điểm thật sự chưa được quyết định mới nằm dưới đây.
 
 ## Giả định vận hành còn hiệu lực
@@ -33,15 +33,17 @@
 | Phạm vi biển số | Biển dân sự Việt Nam thông dụng; validator tập trung (DEC-031). |
 | Adjust âm vượt balance | Từ chối toàn bộ, không clamp (DEC-032). |
 
-## Xác nhận học thuật bên ngoài còn chờ
+## Xác nhận học thuật bên ngoài đã khóa
 
-**External academic deliverable — Pending lecturer confirmation.** Nội dung này không chặn Slice 01.
+Q-020 đã được nhóm xác nhận tại checkpoint trước Slice 14 theo DEC-034.
 
-| ID | Câu hỏi | Ảnh hưởng | Cần chốt trước |
+| ID | Kết quả | Ảnh hưởng | Trạng thái |
 |---|---|---|---|
-| Q-020 | Survey thật, ML model, paper/conference-format report có bắt buộc và được chấm riêng ngoài website không; quy mô dataset chính xác là bao nhiêu? | Chỉ ảnh hưởng deliverable học thuật ngoài core website; không thay rule-based loyalty. | Checkpoint trước Slice 14 |
+| Q-020 | Survey thật, ML model, kiểm định chuyên sâu và paper/conference-format report không bắt buộc cho sản phẩm chính; chỉ là điểm cộng nếu còn thời gian. | Không thay rule-based loyalty và không chặn Slice 14/release. Synthetic minimum vẫn là 2.000 theo DEC-025. | Resolved — Deferred bonus work |
 
-Cho đến khi được xác nhận: hệ thống vẫn phải có research event log, CSV ẩn danh và synthetic dataset theo specification; không tự tạo survey response, accuracy, hypothesis result, kết luận nghiên cứu hoặc tuyên bố paper đã hoàn thành.
+Phạm vi phân tích trong Slice 14 chỉ là descriptive analytics từ dữ liệu hệ thống hoặc synthetic có nhãn nguồn.
+Không tự tạo survey response, accuracy, p-value, hypothesis result, kết luận nghiên cứu, nguồn dataset ngoài
+hoặc tuyên bố paper đã hoàn thành.
 
 ## Mâu thuẫn/giới hạn đã ghi nhận
 

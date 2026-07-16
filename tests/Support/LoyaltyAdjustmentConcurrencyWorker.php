@@ -5,10 +5,12 @@ declare(strict_types=1);
 use App\Core\Database;
 use App\Exceptions\InsufficientPointsException;
 use App\Repositories\LoyaltyTransactionRepository;
+use App\Repositories\ResearchEventRepository;
 use App\Services\LoyaltyPointCalculator;
 use App\Services\LoyaltyDebitAllocator;
 use App\Services\LoyaltyExpirationPolicy;
 use App\Services\LoyaltyService;
+use App\Services\ResearchEventService;
 use App\Validation\LoyaltyAdjustmentValidator;
 
 $projectRoot = dirname(__DIR__, 2);
@@ -33,7 +35,8 @@ $service = new LoyaltyService(
     new LoyaltyAdjustmentValidator(),
     new LoyaltyDebitAllocator(),
     new LoyaltyExpirationPolicy(new DateTimeZone('Asia/Ho_Chi_Minh')),
-    new DateTimeZone('Asia/Ho_Chi_Minh')
+    new DateTimeZone('Asia/Ho_Chi_Minh'),
+    new ResearchEventService(new ResearchEventRepository(Database::connection()))
 );
 
 try {

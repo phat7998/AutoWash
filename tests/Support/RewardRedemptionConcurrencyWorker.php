@@ -6,11 +6,13 @@ use App\Core\Database;
 use App\Exceptions\InsufficientPointsException;
 use App\Repositories\LoyaltyTransactionRepository;
 use App\Repositories\RewardRepository;
+use App\Repositories\ResearchEventRepository;
 use App\Services\LoyaltyDebitAllocator;
 use App\Services\LoyaltyExpirationPolicy;
 use App\Services\LoyaltyPointCalculator;
 use App\Services\LoyaltyService;
 use App\Services\RewardService;
+use App\Services\ResearchEventService;
 use App\Validation\LoyaltyAdjustmentValidator;
 use App\Validation\RewardValidator;
 
@@ -30,19 +32,22 @@ if (!is_file($barrierFile)) {
 }
 
 $timezone = new DateTimeZone('Asia/Ho_Chi_Minh');
+$research = new ResearchEventService(new ResearchEventRepository(Database::connection()));
 $loyalty = new LoyaltyService(
     new LoyaltyTransactionRepository(Database::connection()),
     new LoyaltyPointCalculator(10_000),
     new LoyaltyAdjustmentValidator(),
     new LoyaltyDebitAllocator(),
     new LoyaltyExpirationPolicy($timezone),
-    $timezone
+    $timezone,
+    $research
 );
 $rewards = new RewardService(
     new RewardRepository(Database::connection()),
     $loyalty,
     new RewardValidator(),
-    $timezone
+    $timezone,
+    $research
 );
 
 try {
