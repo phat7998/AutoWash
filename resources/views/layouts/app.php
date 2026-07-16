@@ -33,6 +33,7 @@ declare(strict_types=1);
                         Tổng quan
                     </a>
                     <?php if (($authUser['role'] ?? null) === 'customer'): ?>
+                        <a class="nav-link" href="/dat-lich">Đặt lịch</a>
                         <a class="nav-link" href="/phuong-tien">Phương tiện</a>
                         <a class="nav-link" href="/khung-gio">Khung giờ</a>
                     <?php else: ?>

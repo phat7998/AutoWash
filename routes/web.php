@@ -6,6 +6,7 @@ use App\Core\CsrfTokenManager;
 use App\Controllers\AuthController;
 use App\Controllers\AdminServiceController;
 use App\Controllers\AdminSlotController;
+use App\Controllers\BookingController;
 use App\Controllers\CatalogController;
 use App\Controllers\VehicleController;
 use App\Controllers\WashSlotController;
@@ -28,7 +29,8 @@ return static function (
     ?callable $catalogControllerFactory = null,
     ?callable $adminServiceControllerFactory = null,
     ?callable $washSlotControllerFactory = null,
-    ?callable $adminSlotControllerFactory = null
+    ?callable $adminSlotControllerFactory = null,
+    ?callable $bookingControllerFactory = null
 ): void {
     $router->get('/', static function () use ($view, $session, $tokens): Response {
         return Response::html($view->render('home', [
@@ -123,6 +125,15 @@ return static function (
             $adminSlots()->store($request), $authenticated, $admin);
         $router->post('/admin/khung-gio/{id}/dong', static fn (Request $request): Response =>
             $adminSlots()->close($request), $authenticated, $admin);
+    }
+
+    if ($bookingControllerFactory !== null) {
+        $bookings = static fn (): BookingController => $bookingControllerFactory();
+        $customer = new RoleMiddleware($session, 'customer');
+        $router->get('/dat-lich', static fn (Request $request): Response =>
+            $bookings()->create($request), $authenticated, $customer);
+        $router->post('/dat-lich', static fn (Request $request): Response =>
+            $bookings()->store($request), $authenticated, $customer);
     }
 
     if ($vehicleControllerFactory === null) {

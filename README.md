@@ -2,10 +2,11 @@
 
 AutoWash Pro là hệ thống quản lý dịch vụ chăm sóc phương tiện, đặt lịch trước và khách hàng thân thiết được xây dựng bằng Modern PHP thuần. Phiên bản đồ án cũ được lưu tại nhánh `legacy-main`.
 
-Repository hiện hoàn thành Slice 06: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
+Repository hiện hoàn thành Slice 07: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
 authentication/RBAC, quản lý phương tiện, danh mục dịch vụ và khung giờ. Customer xem được giá/thời lượng
-theo loại xe và capacity còn lại; admin quản lý dịch vụ, cấu hình giá và tạo/đóng khung giờ qua backend có
-validation, role guard và CSRF.
+theo loại xe, chọn nhiều dịch vụ và tạo booking theo booking window của tier. Backend tự tính giá, tổng thời
+lượng, capacity lớn nhất, khóa mọi slot chồng lấn và lưu booking/items/reservations atomically. Admin quản lý
+dịch vụ, cấu hình giá và tạo/đóng khung giờ qua backend có validation, role guard và CSRF.
 
 ## Yêu cầu hệ thống
 
@@ -92,14 +93,16 @@ Không chạy lệnh reset trên database có dữ liệu cần giữ. Seed có 
 - `/phuong-tien/{id}/ngung-su-dung`: chỉ nhận POST, giữ record và chuyển xe sang inactive.
 - `/dich-vu`: danh mục public theo loại phương tiện; chỉ hiển thị service/cặp giá active và supported.
 - `/khung-gio`: customer xem khung giờ mở và capacity units còn lại.
+- `/dat-lich`: customer chọn xe, nhiều dịch vụ và khung giờ để tạo booking pending.
 - `/admin`: vùng admin đã xác thực và kiểm tra role.
 - `/admin/dich-vu`: admin tạo, sửa, kích hoạt hoặc ngừng dịch vụ và cấu hình theo loại xe.
 - `/admin/khung-gio`: admin tạo hoặc đóng khung giờ vận hành.
 - `/dang-xuat`: chỉ nhận POST có CSRF hợp lệ.
 
 Seed demo có slot trống, gần đầy, đầy và đóng ngày `15/01/2030`. Hai booking fixture
-`DEMO_NEAR_FULL`/`DEMO_FULL` chỉ phục vụ kiểm tra cách tính capacity ở Slice 06; ứng dụng chưa cung cấp luồng
-tạo booking cho tới Slice 07.
+`DEMO_NEAR_FULL`/`DEMO_FULL` phục vụ kiểm tra cách tính capacity. Seed còn tạo ba slot liên tục vào các mốc
+`+1`, `+8`, `+11`, `+13` ngày tính từ ngày chạy seed để demo booking window Member/Silver/Gold/Platinum và
+booking nhiều slot. Luồng hiện chỉ tạo booking `pending`; xác nhận, hủy, hoàn thành và wash history thuộc Slice 08.
 
 ## Kiểm tra chất lượng
 
@@ -122,6 +125,7 @@ Integration test database cần MySQL riêng có thể reset an toàn:
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Database
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Vehicle
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/CatalogSlot
+AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Booking
 ```
 
 ## Cấu trúc chính

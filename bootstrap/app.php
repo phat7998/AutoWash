@@ -15,6 +15,7 @@ use App\Middleware\CsrfMiddleware;
 use App\Controllers\AuthController;
 use App\Controllers\AdminServiceController;
 use App\Controllers\AdminSlotController;
+use App\Controllers\BookingController;
 use App\Controllers\CatalogController;
 use App\Controllers\VehicleController;
 use App\Controllers\WashSlotController;
@@ -22,15 +23,21 @@ use App\Repositories\ServiceCatalogRepository;
 use App\Repositories\UserRepository;
 use App\Repositories\VehicleRepository;
 use App\Repositories\WashSlotRepository;
+use App\Repositories\BookingRepository;
 use App\Services\AuthService;
 use App\Services\LicensePlateService;
 use App\Services\ServiceCatalogService;
 use App\Services\VehicleService;
 use App\Services\WashSlotService;
+use App\Services\BookingService;
+use App\Services\BookingResourceCalculator;
+use App\Services\BookingWindowPolicy;
+use App\Services\PriceCalculator;
 use App\Validation\AuthValidator;
 use App\Validation\ServiceCatalogValidator;
 use App\Validation\VehicleValidator;
 use App\Validation\WashSlotValidator;
+use App\Validation\BookingValidator;
 
 $projectRoot = require __DIR__ . '/environment.php';
 $config = require $projectRoot . '/config/app.php';
@@ -106,6 +113,19 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $session,
         $tokens
     );
+    $bookingControllerFactory = static fn (): BookingController => new BookingController(
+        new BookingService(
+            new BookingRepository(Database::connection()),
+            new BookingValidator(),
+            new BookingWindowPolicy(new DateTimeZone($timezone)),
+            new PriceCalculator(),
+            new BookingResourceCalculator(),
+            new DateTimeZone($timezone)
+        ),
+        $view,
+        $session,
+        $tokens
+    );
     $registerRoutes = require $projectRoot . '/routes/web.php';
     $registerRoutes(
         $router,
@@ -117,7 +137,8 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $catalogControllerFactory,
         $adminServiceControllerFactory,
         $washSlotControllerFactory,
-        $adminSlotControllerFactory
+        $adminSlotControllerFactory,
+        $bookingControllerFactory
     );
 
     $errorHandler = new ErrorHandler(

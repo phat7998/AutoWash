@@ -18,7 +18,10 @@ declare(strict_types=1);
     </div>
 <?php endif; ?>
 <section class="empty-state" aria-labelledby="customer-next-title">
-    <h2 id="customer-next-title">Quản lý phương tiện đã sẵn sàng</h2>
-    <p>Thêm, chỉnh sửa hoặc ngừng sử dụng phương tiện thuộc tài khoản của bạn.</p>
-    <a class="button button-primary" href="/phuong-tien">Xem phương tiện</a>
+    <h2 id="customer-next-title">Sẵn sàng chăm sóc phương tiện</h2>
+    <p>Chọn xe, dịch vụ và khung giờ phù hợp để tạo lịch đặt mới.</p>
+    <div class="form-actions">
+        <a class="button button-primary" href="/dat-lich">Đặt lịch rửa xe</a>
+        <a class="button button-outline" href="/phuong-tien">Xem phương tiện</a>
+    </div>
 </section>

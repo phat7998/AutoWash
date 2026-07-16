@@ -1,10 +1,10 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
 > Cập nhật: 2026-07-16  
-> Slice hiện tại: Slice 06 — Complete
+> Slice hiện tại: Slice 07 — Complete
 >
 > Product code: đã có nền repository/database, HTTP/security, authentication/RBAC, quản lý phương tiện,
-> danh mục dịch vụ và quản lý khung giờ/capacity.
+> danh mục dịch vụ, quản lý khung giờ/capacity và tạo booking nhiều dịch vụ chống tranh chấp slot.
 
 ## Tổng quan
 
@@ -18,7 +18,36 @@
 | 04 | Complete | Register/login/logout, BCRYPT, session lifecycle, guest/auth/role middleware, demo account và Auth/RBAC regression |
 | 05 | Complete | Vehicle CRUD/deactivate, shared plate validation, active type, duplicate/ownership/IDOR và manual input UI |
 | 06 | Complete | Catalog theo loại xe, admin service-price, slot validation, capacity từ active reservations và UI/RBAC/CSRF |
-| 07–15 | Not started | Xem `ROADMAP.md` |
+| 07 | Complete | Booking window theo tier, server pricing, multi-service/multi-slot snapshot, transaction/locking và concurrency test hai tiến trình |
+| 08–15 | Not started | Xem `ROADMAP.md` |
+
+## Slice 07 — Booking Creation, Tier Window, Pricing and Capacity Concurrency
+
+- Requirements: hoàn tất VEH-03, CAT-02, SLOT-01, SLOT-02, BKG-01, BKG-02, BKG-07; phần Slice 07 của BKG-03; tiếp tục NFR-03, NFR-05, NFR-09, NFR-10, NFR-11, NFR-13, NFR-15, NFR-19, NFR-20, NFR-21, NFR-22 và NFR-23.
+- Hoàn thành:
+  - Tạo `BookingController`, `BookingService`, `BookingRepository`, DTO/validator, `BookingWindowPolicy`, `PriceCalculator` và `BookingResourceCalculator` đúng phân tầng.
+  - Customer chỉ chọn vehicle active thuộc sở hữu; backend khóa lại vehicle, tải tier/window và cấu hình service–vehicle type active/supported từ DB trong transaction.
+  - Boundary booking window dùng `Asia/Ho_Chi_Minh`: ngày quá khứ bị từ chối, bằng đúng 7/10/12/14 ngày được phép, vượt giới hạn bị từ chối.
+  - Subtotal/final lấy từ DECIMAL string ở DB; discount Slice 07 bằng 0; mọi price/duration/capacity giả từ client bị bỏ qua. Item snapshot giữ tên, loại xe, giá, duration và capacity.
+  - Multi-service cộng duration, lấy capacity lớn nhất giữa vehicle default và các override; tìm và khóa mọi slot chồng lấn theo thứ tự ổn định, yêu cầu coverage liên tục và tất cả slot open/đủ capacity.
+  - Tính usage bằng locking current-read sau slot lock để request chờ thấy commit mới nhất dưới MySQL `REPEATABLE READ`; hai tiến trình tranh unit cuối cho đúng một thành công.
+  - Chặn vehicle có booking `pending|confirmed` chồng lấn; booking, items, reservations và `booking_created` research event được commit/rollback cùng nhau.
+  - Tạo UI `/dat-lich` tiếng Việt theo Design System, PRG/flash, state không có xe/dịch vụ/slot, slot full/outside-window, responsive và output escaping; route customer-only + CSRF.
+  - Seed idempotent trong cùng ngày tạo ba slot liên tục tại các mốc `+1`, `+8`, `+11`, `+13` ngày để demo tier window và multi-slot.
+- Chưa hoàn thành: confirm/cancel/complete/history thuộc Slice 08; loyalty thuộc Slice 09; reward/promotion/perk thật thuộc Slice 10–12. Vì vậy BKG-03 giữ `In Progress`, ba discount hiện lưu 0 đúng phạm vi Slice 07.
+- File thay đổi: booking Controller/DTO/Service/Repository/Validator/exceptions/calculators; bootstrap/routes; booking/dashboard/layout view và CSS; seeder/base seed; unit/integration/concurrency worker test; README, RTM và file status này.
+- Migration: không có; dùng nguyên schema `bookings`, `booking_items`, `booking_slot_reservations` và `research_event_logs` từ Slice 02.
+- Test đã chạy:
+  - `vendor/bin/phpunit tests/Unit/BookingRulesTest.php` — pass, 8 tests/23 assertions.
+  - Bộ Slice 07 unit + integration MySQL — pass, 17 tests/66 assertions.
+  - `AUTOWASH_DB_TESTS=1 ... composer check` trên host PHP 8.5/MySQL 8.4 — pass, PHPCS 95/95 file; PHPUnit 85 tests/330 assertions, không skip.
+  - `docker compose exec ... composer check` trên PHP 8.2.32/MySQL 8.4 — pass, PHPCS 95/95 file; PHPUnit 85 tests/330 assertions, không skip.
+  - HTTP smoke Apache port 8081 — guest `/dat-lich` nhận 303 về đăng nhập; customer login 303, mở trang đặt lịch 200 và tạo booking thật nhận 303 PRG.
+- Kết quả: đạt acceptance Slice 07; full regression pass trên host và container PHP 8.2, HTTP flow thật hoạt động.
+- Quyết định: giữ nguyên DEC-001..033; không phát sinh ADR, migration, schema hoặc business rule mới.
+- Rủi ro còn lại: booking code dùng random 128-bit không có retry riêng cho xác suất collision cực thấp; seed slot tương đối idempotent trong cùng ngày và môi trường demo nên nên reset trước buổi demo để không giữ slot tương đối của ngày chạy cũ.
+- Lệnh chạy tiếp: sau khi accept Slice 07, thực hiện duy nhất Slice 08.
+- Commit đề xuất: `feat(BKG): hoàn tất tạo booking và khóa sức chứa [Slice 07]`.
 
 ## Slice 06 — Service Catalog and Wash Slot Capacity
 

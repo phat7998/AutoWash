@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Database;
 
 use App\Services\LicensePlateService;
+use DateTimeImmutable;
+use DateTimeZone;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -36,6 +38,7 @@ final readonly class DatabaseSeeder
             $this->seedServices($data['services']);
             $this->seedServicePrices($data['service_vehicle_prices']);
             $this->seedWashSlots($data['wash_slots']);
+            $this->seedRelativeWashSlots($data['relative_wash_slots'] ?? []);
             $this->seedCapacityFixtures($data['capacity_fixtures']);
             $this->seedRewards($data['rewards']);
             $this->seedRewardVehicleRestrictions();
@@ -291,6 +294,20 @@ final readonly class DatabaseSeeder
                 $slot
             ));
         }
+    }
+
+    /** @param list<array{int, string, string, int, string}> $slots */
+    private function seedRelativeWashSlots(array $slots): void
+    {
+        $today = new DateTimeImmutable('today', new DateTimeZone('Asia/Ho_Chi_Minh'));
+        $normalized = array_map(static fn (array $slot): array => [
+            $today->modify('+' . $slot[0] . ' days')->format('Y-m-d'),
+            $slot[1],
+            $slot[2],
+            $slot[3],
+            $slot[4],
+        ], $slots);
+        $this->seedWashSlots($normalized);
     }
 
     /** @param list<array{string, string, string, string, string, string}> $fixtures */
