@@ -2,7 +2,7 @@
 
 AutoWash Pro là hệ thống quản lý dịch vụ chăm sóc phương tiện, đặt lịch trước và khách hàng thân thiết được xây dựng bằng Modern PHP thuần. Phiên bản đồ án cũ được lưu tại nhánh `legacy-main`.
 
-Repository hiện hoàn thành Slice 02: Composer/PSR-4, cấu hình môi trường, PDO, migration/seed/reset database, PHPUnit, PSR-12 và Docker Compose. HTTP Front Controller và giao diện thuộc các slice sau nên chưa có route ứng dụng ở giai đoạn này.
+Repository hiện hoàn thành Slice 03: Composer/PSR-4, cấu hình môi trường, database foundation và hạ tầng HTTP/security. Ứng dụng đã có Front Controller, router, session/CSRF, view escaping, xử lý lỗi an toàn, trang nền tảng và health check; authentication và các module nghiệp vụ thuộc các slice sau.
 
 ## Yêu cầu hệ thống
 
@@ -33,6 +33,8 @@ docker compose up -d --build
 docker compose run --rm web composer install
 ```
 
+Mở `http://localhost:8080/` để xem trang nền tảng hoặc `http://localhost:8080/health` để kiểm tra trạng thái tối thiểu. Mọi URL động được Apache chuyển qua `public/index.php`.
+
 Kiểm tra trạng thái hoặc dừng môi trường:
 
 ```bash
@@ -40,7 +42,13 @@ docker compose ps
 docker compose down
 ```
 
-Port mặc định của Apache là `8080`, MySQL là `3306`. Có thể đặt `APP_PORT` hoặc `DB_FORWARD_PORT` trong `.env` nếu port local đã được sử dụng. Route web đầu tiên sẽ được triển khai đúng kế hoạch ở Slice 03.
+Port mặc định của Apache là `8080`, MySQL là `3306`. Có thể đặt `APP_PORT` hoặc `DB_FORWARD_PORT` trong `.env` nếu port local đã được sử dụng.
+
+Nếu chạy bằng PHP built-in server, dùng router script là Front Controller:
+
+```bash
+php -S 127.0.0.1:8080 -t public public/index.php
+```
 
 ## Database
 
@@ -73,6 +81,7 @@ composer check
 - `composer lint`: kiểm tra PSR-12 bằng PHP_CodeSniffer.
 - `composer test`: chạy PHPUnit.
 - `composer check`: chạy lint rồi toàn bộ test hiện có.
+- HTTP/security test kiểm tra router, 404/405, CSRF, session flash/cookie, escaping, PRG và production error response.
 
 Integration test database cần MySQL riêng có thể reset an toàn:
 
@@ -88,7 +97,7 @@ bootstrap/           Khởi tạo dependency và môi trường
 config/              Cấu hình app, database và loyalty từ biến môi trường
 database/            Migration, seed và CLI migrate/reset
 docker/              Image PHP/Apache cho môi trường local
-public/              Document root; Front Controller thuộc Slice 03
+public/              Document root và Front Controller duy nhất
 resources/views/     View customer/admin theo Design System
 routes/              Route web/CLI từ các slice phù hợp
 scripts/             CLI nghiệp vụ từ các slice phù hợp
@@ -96,4 +105,4 @@ storage/             Log và upload runtime không commit
 tests/               Unit, integration và feature test
 ```
 
-Múi giờ nghiệp vụ mặc định là `Asia/Ho_Chi_Minh`. Không dùng application framework; kiến trúc và phạm vi được khóa trong `docs/PROJECT_SPECIFICATION.md` và `docs/DECISIONS.md`.
+Múi giờ nghiệp vụ mặc định là `Asia/Ho_Chi_Minh`. Session cookie dùng `HttpOnly`, `SameSite=Lax` và tự bật `Secure` với HTTPS. Mọi route mutation đi qua CSRF middleware; output HTML động phải dùng helper escape của View. Không dùng application framework; kiến trúc và phạm vi được khóa trong `docs/PROJECT_SPECIFICATION.md` và `docs/DECISIONS.md`.

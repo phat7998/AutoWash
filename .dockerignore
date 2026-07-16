@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+!.env.example
+vendor
+.phpunit.cache
+.phpunit.result.cache
+coverage
+storage/logs/*
+storage/uploads/*
+SE_SWP_TopicList_SU26.xlsx

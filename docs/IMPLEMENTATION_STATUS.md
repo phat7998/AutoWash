@@ -1,9 +1,9 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
 > Cập nhật: 2026-07-16  
-> Slice hiện tại: Slice 02 — Complete
+> Slice hiện tại: Slice 03 — Complete
 >
-> Product code: đã có nền repository/môi trường và database foundation; chưa có HTTP route hoặc UI.
+> Product code: đã có nền repository/database và HTTP/security foundation; chưa có authentication hoặc module nghiệp vụ.
 
 ## Tổng quan
 
@@ -13,7 +13,36 @@
 | 00B | Complete | Locked decisions DEC-001..033, Closure Patch, ERD/test trace, Design System và docs synchronization |
 | 01 | Complete | Composer install, PSR-4 autoload smoke test, PSR-12 lint, env safety và Docker Compose config |
 | 02 | Complete | PDO native prepares, 6 migration/26 bảng nghiệp vụ, seed idempotent, reset an toàn và MySQL 8 integration test |
-| 03–15 | Not started | Xem `ROADMAP.md` |
+| 03 | Complete | Front Controller, router, Request/Response, session/CSRF, escaped View, PRG, request ID/error log và HTTP/security regression |
+| 04–15 | Not started | Xem `ROADMAP.md` |
+
+## Slice 03 — HTTP Core, Router and Security Foundation
+
+- Requirements: NFR-03, NFR-12, NFR-13, NFR-14, NFR-18; tiếp tục foundation cho NFR-05, NFR-09, NFR-17 và NFR-23.
+- Hoàn thành:
+  - Tạo `public/index.php` làm Front Controller duy nhất, Apache rewrite/deny rule và asset CSS theo Design System.
+  - Tạo Request, Response, Router có route parameter, 404 và 405/Allow; đăng ký GET `/`, GET `/health` và POST/Redirect/Get mẫu.
+  - Tạo session wrapper với flash một request, cookie `HttpOnly`, `SameSite=Lax`, `Secure` khi HTTPS.
+  - Tạo CSRF middleware toàn cục cho mutation, token entropy 256-bit, so sánh constant-time và xoay token sau khi dùng để chặn replay.
+  - Tạo View/HTML escape helper, layout tiếng Việt responsive, trang home và các view 403/404/405/419/500.
+  - Tạo error handler/logger với request ID; production response không lộ exception/stack trace và vẫn trả response an toàn nếu hạ tầng log lỗi.
+- Chưa hoàn thành: regenerate/destroy session khi login/logout và Auth/RBAC thuộc Slice 04; error/empty state nghiệp vụ tiếp tục theo từng module.
+- File thay đổi: `app/Core/`, `app/Exceptions/`, `app/Middleware/`, `app/Support/Html.php`, `bootstrap/app.php`, HTTP config, `public/`, `routes/web.php`, `resources/views/`, test HTTP/security, README, RTM, Test Plan và file status này.
+- Migration: không có; không thay schema hoặc seed.
+- Test đã chạy:
+  - `composer dump-autoload --strict-psr --no-interaction` — pass.
+  - `composer validate --strict` — pass.
+  - `vendor/bin/phpunit tests/Unit tests/Feature tests/Security` — pass, 22 tests/75 assertions.
+  - `APP_ENV=testing ... php database/reset.php --force --seed` trên MySQL 8.4 host port 3307 — pass.
+  - `AUTOWASH_DB_TESTS=1 APP_ENV=testing ... composer check` — pass, PHPCS 42/42 file; PHPUnit 29 tests/101 assertions, không skip.
+  - `docker compose config --quiet` và build/chạy image PHP 8.2/Apache — pass; `composer check` trong container pass 29 tests/77 assertions, 7 DB tests skip vì lệnh container không bật DB test flag.
+  - HTTP smoke thật tại host port 8081 — `/` 200, `/health` 200, route lạ 404, `/.env` 403, POST hợp lệ 303 + flash, replay token 419.
+  - `git diff --check`, scan private key/token/TODO/debug và `composer audit --no-interaction` — pass; từ TODO chỉ xuất hiện trong mô tả test/docs, không có artifact code.
+- Kết quả: đạt toàn bộ acceptance Slice 03; full regression MySQL không skip, Docker PHP 8.2 và HTTP Apache đều có evidence thành công.
+- Quyết định: giữ nguyên DEC-001..033; không phát sinh ADR, migration hoặc business rule.
+- Rủi ro còn lại: authentication/role/ownership chưa tồn tại theo đúng phạm vi; health check chỉ phản ánh tiến trình web, không công khai trạng thái database. Máy test tiếp tục dùng port 3307/8081 vì port mặc định có thể đang bận.
+- Lệnh chạy tiếp: sau khi accept Slice 03, thực hiện duy nhất Slice 04.
+- Commit đề xuất: `feat(NFR): hoàn tất nền tảng HTTP và bảo mật [Slice 03]`.
 
 ## Slice 02 — Database Foundation, Migrations, Seeds and PDO
 

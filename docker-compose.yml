@@ -9,6 +9,8 @@ services:
       APP_ENV: "${APP_ENV:-local}"
       APP_DEBUG: "${APP_DEBUG:-true}"
       APP_TIMEZONE: "${APP_TIMEZONE:-Asia/Ho_Chi_Minh}"
+      APP_LOG_FILE: "/var/www/html/storage/logs/app.log"
+      SESSION_NAME: "${SESSION_NAME:-AUTOWASH_SESSION}"
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: "${DB_NAME:-autowash}"

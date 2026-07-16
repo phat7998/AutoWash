@@ -10,4 +10,8 @@ return [
     'debug' => Env::boolean('APP_DEBUG'),
     'timezone' => Env::string('APP_TIMEZONE', 'Asia/Ho_Chi_Minh'),
     'url' => Env::string('APP_URL', 'http://localhost:8080'),
+    'log_file' => Env::string('APP_LOG_FILE', dirname(__DIR__) . '/storage/logs/app.log'),
+    'session' => [
+        'name' => Env::string('SESSION_NAME', 'AUTOWASH_SESSION'),
+    ],
 ];

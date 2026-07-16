@@ -67,22 +67,22 @@
 |---|---|---|---|---|---|---|---|---|
 | NFR-01 | Responsive desktop/mobile cơ bản | Spec §14 | MUST | 15 | Planned | QT-NFR-01 | DEMO-01..08 | Planned |
 | NFR-02 | 10k bookings/20 VU; read P95 <1s; booking/redeem/report <2s; error <1% | Spec §14; DEC-026 | MUST | 15 | Planned | QT-NFR-02, PERF-00B-01..08 | Performance report | Planned |
-| NFR-03 | Empty/error state dễ hiểu | Spec §14 | MUST | 03+ | Planned | FT-NFR-03 | DEMO-01..08 | Planned |
+| NFR-03 | Empty/error state dễ hiểu | Spec §14 | MUST | 03+ | `app/Core/ErrorHandler.php`, `resources/views/errors/` | `HttpCoreTest`, `ProductionErrorTest`; FT-NFR-03 tiếp tục theo module | DEMO-01..08 | In Progress |
 | NFR-04 | PSR-12/lint | Spec §14 | MUST | 01+ | `composer.json`, `phpcs.xml` | QT-NFR-04: `composer lint` | — | Done |
 | NFR-05 | Đúng layer, không SQL/formula trong Controller/View | Spec §5, §14 | MUST | 01+ | `composer.json`, `app/` structure | QT-NFR-05 | — | In Progress |
 | NFR-06 | Không TODO/placeholder/code giả ở luồng MUST | Spec §14 | MUST | 15 | Planned | QT-NFR-06 | DEMO-01..08 | Planned |
 | NFR-07 | Mọi MUST có test/demo evidence | Spec §14, §15 | MUST | Mọi slice | Planned | QT-NFR-07 | DEMO-01..08 | Planned |
 | NFR-08 | Migrate/seed/reset/backup-export tái lập | Spec §12, §14 | MUST | 02,15 | `app/Database/`, `database/migrate.php`, `database/seed.php`, `database/reset.php` | `DatabaseFoundationTest`, IT-NFR-08 | DEMO setup | In Progress |
-| NFR-09 | Timezone Asia/Ho_Chi_Minh | Spec §5, §14 | MUST | 01+ | `.env.example`, `config/app.php`, `docker/php/Dockerfile` | UT-NFR-09 | DEMO-02 | In Progress |
+| NFR-09 | Timezone Asia/Ho_Chi_Minh | Spec §5, §14 | MUST | 01+ | `.env.example`, `config/app.php`, `bootstrap/app.php`, `docker/php/Dockerfile` | `EnvironmentConfigTest`; UT-NFR-09 tiếp tục theo boundary nghiệp vụ | DEMO-02 | In Progress |
 | NFR-10 | DECIMAL, không float cho tiền | Spec §14 | MUST | 02+ | `database/migrations/` | `DatabaseFoundationTest`, UT-NFR-10 | DEMO-07 | In Progress |
 | NFR-11 | PDO prepared statement thật, utf8mb4 | Spec §5.4, §8 | MUST | 02+ | `app/Core/Database.php`, `app/Database/DatabaseSeeder.php` | `DatabaseFoundationTest`, ST-SQL-01 | — | In Progress |
-| NFR-12 | Escape HTML mặc định | Spec §8 | MUST | 03+ | Planned | ST-XSS-01 | — | Planned |
-| NFR-13 | CSRF cho mọi mutation | Spec §8 | MUST | 03+ | Planned | ST-CSRF-01 | — | Planned |
-| NFR-14 | Session cookie hardening + regenerate/logout | Spec §8 | MUST | 03,04 | Planned | ST-SESSION-01 | DEMO-01 | Planned |
+| NFR-12 | Escape HTML mặc định | Spec §8 | MUST | 03+ | `app/Core/View.php`, `app/Support/Html.php`, `resources/views/` | `ViewTest`, ST-XSS-01 | — | Done |
+| NFR-13 | CSRF cho mọi mutation | Spec §8 | MUST | 03+ | `app/Middleware/CsrfMiddleware.php`, `app/Core/CsrfTokenManager.php` | `CsrfMiddlewareTest`, `HttpCoreTest`, ST-CSRF-01 | — | Done |
+| NFR-14 | Session cookie hardening + regenerate/logout | Spec §8 | MUST | 03,04 | `app/Core/Session.php`, `bootstrap/app.php` | `SessionTest`; ST-SESSION-01 tiếp tục ở Slice 04 | DEMO-01 | In Progress |
 | NFR-15 | Backend role + ownership authorization | Spec §8 | MUST | 04+ | Planned | ST-AUTH-03 | DEMO-08 | Planned |
 | NFR-16 | Upload MIME/size/random/non-executable | Spec §8 | MUST | 13 | Planned | ST-UPLOAD-01 | DEMO LPR | Planned |
-| NFR-17 | Không commit/log secret/token/password/PII | Spec §8, §13 | MUST | 01+ | `.gitignore`, `.env.example` | ST-SECRET-01; Slice 01 ignore check | — | In Progress |
-| NFR-18 | Production error không lộ kỹ thuật; log request ID | Spec §8, §10 | MUST | 03+ | Planned | ST-ERROR-01 | — | Planned |
+| NFR-17 | Không commit/log secret/token/password/PII | Spec §8, §13 | MUST | 01+ | `.gitignore`, `.dockerignore`, `.env.example`, `app/Core/Logger.php` | `ProductionErrorTest`, `HttpSecurityConfigurationTest`, ST-SECRET-01 | — | In Progress |
+| NFR-18 | Production error không lộ kỹ thuật; log request ID | Spec §8, §10 | MUST | 03+ | `app/Core/Application.php`, `app/Core/ErrorHandler.php`, `app/Core/Logger.php` | `ProductionErrorTest`, `HttpCoreTest`, ST-ERROR-01 | — | Done |
 | NFR-19 | Backend validation đủ trust boundary | Spec §8.2 | MUST | 04+ | Planned | ST-VALIDATION-01 | DEMO-01..07 | Planned |
 | NFR-20 | Chống client tamper giá/điểm/quyền lợi | Spec §8.3 | MUST | 07,09,10,12 | Planned | ST-PRICE-01 | DEMO-07 | Planned |
 | NFR-21 | Transaction cho critical flows | Spec §9 | MUST | 07,09..12 | Planned | IT-NFR-21 | DEMO-03..07 | Planned |
