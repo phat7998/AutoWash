@@ -62,6 +62,10 @@ return [
         ['2030-01-15', '10:00:00', '11:00:00', 2, 'open'],
         ['2030-01-15', '11:00:00', '12:00:00', 10, 'closed'],
     ],
+    'capacity_fixtures' => [
+        ['DEMO_NEAR_FULL', '0900000004', '50C1234', '2030-01-15', '09:00:00', 'STANDARD_WASH'],
+        ['DEMO_FULL', '0900000003', '51AB12345', '2030-01-15', '10:00:00', 'STANDARD_WASH'],
+    ],
     'rewards' => [
         ['DISCOUNT_10K', 'Giảm 10.000 VND', 'fixed_discount', 100, '10000.00', null, 30],
         ['DISCOUNT_30K', 'Giảm 30.000 VND', 'fixed_discount', 250, '30000.00', null, 30],

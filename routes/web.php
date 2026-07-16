@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 use App\Core\CsrfTokenManager;
 use App\Controllers\AuthController;
+use App\Controllers\AdminServiceController;
+use App\Controllers\AdminSlotController;
+use App\Controllers\CatalogController;
 use App\Controllers\VehicleController;
+use App\Controllers\WashSlotController;
 use App\Core\Response;
 use App\Core\Request;
 use App\Core\Router;
@@ -20,7 +24,11 @@ return static function (
     Session $session,
     CsrfTokenManager $tokens,
     callable $authControllerFactory,
-    ?callable $vehicleControllerFactory = null
+    ?callable $vehicleControllerFactory = null,
+    ?callable $catalogControllerFactory = null,
+    ?callable $adminServiceControllerFactory = null,
+    ?callable $washSlotControllerFactory = null,
+    ?callable $adminSlotControllerFactory = null
 ): void {
     $router->get('/', static function () use ($view, $session, $tokens): Response {
         return Response::html($view->render('home', [
@@ -35,6 +43,12 @@ return static function (
         'status' => 'ok',
         'service' => 'AutoWash Pro',
     ]));
+
+    if ($catalogControllerFactory !== null) {
+        $catalogController = static fn (): CatalogController => $catalogControllerFactory();
+        $router->get('/dich-vu', static fn (Request $request): Response =>
+            $catalogController()->index($request));
+    }
 
     $router->post('/thong-bao-mau', static function () use ($session): Response {
         $session->flash('success', 'Yêu cầu hợp lệ đã được xử lý an toàn.');
@@ -74,6 +88,42 @@ return static function (
             'flashSuccess' => $session->get('success'),
         ]));
     }, $authenticated, $admin);
+
+    if ($adminServiceControllerFactory !== null) {
+        $adminServices = static fn (): AdminServiceController => $adminServiceControllerFactory();
+        $router->get('/admin/dich-vu', static fn (Request $request): Response =>
+            $adminServices()->index($request), $authenticated, $admin);
+        $router->get('/admin/dich-vu/them', static fn (Request $request): Response =>
+            $adminServices()->create($request), $authenticated, $admin);
+        $router->post('/admin/dich-vu/them', static fn (Request $request): Response =>
+            $adminServices()->store($request), $authenticated, $admin);
+        $router->get('/admin/dich-vu/{id}/sua', static fn (Request $request): Response =>
+            $adminServices()->edit($request), $authenticated, $admin);
+        $router->post('/admin/dich-vu/{id}/sua', static fn (Request $request): Response =>
+            $adminServices()->update($request), $authenticated, $admin);
+        $router->post('/admin/dich-vu/{id}/ngung-hoat-dong', static fn (Request $request): Response =>
+            $adminServices()->deactivate($request), $authenticated, $admin);
+        $router->post('/admin/dich-vu/{id}/kich-hoat', static fn (Request $request): Response =>
+            $adminServices()->activate($request), $authenticated, $admin);
+    }
+
+    if ($washSlotControllerFactory !== null) {
+        $customerSlots = static fn (): WashSlotController => $washSlotControllerFactory();
+        $router->get('/khung-gio', static fn (Request $request): Response =>
+            $customerSlots()->index($request), $authenticated, new RoleMiddleware($session, 'customer'));
+    }
+
+    if ($adminSlotControllerFactory !== null) {
+        $adminSlots = static fn (): AdminSlotController => $adminSlotControllerFactory();
+        $router->get('/admin/khung-gio', static fn (Request $request): Response =>
+            $adminSlots()->index($request), $authenticated, $admin);
+        $router->get('/admin/khung-gio/them', static fn (Request $request): Response =>
+            $adminSlots()->create($request), $authenticated, $admin);
+        $router->post('/admin/khung-gio/them', static fn (Request $request): Response =>
+            $adminSlots()->store($request), $authenticated, $admin);
+        $router->post('/admin/khung-gio/{id}/dong', static fn (Request $request): Response =>
+            $adminSlots()->close($request), $authenticated, $admin);
+    }
 
     if ($vehicleControllerFactory === null) {
         return;

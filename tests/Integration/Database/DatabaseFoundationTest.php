@@ -253,6 +253,9 @@ final class DatabaseFoundationTest extends TestCase
             'services',
             'service_vehicle_prices',
             'wash_slots',
+            'bookings',
+            'booking_items',
+            'booking_slot_reservations',
             'rewards',
             'reward_vehicle_types',
         ];

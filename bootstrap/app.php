@@ -13,14 +13,24 @@ use App\Core\Session;
 use App\Core\View;
 use App\Middleware\CsrfMiddleware;
 use App\Controllers\AuthController;
+use App\Controllers\AdminServiceController;
+use App\Controllers\AdminSlotController;
+use App\Controllers\CatalogController;
 use App\Controllers\VehicleController;
+use App\Controllers\WashSlotController;
+use App\Repositories\ServiceCatalogRepository;
 use App\Repositories\UserRepository;
 use App\Repositories\VehicleRepository;
+use App\Repositories\WashSlotRepository;
 use App\Services\AuthService;
 use App\Services\LicensePlateService;
+use App\Services\ServiceCatalogService;
 use App\Services\VehicleService;
+use App\Services\WashSlotService;
 use App\Validation\AuthValidator;
+use App\Validation\ServiceCatalogValidator;
 use App\Validation\VehicleValidator;
+use App\Validation\WashSlotValidator;
 
 $projectRoot = require __DIR__ . '/environment.php';
 $config = require $projectRoot . '/config/app.php';
@@ -66,8 +76,49 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
             $tokens
         );
     };
+    $catalogServiceFactory = static fn (): ServiceCatalogService => new ServiceCatalogService(
+        new ServiceCatalogRepository(Database::connection()),
+        new ServiceCatalogValidator()
+    );
+    $slotServiceFactory = static fn (): WashSlotService => new WashSlotService(
+        new WashSlotRepository(Database::connection()),
+        new WashSlotValidator(new DateTimeZone($timezone))
+    );
+    $catalogControllerFactory = static fn (): CatalogController => new CatalogController(
+        $catalogServiceFactory(),
+        $view,
+        $session
+    );
+    $adminServiceControllerFactory = static fn (): AdminServiceController => new AdminServiceController(
+        $catalogServiceFactory(),
+        $view,
+        $session,
+        $tokens
+    );
+    $washSlotControllerFactory = static fn (): WashSlotController => new WashSlotController(
+        $slotServiceFactory(),
+        $view,
+        $session
+    );
+    $adminSlotControllerFactory = static fn (): AdminSlotController => new AdminSlotController(
+        $slotServiceFactory(),
+        $view,
+        $session,
+        $tokens
+    );
     $registerRoutes = require $projectRoot . '/routes/web.php';
-    $registerRoutes($router, $view, $session, $tokens, $authControllerFactory, $vehicleControllerFactory);
+    $registerRoutes(
+        $router,
+        $view,
+        $session,
+        $tokens,
+        $authControllerFactory,
+        $vehicleControllerFactory,
+        $catalogControllerFactory,
+        $adminServiceControllerFactory,
+        $washSlotControllerFactory,
+        $adminSlotControllerFactory
+    );
 
     $errorHandler = new ErrorHandler(
         $view,

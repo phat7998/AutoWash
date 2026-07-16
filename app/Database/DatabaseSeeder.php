@@ -36,6 +36,7 @@ final readonly class DatabaseSeeder
             $this->seedServices($data['services']);
             $this->seedServicePrices($data['service_vehicle_prices']);
             $this->seedWashSlots($data['wash_slots']);
+            $this->seedCapacityFixtures($data['capacity_fixtures']);
             $this->seedRewards($data['rewards']);
             $this->seedRewardVehicleRestrictions();
             $this->database->commit();
@@ -292,6 +293,199 @@ final readonly class DatabaseSeeder
         }
     }
 
+    /** @param list<array{string, string, string, string, string, string}> $fixtures */
+    private function seedCapacityFixtures(array $fixtures): void
+    {
+        foreach ($fixtures as [$code, $phone, $plate, $date, $startTime, $serviceCode]) {
+            $source = $this->capacityFixtureSource($phone, $plate, $date, $startTime, $serviceCode);
+            $booking = $this->database->prepare(
+                <<<'SQL'
+                INSERT INTO bookings (
+                    booking_code,
+                    user_id,
+                    vehicle_id,
+                    start_slot_id,
+                    status,
+                    booking_duration_minutes,
+                    booking_capacity_units,
+                    subtotal,
+                    final_price
+                ) VALUES (
+                    :booking_code,
+                    :user_id,
+                    :vehicle_id,
+                    :slot_id,
+                    'pending',
+                    :duration_minutes,
+                    :capacity_units,
+                    :subtotal,
+                    :final_price
+                )
+                ON DUPLICATE KEY UPDATE
+                    user_id = VALUES(user_id),
+                    vehicle_id = VALUES(vehicle_id),
+                    start_slot_id = VALUES(start_slot_id),
+                    status = 'pending',
+                    booking_duration_minutes = VALUES(booking_duration_minutes),
+                    booking_capacity_units = VALUES(booking_capacity_units),
+                    subtotal = VALUES(subtotal),
+                    final_price = VALUES(final_price),
+                    updated_at = CURRENT_TIMESTAMP
+                SQL
+            );
+            $booking->execute([
+                'booking_code' => $code,
+                'user_id' => $source['user_id'],
+                'vehicle_id' => $source['vehicle_id'],
+                'slot_id' => $source['slot_id'],
+                'duration_minutes' => $source['duration_minutes'],
+                'capacity_units' => $source['capacity_units'],
+                'subtotal' => $source['price'],
+                'final_price' => $source['price'],
+            ]);
+            $bookingId = $this->idByBookingCode($code);
+            $this->seedCapacityBookingItem($bookingId, $source);
+            $reservation = $this->database->prepare(
+                <<<'SQL'
+                INSERT INTO booking_slot_reservations (booking_id, wash_slot_id, capacity_units_reserved)
+                VALUES (:booking_id, :slot_id, :capacity_units)
+                ON DUPLICATE KEY UPDATE
+                    capacity_units_reserved = VALUES(capacity_units_reserved),
+                    updated_at = CURRENT_TIMESTAMP
+                SQL
+            );
+            $reservation->execute([
+                'booking_id' => $bookingId,
+                'slot_id' => $source['slot_id'],
+                'capacity_units' => $source['capacity_units'],
+            ]);
+        }
+    }
+
+    /** @return array<string, int|string> */
+    private function capacityFixtureSource(
+        string $phone,
+        string $plate,
+        string $date,
+        string $startTime,
+        string $serviceCode
+    ): array {
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            SELECT
+                users.id AS user_id,
+                vehicles.id AS vehicle_id,
+                wash_slots.id AS slot_id,
+                services.id AS service_id,
+                services.name AS service_name,
+                vehicle_types.code AS vehicle_type_code,
+                service_vehicle_prices.id AS price_id,
+                service_vehicle_prices.price,
+                service_vehicle_prices.duration_minutes,
+                GREATEST(
+                    vehicle_types.default_capacity_units,
+                    COALESCE(service_vehicle_prices.capacity_units_override, 0)
+                ) AS capacity_units
+            FROM users
+            INNER JOIN vehicles ON vehicles.user_id = users.id AND vehicles.normalized_plate = :plate
+            INNER JOIN vehicle_types ON vehicle_types.id = vehicles.vehicle_type_id
+            INNER JOIN services ON services.code = :service_code
+            INNER JOIN service_vehicle_prices
+                ON service_vehicle_prices.service_id = services.id
+                AND service_vehicle_prices.vehicle_type_id = vehicle_types.id
+            INNER JOIN wash_slots
+                ON wash_slots.slot_date = :slot_date
+                AND wash_slots.start_time = :start_time
+            WHERE users.phone = :phone
+            LIMIT 1
+            SQL
+        );
+        $statement->execute([
+            'phone' => $phone,
+            'plate' => $plate,
+            'slot_date' => $date,
+            'start_time' => $startTime,
+            'service_code' => $serviceCode,
+        ]);
+        $source = $statement->fetch();
+
+        if (!is_array($source)) {
+            throw new RuntimeException('Không thể dựng fixture capacity từ dữ liệu seed.');
+        }
+
+        return $source;
+    }
+
+    /** @param array<string, int|string> $source */
+    private function seedCapacityBookingItem(int $bookingId, array $source): void
+    {
+        $find = $this->database->prepare(
+            'SELECT id FROM booking_items WHERE booking_id = :booking_id AND service_id = :service_id LIMIT 1'
+        );
+        $find->execute(['booking_id' => $bookingId, 'service_id' => $source['service_id']]);
+        $itemId = $find->fetchColumn();
+        $parameters = [
+            'booking_id' => $bookingId,
+            'service_id' => $source['service_id'],
+            'price_id' => $source['price_id'],
+            'service_name' => $source['service_name'],
+            'vehicle_type_code' => $source['vehicle_type_code'],
+            'unit_price' => $source['price'],
+            'line_total' => $source['price'],
+            'duration_minutes' => $source['duration_minutes'],
+            'capacity_units' => $source['capacity_units'],
+        ];
+
+        if ($itemId === false) {
+            $statement = $this->database->prepare(
+                <<<'SQL'
+                INSERT INTO booking_items (
+                    booking_id,
+                    service_id,
+                    service_vehicle_price_id,
+                    service_name_snapshot,
+                    vehicle_type_code_snapshot,
+                    unit_price_snapshot,
+                    duration_minutes_snapshot,
+                    capacity_units_snapshot,
+                    quantity,
+                    line_total
+                ) VALUES (
+                    :booking_id,
+                    :service_id,
+                    :price_id,
+                    :service_name,
+                    :vehicle_type_code,
+                    :unit_price,
+                    :duration_minutes,
+                    :capacity_units,
+                    1,
+                    :line_total
+                )
+                SQL
+            );
+        } else {
+            $statement = $this->database->prepare(
+                <<<'SQL'
+                UPDATE booking_items
+                SET
+                    service_vehicle_price_id = :price_id,
+                    service_name_snapshot = :service_name,
+                    vehicle_type_code_snapshot = :vehicle_type_code,
+                    unit_price_snapshot = :unit_price,
+                    duration_minutes_snapshot = :duration_minutes,
+                    capacity_units_snapshot = :capacity_units,
+                    quantity = 1,
+                    line_total = :line_total
+                WHERE id = :id AND booking_id = :booking_id AND service_id = :service_id
+                SQL
+            );
+            $parameters['id'] = $itemId;
+        }
+
+        $statement->execute($parameters);
+    }
+
     /** @param list<array{string, string, string, int, string, ?string, int}> $rewards */
     private function seedRewards(array $rewards): void
     {
@@ -374,6 +568,19 @@ final readonly class DatabaseSeeder
                 'Không tìm thấy tài khoản seed có số điện thoại %s.',
                 $phone
             ));
+        }
+
+        return (int) $id;
+    }
+
+    private function idByBookingCode(string $code): int
+    {
+        $statement = $this->database->prepare('SELECT id FROM bookings WHERE booking_code = :code');
+        $statement->execute(['code' => $code]);
+        $id = $statement->fetchColumn();
+
+        if ($id === false) {
+            throw new RuntimeException(sprintf('Không tìm thấy booking fixture có mã %s.', $code));
         }
 
         return (int) $id;

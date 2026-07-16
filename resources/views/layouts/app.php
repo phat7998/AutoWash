@@ -27,12 +27,17 @@ declare(strict_types=1);
             </a>
             <nav aria-label="Điều hướng chính">
                 <a class="nav-link" href="/">Trang chủ</a>
+                <a class="nav-link" href="/dich-vu">Dịch vụ</a>
                 <?php if (isset($authUser) && is_array($authUser)): ?>
                     <a class="nav-link" href="<?= ($authUser['role'] ?? null) === 'admin' ? '/admin' : '/tai-khoan' ?>">
                         Tổng quan
                     </a>
                     <?php if (($authUser['role'] ?? null) === 'customer'): ?>
                         <a class="nav-link" href="/phuong-tien">Phương tiện</a>
+                        <a class="nav-link" href="/khung-gio">Khung giờ</a>
+                    <?php else: ?>
+                        <a class="nav-link" href="/admin/dich-vu">Dịch vụ</a>
+                        <a class="nav-link" href="/admin/khung-gio">Khung giờ</a>
                     <?php endif; ?>
                     <form class="nav-form" method="post" action="/dang-xuat">
                         <input type="hidden" name="_csrf_token" value="<?= $e($csrfToken ?? '') ?>">

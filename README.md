@@ -2,9 +2,10 @@
 
 AutoWash Pro là hệ thống quản lý dịch vụ chăm sóc phương tiện, đặt lịch trước và khách hàng thân thiết được xây dựng bằng Modern PHP thuần. Phiên bản đồ án cũ được lưu tại nhánh `legacy-main`.
 
-Repository hiện hoàn thành Slice 05: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
-authentication/RBAC và quản lý phương tiện. Customer có thể nhập biển số thủ công, thêm, sửa, xem và
-ngừng sử dụng xe của mình; backend chuẩn hóa biển số, kiểm tra loại xe active, chống trùng và IDOR.
+Repository hiện hoàn thành Slice 06: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
+authentication/RBAC, quản lý phương tiện, danh mục dịch vụ và khung giờ. Customer xem được giá/thời lượng
+theo loại xe và capacity còn lại; admin quản lý dịch vụ, cấu hình giá và tạo/đóng khung giờ qua backend có
+validation, role guard và CSRF.
 
 ## Yêu cầu hệ thống
 
@@ -89,8 +90,16 @@ Không chạy lệnh reset trên database có dữ liệu cần giữ. Seed có 
 - `/phuong-tien/them`: nhập biển số thủ công và thêm xe; GET hiển thị form, POST lưu dữ liệu.
 - `/phuong-tien/{id}/sua`: sửa xe đúng owner; GET hiển thị form, POST lưu dữ liệu.
 - `/phuong-tien/{id}/ngung-su-dung`: chỉ nhận POST, giữ record và chuyển xe sang inactive.
+- `/dich-vu`: danh mục public theo loại phương tiện; chỉ hiển thị service/cặp giá active và supported.
+- `/khung-gio`: customer xem khung giờ mở và capacity units còn lại.
 - `/admin`: vùng admin đã xác thực và kiểm tra role.
+- `/admin/dich-vu`: admin tạo, sửa, kích hoạt hoặc ngừng dịch vụ và cấu hình theo loại xe.
+- `/admin/khung-gio`: admin tạo hoặc đóng khung giờ vận hành.
 - `/dang-xuat`: chỉ nhận POST có CSRF hợp lệ.
+
+Seed demo có slot trống, gần đầy, đầy và đóng ngày `15/01/2030`. Hai booking fixture
+`DEMO_NEAR_FULL`/`DEMO_FULL` chỉ phục vụ kiểm tra cách tính capacity ở Slice 06; ứng dụng chưa cung cấp luồng
+tạo booking cho tới Slice 07.
 
 ## Kiểm tra chất lượng
 
@@ -112,6 +121,7 @@ Integration test database cần MySQL riêng có thể reset an toàn:
 ```bash
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Database
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Vehicle
+AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/CatalogSlot
 ```
 
 ## Cấu trúc chính

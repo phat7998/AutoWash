@@ -1,9 +1,10 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
 > Cập nhật: 2026-07-16  
-> Slice hiện tại: Slice 05 — Complete
+> Slice hiện tại: Slice 06 — Complete
 >
-> Product code: đã có nền repository/database, HTTP/security, authentication/RBAC và quản lý phương tiện.
+> Product code: đã có nền repository/database, HTTP/security, authentication/RBAC, quản lý phương tiện,
+> danh mục dịch vụ và quản lý khung giờ/capacity.
 
 ## Tổng quan
 
@@ -16,7 +17,35 @@
 | 03 | Complete | Front Controller, router, Request/Response, session/CSRF, escaped View, PRG, request ID/error log và HTTP/security regression |
 | 04 | Complete | Register/login/logout, BCRYPT, session lifecycle, guest/auth/role middleware, demo account và Auth/RBAC regression |
 | 05 | Complete | Vehicle CRUD/deactivate, shared plate validation, active type, duplicate/ownership/IDOR và manual input UI |
-| 06–15 | Not started | Xem `ROADMAP.md` |
+| 06 | Complete | Catalog theo loại xe, admin service-price, slot validation, capacity từ active reservations và UI/RBAC/CSRF |
+| 07–15 | Not started | Xem `ROADMAP.md` |
+
+## Slice 06 — Service Catalog and Wash Slot Capacity
+
+- Requirements: CAT-01, phần Slice 06 của CAT-02 và SLOT-01, ADM-02, ADM-03; tiếp tục NFR-03, NFR-05, NFR-09, NFR-10, NFR-11, NFR-12, NFR-13, NFR-15 và NFR-19.
+- Hoàn thành:
+  - Tạo `ServiceCatalogRepository`, `ServiceCatalogService`, `ServiceCatalogValidator`, controller customer/admin và UI tiếng Việt theo Design System.
+  - Customer/guest xem catalog theo loại phương tiện; query chỉ trả service, cặp giá và vehicle type active, supported; giá, thời lượng và capacity effective lấy từ database.
+  - Admin tạo/sửa/kích hoạt/ngừng dịch vụ và bốn cấu hình theo loại xe; lưu service + price pairs atomically, unique code/pair và CHECK constraint được chuyển thành lỗi nghiệp vụ phù hợp.
+  - Tạo `WashSlotRepository`, `WashSlotService`, `WashSlotValidator`, controller customer/admin và UI; admin tạo/đóng slot, backend từ chối ngày quá khứ, time range sai, capacity không dương và slot trùng.
+  - Remaining capacity được tổng hợp từ `booking_slot_reservations` của booking `pending|confirmed`; cancelled không chiếm chỗ, closed/past không xuất hiện ở danh sách customer.
+  - Seed idempotent thêm hai booking/reservation fixture `DEMO_NEAR_FULL` và `DEMO_FULL` để tạo slot gần đầy/đầy; fixture có booking item snapshot hợp lệ và không cung cấp chức năng tạo booking trước Slice 07.
+  - Route mutation yêu cầu admin + CSRF; route slot customer yêu cầu authenticated customer; output động được escape, UI có empty/error/full/inactive state và responsive table/card.
+- Chưa hoàn thành: tạo booking, tính multi-service duration/capacity, lock mọi slot overlap và concurrency thuộc Slice 07; vì vậy CAT-02/SLOT-01 tổng thể giữ `In Progress`, SLOT-02 chưa bắt đầu.
+- File thay đổi: catalog/slot Controller, Service, Repository, Validator/exceptions/formatter; bootstrap/routes; customer/admin views và CSS; seeder/base seed; test unit/integration/database; README, RTM và file status này.
+- Migration: không có; dùng nguyên schema `services`, `service_vehicle_prices`, `wash_slots`, `bookings`, `booking_items` và `booking_slot_reservations` từ Slice 02.
+- Test đã chạy:
+  - `vendor/bin/phpunit tests/Unit/ServiceCatalogValidatorTest.php tests/Unit/WashSlotValidatorTest.php` — pass, 4 tests/16 assertions.
+  - Bộ Slice 06 gồm unit + integration MySQL — pass, 11 tests/57 assertions.
+  - `AUTOWASH_DB_TESTS=1 ... composer check` trên host PHP 8.5/MySQL 8.4 — pass, PHPCS 79/79 file; PHPUnit 68 tests/264 assertions, không skip.
+  - `docker compose exec ... composer check` trên PHP 8.2.32/MySQL 8.4 — pass, PHPCS 79/79 file; PHPUnit 68 tests/264 assertions, không skip.
+  - HTTP smoke Apache port 8081 — catalog theo ô tô trả 200 và giá DB `200.000 ₫`; guest vào `/khung-gio` nhận 303 về đăng nhập.
+  - `composer validate --strict`, strict PSR autoload, `composer audit`, `git diff --check` và scan secret/TODO/debug/SQL trong Controller/View — pass.
+- Kết quả: đạt acceptance Slice 06; full regression pass trên host và container PHP 8.2.
+- Quyết định: giữ nguyên DEC-001..033; không phát sinh ADR, migration, schema hoặc business rule mới.
+- Rủi ro còn lại: slot demo dùng ngày cố định 15/01/2030; sau thời điểm đó cần cập nhật demo dataset trong Slice 15. Booking fixture chỉ chứng minh capacity read model, chưa chứng minh race/rollback khi tạo booking.
+- Lệnh chạy tiếp: sau khi accept Slice 06, thực hiện duy nhất Slice 07.
+- Commit đề xuất: `feat(CAT): hoàn tất danh mục dịch vụ và khung giờ [Slice 06]`.
 
 ## Slice 05 — Vehicle Management and Plate Validation
 
