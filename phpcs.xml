@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<ruleset name="AutoWash Pro">
+    <description>Quy chuẩn PSR-12 cho mã nguồn AutoWash Pro.</description>
+
+    <arg name="basepath" value="."/>
+    <arg name="colors"/>
+    <arg value="p"/>
+
+    <file>app</file>
+    <file>bootstrap</file>
+    <file>config</file>
+    <file>public</file>
+    <file>routes</file>
+    <file>scripts</file>
+    <file>tests</file>
+
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <rule ref="PSR12"/>
+</ruleset>
