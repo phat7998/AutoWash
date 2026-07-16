@@ -90,9 +90,7 @@ final readonly class AdminBookingController
 
         $this->session->flash('success', match ($targetStatus) {
             'confirmed' => 'Đã xác nhận lịch đặt.',
-            'completed' => (
-                'Đã ghi nhận hoàn thành. Loyalty sẽ được xử lý ở bước tích hợp tiếp theo.'
-            ),
+            'completed' => 'Đã hoàn thành lịch đặt và ghi nhận điểm thưởng nguyên tử.',
             'no_show' => 'Đã đánh dấu khách không đến.',
             'cancelled' => 'Đã hủy lịch đặt và giải phóng sức chứa.',
             default => 'Đã cập nhật lịch đặt.',

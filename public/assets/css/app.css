@@ -979,6 +979,62 @@ th {
     white-space: pre-wrap;
 }
 
+.loyalty-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-8);
+}
+
+.summary-card {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-6);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.summary-card span,
+.summary-card small,
+.transaction-meta {
+    color: var(--color-text-secondary);
+}
+
+.summary-card strong {
+    color: var(--color-primary-700);
+    font-size: 22px;
+}
+
+.dashboard-next-action {
+    margin-top: var(--space-6);
+}
+
+.point-credit {
+    color: var(--color-success-700);
+    font-weight: 700;
+}
+
+.point-debit {
+    color: var(--color-danger-700);
+    font-weight: 700;
+}
+
+.transaction-meta {
+    display: block;
+    margin-top: var(--space-1);
+}
+
+.loyalty-adjustment-form {
+    max-width: 840px;
+}
+
+@media (max-width: 800px) {
+    .loyalty-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .site-footer {
     min-height: 72px;
     padding-block: var(--space-6);

@@ -1,10 +1,10 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
 > Cập nhật: 2026-07-16  
-> Slice hiện tại: Slice 08 — Complete
+> Slice hiện tại: Slice 09 — Complete
 >
 > Product code: đã có nền repository/database, HTTP/security, authentication/RBAC, quản lý phương tiện,
-> danh mục dịch vụ, quản lý khung giờ/capacity, tạo booking chống tranh chấp slot và vòng đời booking.
+> danh mục dịch vụ, quản lý khung giờ/capacity, booking, vòng đời booking và loyalty earn/adjustment.
 
 ## Tổng quan
 
@@ -20,7 +20,36 @@
 | 06 | Complete | Catalog theo loại xe, admin service-price, slot validation, capacity từ active reservations và UI/RBAC/CSRF |
 | 07 | Complete | Booking window theo tier, server pricing, multi-service/multi-slot snapshot, transaction/locking và concurrency test hai tiến trình |
 | 08 | Complete | State matrix, customer cutoff 2 giờ/ownership, admin lifecycle/audit, capacity release, wash history và completion hook |
-| 09–15 | Not started | Xem `ROADMAP.md` |
+| 09 | Complete | Earn formula, ledger/cache, atomic completion, metrics/event, customer history, admin adjustment/audit/concurrency và reconcile |
+| 10–15 | Not started | Xem `ROADMAP.md` |
+
+## Slice 09 — Loyalty Ledger, Earn Points and Completion Integration
+
+- Requirements: hoàn tất LOY-01 và ADM-06; phần Slice 09 của LOY-02, BKG-06 và REP-01; tiếp tục NFR-03, NFR-05, NFR-09..13, NFR-15, NFR-17, NFR-19..23.
+- Hoàn thành:
+  - Tạo `LoyaltyPointCalculator` dùng số nguyên/decimal string cho công thức floor hai bước; tải `point_rate` từ tier trong DB, giá 0 vẫn ghi earn 0 để giữ idempotency.
+  - Tạo `LoyaltyTransactionRepository` và `LoyaltyService`; completion lock user sau booking, cập nhật status/completed_at, monthly spend/visits, earn lot, point balance, marker và research event trong cùng transaction.
+  - Unique source booking ngăn earn lặp; lỗi insert loyalty rollback trạng thái completed, metrics, balance, marker và event.
+  - Earn lot có `earned_at`, expiry 12 calendar months có clamp để customer xem tổng điểm sắp hết hạn trong 30 ngày; job expire/FEFO chưa chạy trước Slice 10.
+  - Customer dashboard và `/diem-thuong` hiển thị tier, rate, balance, expiry 30 ngày và lịch sử đúng owner; có empty state, responsive và escaped output.
+  - Admin `/admin/diem-thuong` điều chỉnh số nguyên khác 0 với reason bắt buộc, optional source transaction đúng owner; ledger/cache/audit cùng transaction, âm vượt balance bị reject không clamp.
+  - Adjustment khóa user bằng `FOR UPDATE`; test hai tiến trình trừ 80 từ balance 100 cho đúng một thành công, balance cuối 20.
+  - Tạo `scripts/reconcile-loyalty.php` đối chiếu tổng ledger với cached balance và trả exit code lỗi khi lệch.
+- Chưa hoàn thành: redeem/FEFO allocations và expiry command thuộc Slice 10; reward eligibility/use thuộc Slice 10/12; promotion/reward usage khi completion thuộc Slice 12 nên BKG-06/LOY-02 tổng thể vẫn `In Progress`.
+- File thay đổi: loyalty Controller/Service/Repository/Calculator/Validator/exception; booking completion wiring/message; bootstrap/routes; customer/admin loyalty views, dashboard/layout/CSS; reconcile CLI; unit/integration/concurrency tests; README, RTM và file status này.
+- Migration: không có; dùng nguyên schema `users`, `bookings`, `loyalty_transactions`, `research_event_logs` và `audit_logs` từ Slice 02.
+- Test đã chạy:
+  - `vendor/bin/phpunit tests/Unit/LoyaltyRulesTest.php` — pass, 9 tests/12 assertions.
+  - `AUTOWASH_DB_TESTS=1 ... vendor/bin/phpunit tests/Integration/Loyalty/LoyaltyFlowTest.php` — pass, 7 tests/72 assertions.
+  - `AUTOWASH_DB_TESTS=1 ... composer check` trên host PHP 8.5/MySQL 8.4 — pass, PHPCS 115/115 file; PHPUnit 122 tests/487 assertions, không skip.
+  - `docker compose exec -T -e AUTOWASH_DB_TESTS=1 web composer check` trên PHP 8.2.32/MySQL 8.4 — pass, PHPCS 115/115 file; PHPUnit 122 tests/487 assertions, không skip.
+  - `php scripts/reconcile-loyalty.php` — pass, bốn customer demo đều ledger khớp cache.
+  - HTTP smoke Apache port 8081 — admin login/trang điểm/adjust lần lượt 303/200/303; customer login/trang điểm 303/200 và thấy balance 25 điểm vừa điều chỉnh.
+- Kết quả: đạt acceptance riêng của Slice 09; completion/loyalty atomic, earn idempotent, adjustment/audit/concurrency và customer history có evidence thật.
+- Quyết định: giữ nguyên DEC-001..033; không phát sinh ADR, migration hoặc schema mới.
+- Rủi ro còn lại: positive adjustment là ledger credit không có expiry/remaining lot; cách phân bổ credit này khi redeem cần tuân theo thiết kế Slice 10 mà không làm sai ledger/cache. Các booking completed trước khi deploy Slice 09 có marker null không được tự động backfill âm thầm.
+- Lệnh chạy tiếp: sau khi accept Slice 09, thực hiện duy nhất Slice 10.
+- Commit đề xuất: `feat(LOY): hoàn tất ledger và tích điểm nguyên tử [Slice 09]`.
 
 ## Slice 08 — Booking Lifecycle, Completion and Wash History
 

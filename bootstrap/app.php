@@ -14,9 +14,11 @@ use App\Core\View;
 use App\Middleware\CsrfMiddleware;
 use App\Controllers\AuthController;
 use App\Controllers\AdminBookingController;
+use App\Controllers\AdminLoyaltyController;
 use App\Controllers\AdminServiceController;
 use App\Controllers\AdminSlotController;
 use App\Controllers\BookingController;
+use App\Controllers\LoyaltyController;
 use App\Controllers\CatalogController;
 use App\Controllers\VehicleController;
 use App\Controllers\WashSlotController;
@@ -25,6 +27,7 @@ use App\Repositories\UserRepository;
 use App\Repositories\VehicleRepository;
 use App\Repositories\WashSlotRepository;
 use App\Repositories\BookingRepository;
+use App\Repositories\LoyaltyTransactionRepository;
 use App\Services\AuthService;
 use App\Services\LicensePlateService;
 use App\Services\ServiceCatalogService;
@@ -35,12 +38,15 @@ use App\Services\BookingLifecyclePolicy;
 use App\Services\BookingResourceCalculator;
 use App\Services\BookingWindowPolicy;
 use App\Services\PriceCalculator;
+use App\Services\LoyaltyPointCalculator;
+use App\Services\LoyaltyService;
 use App\Validation\AuthValidator;
 use App\Validation\ServiceCatalogValidator;
 use App\Validation\VehicleValidator;
 use App\Validation\WashSlotValidator;
 use App\Validation\BookingValidator;
 use App\Validation\BookingLifecycleValidator;
+use App\Validation\LoyaltyAdjustmentValidator;
 
 $projectRoot = require __DIR__ . '/environment.php';
 $config = require $projectRoot . '/config/app.php';
@@ -65,6 +71,7 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
     }
 
     $logger = new Logger($logFile, new DateTimeZone($timezone));
+    $loyaltyConfig = require $projectRoot . '/config/loyalty.php';
 
     $authControllerFactory = static fn (): AuthController => new AuthController(
         new AuthService(new UserRepository(Database::connection()), new AuthValidator(), $session, $logger),
@@ -116,6 +123,12 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $session,
         $tokens
     );
+    $loyaltyServiceFactory = static fn (): LoyaltyService => new LoyaltyService(
+        new LoyaltyTransactionRepository(Database::connection()),
+        new LoyaltyPointCalculator((int) $loyaltyConfig['point_unit_amount']),
+        new LoyaltyAdjustmentValidator(),
+        new DateTimeZone($timezone)
+    );
     $bookingServiceFactory = static fn (): BookingService => new BookingService(
         new BookingRepository(Database::connection()),
         new BookingValidator(),
@@ -125,7 +138,7 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         new DateTimeZone($timezone),
         new BookingLifecyclePolicy(),
         new BookingLifecycleValidator(),
-        null,
+        $loyaltyServiceFactory(),
         $logger
     );
     $bookingControllerFactory = static fn (): BookingController => new BookingController(
@@ -136,6 +149,18 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
     );
     $adminBookingControllerFactory = static fn (): AdminBookingController => new AdminBookingController(
         $bookingServiceFactory(),
+        $view,
+        $session,
+        $tokens
+    );
+    $loyaltyControllerFactory = static fn (): LoyaltyController => new LoyaltyController(
+        $loyaltyServiceFactory(),
+        $view,
+        $session,
+        $tokens
+    );
+    $adminLoyaltyControllerFactory = static fn (): AdminLoyaltyController => new AdminLoyaltyController(
+        $loyaltyServiceFactory(),
         $view,
         $session,
         $tokens
@@ -153,7 +178,9 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $washSlotControllerFactory,
         $adminSlotControllerFactory,
         $bookingControllerFactory,
-        $adminBookingControllerFactory
+        $adminBookingControllerFactory,
+        $loyaltyControllerFactory,
+        $adminLoyaltyControllerFactory
     );
 
     $errorHandler = new ErrorHandler(

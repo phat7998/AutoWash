@@ -5,9 +5,11 @@ declare(strict_types=1);
 use App\Core\CsrfTokenManager;
 use App\Controllers\AuthController;
 use App\Controllers\AdminBookingController;
+use App\Controllers\AdminLoyaltyController;
 use App\Controllers\AdminServiceController;
 use App\Controllers\AdminSlotController;
 use App\Controllers\BookingController;
+use App\Controllers\LoyaltyController;
 use App\Controllers\CatalogController;
 use App\Controllers\VehicleController;
 use App\Controllers\WashSlotController;
@@ -32,7 +34,9 @@ return static function (
     ?callable $washSlotControllerFactory = null,
     ?callable $adminSlotControllerFactory = null,
     ?callable $bookingControllerFactory = null,
-    ?callable $adminBookingControllerFactory = null
+    ?callable $adminBookingControllerFactory = null,
+    ?callable $loyaltyControllerFactory = null,
+    ?callable $adminLoyaltyControllerFactory = null
 ): void {
     $router->get('/', static function () use ($view, $session, $tokens): Response {
         return Response::html($view->render('home', [
@@ -75,14 +79,25 @@ return static function (
     $router->post('/dang-xuat', static fn (Request $request): Response =>
         $controller()->logout($request), $authenticated);
 
-    $router->get('/tai-khoan', static function () use ($view, $session, $tokens): Response {
-        return Response::html($view->render('customer/dashboard', [
-            'title' => 'Tổng quan tài khoản',
-            'authUser' => $session->get('auth_user'),
-            'csrfToken' => $tokens->token(),
-            'flashSuccess' => $session->get('success'),
-        ]));
-    }, $authenticated, new RoleMiddleware($session, 'customer'));
+    if ($loyaltyControllerFactory !== null) {
+        $loyalty = static fn (): LoyaltyController => $loyaltyControllerFactory();
+        $customer = new RoleMiddleware($session, 'customer');
+        $router->get('/tai-khoan', static fn (Request $request): Response =>
+            $loyalty()->dashboard($request), $authenticated, $customer);
+        $router->get('/diem-thuong', static fn (Request $request): Response =>
+            $loyalty()->index($request), $authenticated, $customer);
+    } else {
+        $router->get('/tai-khoan', static function () use ($view, $session, $tokens): Response {
+            return Response::html($view->render('customer/dashboard', [
+                'title' => 'Tổng quan tài khoản',
+                'authUser' => $session->get('auth_user'),
+                'csrfToken' => $tokens->token(),
+                'flashSuccess' => $session->get('success'),
+                'summary' => null,
+                'recent_transactions' => [],
+            ]));
+        }, $authenticated, new RoleMiddleware($session, 'customer'));
+    }
 
     $router->get('/admin', static function () use ($view, $session, $tokens): Response {
         return Response::html($view->render('admin/dashboard', [
@@ -156,6 +171,14 @@ return static function (
             $adminBookings()->noShow($request), $authenticated, $admin);
         $router->post('/admin/lich-dat/{id}/huy', static fn (Request $request): Response =>
             $adminBookings()->cancel($request), $authenticated, $admin);
+    }
+
+    if ($adminLoyaltyControllerFactory !== null) {
+        $adminLoyalty = static fn (): AdminLoyaltyController => $adminLoyaltyControllerFactory();
+        $router->get('/admin/diem-thuong', static fn (Request $request): Response =>
+            $adminLoyalty()->index($request), $authenticated, $admin);
+        $router->post('/admin/diem-thuong/dieu-chinh', static fn (Request $request): Response =>
+            $adminLoyalty()->adjust($request), $authenticated, $admin);
     }
 
     if ($vehicleControllerFactory === null) {
