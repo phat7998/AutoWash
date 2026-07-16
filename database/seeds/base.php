@@ -14,11 +14,11 @@ return [
         ['PLATINUM', 'Bạch kim', 4, 14, '1500000.00', 8, '1.50'],
     ],
     'users' => [
-        ['0900000001', 'Quản trị viên AutoWash', 'AutoWash@123', 'admin', 'MEMBER'],
-        ['0900000002', 'Khách hàng Demo', 'AutoWash@123', 'customer', 'MEMBER'],
-        ['0900000003', 'Khách hàng Bạc', 'AutoWash@123', 'customer', 'SILVER'],
-        ['0900000004', 'Khách hàng Vàng', 'AutoWash@123', 'customer', 'GOLD'],
-        ['0900000005', 'Khách hàng Bạch kim', 'AutoWash@123', 'customer', 'PLATINUM'],
+        ['0900000001', 'Quản trị viên AutoWash', 'AutoWash@123', 'admin', 'MEMBER', '0.00', 0],
+        ['0900000002', 'Khách hàng Demo', 'AutoWash@123', 'customer', 'MEMBER', '800000.00', 5],
+        ['0900000003', 'Khách hàng Bạc', 'AutoWash@123', 'customer', 'SILVER', '300000.00', 2],
+        ['0900000004', 'Khách hàng Vàng', 'AutoWash@123', 'customer', 'GOLD', '100000.00', 1],
+        ['0900000005', 'Khách hàng Bạch kim', 'AutoWash@123', 'customer', 'PLATINUM', '1500000.00', 8],
     ],
     'vehicle_types' => [
         ['motorbike', 'Xe máy', 20, 1],

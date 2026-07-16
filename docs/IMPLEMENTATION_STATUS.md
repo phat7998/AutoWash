@@ -1,10 +1,11 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
 > Cập nhật: 2026-07-16  
-> Slice hiện tại: Slice 10 — Complete
+> Slice hiện tại: Slice 11 — Complete
 >
 > Product code: đã có nền repository/database, HTTP/security, authentication/RBAC, quản lý phương tiện,
-> danh mục dịch vụ, booking, loyalty generic credit lots, FEFO redemption/expiry và reward management.
+> danh mục dịch vụ, booking, loyalty generic credit lots, FEFO redemption/expiry, reward management và
+> monthly tier review.
 
 ## Tổng quan
 
@@ -22,7 +23,54 @@
 | 08 | Complete | State matrix, customer cutoff 2 giờ/ownership, admin lifecycle/audit, capacity release, wash history và completion hook |
 | 09 | Complete | Earn formula, ledger/cache, atomic completion, metrics/event, customer history, admin adjustment/audit/concurrency và reconcile |
 | 10 | Complete | Generic credit/debit allocation, migration/backfill, reward CRUD/redemption, FEFO, expiry CLI và concurrency |
-| 11–15 | Not started | Xem `ROADMAP.md` |
+| 11 | Complete | Review tháng trước, spend AND visits, upgrade/downgrade/hold, history/reset, idempotency và recovery |
+| 12–15 | Not started | Xem `ROADMAP.md` |
+
+## Slice 11 — Monthly Tier Review and Tier History
+
+- Requirements: hoàn tất TIER-01, TIER-02, TIER-03 và TIER-04; tiếp tục NFR-03, NFR-05, NFR-09,
+  NFR-11, NFR-12, NFR-15, NFR-17, NFR-19 và NFR-21..23.
+- Hoàn thành:
+  - Tạo `TierReviewPolicy` chọn tháng lịch vừa kết thúc theo `Asia/Ho_Chi_Minh`; qualification dùng spend
+    AND visits và chọn tier active có `rank_order` cao nhất, toàn bộ threshold tải từ database.
+  - Tạo `TierRepository` và `TierReviewService`; mỗi customer được lock và xử lý trong transaction riêng:
+    snapshot old/new tier + metrics, insert history unique, update current tier và reset metrics atomically;
+    `point_balance` không nằm trong câu UPDATE nên được giữ nguyên.
+  - Hỗ trợ nâng, hạ nhiều bậc và giữ hạng; reason tiếng Việt lưu cùng history để giải thích kết quả.
+  - `monthly_review_runs` có running/completed/failed; advisory lock theo period ngăn hai batch cùng chạy;
+    completed run bị chặn. Failed/stale running run có thể resume, bỏ qua user đã có history và cập nhật
+    `processed_users` theo tổng history đã commit.
+  - Tạo CLI `scripts/monthly-review.php`; mặc định không nhận period từ frontend và xét tháng vừa kết thúc.
+  - Admin xem run/history tại `/admin/xet-hang` qua auth + role middleware; view có empty/status/error state,
+    responsive table foundation và escaped output.
+  - Fresh seed tạo bốn kịch bản nâng nhiều bậc, giữ boundary, hạ nhiều bậc và giữ tier cao nhất; seed chạy
+    lại không phục hồi current tier hoặc monthly metrics đã được review.
+- Chưa hoàn thành: CRUD tier rule/perk/promotion và checkout integration thuộc Slice 12; không triển khai
+  special admin rerun, LPR, research dashboard/export hoặc hardening.
+- File thay đổi: Tier Controller/Service/Policy/Repository/exceptions; bootstrap/routes/admin view/layout;
+  monthly review CLI; demo seed; unit/integration test; README, RTM và file status này.
+- Migration: không có; dùng nguyên `tiers`, `users`, `monthly_review_runs` và `tier_histories` từ migration
+  001/006. Không đổi ERD, schema hoặc decision.
+- Test đã chạy:
+  - `vendor/bin/phpunit tests/Unit/TierRulesTest.php` — pass, 3 tests/7 assertions.
+  - MySQL `TierReviewFlowTest` — pass, 3 tests/50 assertions, gồm failure recovery, seed safety và HTTP
+    RBAC/XSS.
+  - Host MySQL full `composer check` — pass, PHPCS 138/138 file; PHPUnit 143 tests/635 assertions,
+    không skip.
+  - Docker PHP 8.2.32/MySQL 8.4 full `composer check` — pass, PHPCS 138/138 file; PHPUnit 143
+    tests/635 assertions, không skip.
+  - Fresh reset/migrate/seed + `monthly-review.php` — pass, xử lý 4 customer cho kỳ `2026-06`; chạy lần
+    hai trả exit 1 và thông báo run completed không thể chạy lại; reconcile loyalty vẫn `KHỚP` toàn bộ.
+  - HTTP smoke Apache port 8081 — admin login `303`, `/admin/xet-hang` `200`, thấy kỳ `2026-06` và trạng
+    thái `Hoàn tất`.
+- Kết quả: đạt toàn bộ acceptance Slice 11; full regression host/container, CLI fresh database và HTTP route
+  thật đều có evidence thành công.
+- Quyết định: giữ nguyên DEC-001..033; transaction theo từng customer để recovery không rollback các user
+  đã hoàn tất, còn unique history bảo đảm resume không reset lặp.
+- Rủi ro còn lại: schema baseline chỉ lưu một started/completed timestamp cho mỗi period, không lưu từng
+  attempt resume; special admin rerun có audit thuộc requirement tương lai và chưa được mở trong Slice 11.
+- Lệnh chạy tiếp: sau khi accept Slice 11, thực hiện duy nhất Slice 12.
+- Commit đề xuất: `feat(TIER): hoàn tất xét hạng hàng tháng và lịch sử [Slice 11]`.
 
 ## Slice 10 — Generic Credit Lots, Reward Redemption and Point Expiry
 

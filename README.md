@@ -2,7 +2,7 @@
 
 AutoWash Pro là hệ thống quản lý dịch vụ chăm sóc phương tiện, đặt lịch trước và khách hàng thân thiết được xây dựng bằng Modern PHP thuần. Phiên bản đồ án cũ được lưu tại nhánh `legacy-main`.
 
-Repository hiện hoàn thành Slice 10: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
+Repository hiện hoàn thành Slice 11: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
 authentication/RBAC, quản lý phương tiện, danh mục dịch vụ và khung giờ. Customer xem được giá/thời lượng
 theo loại xe, chọn nhiều dịch vụ và tạo booking theo booking window của tier. Backend tự tính giá, tổng thời
 lượng, capacity lớn nhất, khóa mọi slot chồng lấn và lưu booking/items/reservations atomically. Admin quản lý
@@ -12,6 +12,9 @@ ledger, point balance, marker và research event được commit atomically; cus
 điều chỉnh điểm có reason/audit/concurrency guard. Customer xem và đổi reward; mọi redeem, expiry và
 adjustment âm phân bổ FEFO vào generic credit lot. Adjustment dương tạo credit lot không hết hạn, còn
 expiry 12 tháng lịch chỉ trừ remaining points thực tế.
+Monthly tier review xét tháng lịch vừa kết thúc bằng ngưỡng cấu hình trong database, ghi history và reset
+monthly metrics theo từng customer trong transaction riêng; point balance được giữ nguyên và run đã hoàn tất
+không chạy lặp.
 
 ## Yêu cầu hệ thống
 
@@ -82,13 +85,13 @@ php database/reset.php --force --seed
 
 Không chạy lệnh reset trên database có dữ liệu cần giữ. Seed có năm tài khoản demo cố định:
 
-| Vai trò | Số điện thoại | Mật khẩu |
-|---|---|---|
-| Admin | `0900000001` | `AutoWash@123` |
-| Customer Member · xe máy | `0900000002` | `AutoWash@123` |
-| Customer Silver · ô tô con | `0900000003` | `AutoWash@123` |
-| Customer Gold · xe tải | `0900000004` | `AutoWash@123` |
-| Customer Platinum · xe khách | `0900000005` | `AutoWash@123` |
+| Vai trò | Số điện thoại | Mật khẩu | Kịch bản xét hạng fresh seed |
+|---|---|---|---|
+| Admin | `0900000001` | `AutoWash@123` | Không xét |
+| Customer Member · xe máy | `0900000002` | `AutoWash@123` | Nâng nhiều bậc lên Gold |
+| Customer Silver · ô tô con | `0900000003` | `AutoWash@123` | Giữ Silver đúng boundary |
+| Customer Gold · xe tải | `0900000004` | `AutoWash@123` | Hạ nhiều bậc về Member |
+| Customer Platinum · xe khách | `0900000005` | `AutoWash@123` | Giữ Platinum |
 
 Đây là thông tin chỉ dành cho môi trường demo/local, không dùng làm secret production. Các route chính:
 
@@ -109,6 +112,7 @@ Không chạy lệnh reset trên database có dữ liệu cần giữ. Seed có 
 - `/admin`: vùng admin đã xác thực và kiểm tra role.
 - `/admin/lich-dat`: admin xác nhận, hoàn thành, hủy có lý do/audit hoặc đánh dấu khách không đến.
 - `/admin/diem-thuong`: admin điều chỉnh điểm có reason, ledger, audit và không cho số dư âm.
+- `/admin/xet-hang`: admin xem trạng thái run và lịch sử snapshot xét hạng.
 - `/admin/reward`: admin tạo, sửa, kích hoạt hoặc ngừng reward cùng tier/service/vehicle restriction.
 - `/admin/dich-vu`: admin tạo, sửa, kích hoạt hoặc ngừng dịch vụ và cấu hình theo loại xe.
 - `/admin/khung-gio`: admin tạo hoặc đóng khung giờ vận hành.
@@ -133,6 +137,7 @@ composer test
 composer check
 php scripts/reconcile-loyalty.php
 php scripts/expire-points.php
+php scripts/monthly-review.php
 ```
 
 - `composer lint`: kiểm tra PSR-12 bằng PHP_CodeSniffer.
@@ -149,7 +154,11 @@ AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Vehicle
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/CatalogSlot
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Booking
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Loyalty tests/Integration/Reward
+AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Tier
 ```
+
+`monthly-review.php` mặc định xét tháng lịch vừa kết thúc. Run completed bị từ chối chạy lại; run failed
+được tiếp tục bằng cách bỏ qua customer đã có history cho kỳ đó.
 
 ## Cấu trúc chính
 

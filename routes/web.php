@@ -9,6 +9,7 @@ use App\Controllers\AdminLoyaltyController;
 use App\Controllers\AdminServiceController;
 use App\Controllers\AdminSlotController;
 use App\Controllers\AdminRewardController;
+use App\Controllers\AdminTierReviewController;
 use App\Controllers\BookingController;
 use App\Controllers\LoyaltyController;
 use App\Controllers\RewardController;
@@ -40,7 +41,8 @@ return static function (
     ?callable $loyaltyControllerFactory = null,
     ?callable $adminLoyaltyControllerFactory = null,
     ?callable $rewardControllerFactory = null,
-    ?callable $adminRewardControllerFactory = null
+    ?callable $adminRewardControllerFactory = null,
+    ?callable $adminTierReviewControllerFactory = null
 ): void {
     $router->get('/', static function () use ($view, $session, $tokens): Response {
         return Response::html($view->render('home', [
@@ -210,6 +212,13 @@ return static function (
             $adminRewards()->deactivate($request), $authenticated, $admin);
         $router->post('/admin/reward/{id}/kich-hoat', static fn (Request $request): Response =>
             $adminRewards()->activate($request), $authenticated, $admin);
+    }
+
+    if ($adminTierReviewControllerFactory !== null) {
+        $adminTierReviews = static fn (): AdminTierReviewController =>
+            $adminTierReviewControllerFactory();
+        $router->get('/admin/xet-hang', static fn (Request $request): Response =>
+            $adminTierReviews()->index($request), $authenticated, $admin);
     }
 
     if ($vehicleControllerFactory === null) {

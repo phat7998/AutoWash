@@ -132,18 +132,19 @@ final readonly class DatabaseSeeder
         }
     }
 
-    /** @param list<array{string, string, string, string, string}> $users */
+    /** @param list<array{string, string, string, string, string, string, int}> $users */
     private function seedUsers(array $users): void
     {
         $statement = $this->database->prepare(
             <<<'SQL'
             INSERT INTO users (
-                current_tier_id, phone, full_name, password_hash, role, status
+                current_tier_id, phone, full_name, password_hash, role,
+                monthly_spend, monthly_visits, status
             ) VALUES (
-                :current_tier_id, :phone, :full_name, :password_hash, :role, 'active'
+                :current_tier_id, :phone, :full_name, :password_hash, :role,
+                :monthly_spend, :monthly_visits, 'active'
             )
             ON DUPLICATE KEY UPDATE
-                current_tier_id = VALUES(current_tier_id),
                 full_name = VALUES(full_name),
                 password_hash = VALUES(password_hash),
                 role = VALUES(role),
@@ -152,7 +153,16 @@ final readonly class DatabaseSeeder
             SQL
         );
 
-        foreach ($users as [$phone, $fullName, $password, $role, $tierCode]) {
+        foreach ($users as $user) {
+            [
+                $phone,
+                $fullName,
+                $password,
+                $role,
+                $tierCode,
+                $monthlySpend,
+                $monthlyVisits,
+            ] = $user;
             $passwordHash = password_hash($password, PASSWORD_BCRYPT);
 
             if (!is_string($passwordHash)) {
@@ -165,6 +175,8 @@ final readonly class DatabaseSeeder
                 'full_name' => $fullName,
                 'password_hash' => $passwordHash,
                 'role' => $role,
+                'monthly_spend' => $monthlySpend,
+                'monthly_visits' => $monthlyVisits,
             ]);
         }
     }

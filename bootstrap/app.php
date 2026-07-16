@@ -18,6 +18,7 @@ use App\Controllers\AdminLoyaltyController;
 use App\Controllers\AdminServiceController;
 use App\Controllers\AdminSlotController;
 use App\Controllers\AdminRewardController;
+use App\Controllers\AdminTierReviewController;
 use App\Controllers\BookingController;
 use App\Controllers\LoyaltyController;
 use App\Controllers\RewardController;
@@ -31,6 +32,7 @@ use App\Repositories\WashSlotRepository;
 use App\Repositories\BookingRepository;
 use App\Repositories\LoyaltyTransactionRepository;
 use App\Repositories\RewardRepository;
+use App\Repositories\TierRepository;
 use App\Services\AuthService;
 use App\Services\LicensePlateService;
 use App\Services\ServiceCatalogService;
@@ -46,6 +48,8 @@ use App\Services\LoyaltyDebitAllocator;
 use App\Services\LoyaltyExpirationPolicy;
 use App\Services\LoyaltyService;
 use App\Services\RewardService;
+use App\Services\TierReviewPolicy;
+use App\Services\TierReviewService;
 use App\Validation\AuthValidator;
 use App\Validation\ServiceCatalogValidator;
 use App\Validation\VehicleValidator;
@@ -192,6 +196,18 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $session,
         $tokens
     );
+    $tierReviewServiceFactory = static fn (): TierReviewService => new TierReviewService(
+        new TierRepository(Database::connection()),
+        new TierReviewPolicy(new DateTimeZone($timezone)),
+        new DateTimeZone($timezone)
+    );
+    $adminTierReviewControllerFactory = static fn (): AdminTierReviewController =>
+        new AdminTierReviewController(
+            $tierReviewServiceFactory(),
+            $view,
+            $session,
+            $tokens
+        );
     $registerRoutes = require $projectRoot . '/routes/web.php';
     $registerRoutes(
         $router,
@@ -209,7 +225,8 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $loyaltyControllerFactory,
         $adminLoyaltyControllerFactory,
         $rewardControllerFactory,
-        $adminRewardControllerFactory
+        $adminRewardControllerFactory,
+        $adminTierReviewControllerFactory
     );
 
     $errorHandler = new ErrorHandler(
