@@ -33,6 +33,7 @@ use App\Repositories\VehicleRepository;
 use App\Repositories\WashSlotRepository;
 use App\Repositories\BookingRepository;
 use App\Repositories\LoyaltyTransactionRepository;
+use App\Repositories\LprAttemptRepository;
 use App\Repositories\RewardRepository;
 use App\Repositories\TierRepository;
 use App\Repositories\TierConfigurationRepository;
@@ -51,12 +52,15 @@ use App\Services\LoyaltyPointCalculator;
 use App\Services\LoyaltyDebitAllocator;
 use App\Services\LoyaltyExpirationPolicy;
 use App\Services\LoyaltyService;
+use App\Services\LprService;
+use App\Services\LprUploadService;
 use App\Services\RewardService;
 use App\Services\TierReviewPolicy;
 use App\Services\TierReviewService;
 use App\Services\TierConfigurationService;
 use App\Services\PromotionService;
 use App\Services\BookingCompletionService;
+use App\Providers\MockLprProvider;
 use App\Validation\AuthValidator;
 use App\Validation\ServiceCatalogValidator;
 use App\Validation\VehicleValidator;
@@ -92,6 +96,29 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
 
     $logger = new Logger($logFile, new DateTimeZone($timezone));
     $loyaltyConfig = require $projectRoot . '/config/loyalty.php';
+    $lprConfig = require $projectRoot . '/config/lpr.php';
+
+    if (($lprConfig['provider'] ?? null) !== 'mock') {
+        throw new RuntimeException(
+            'Provider LPR chưa được hỗ trợ. Hãy dùng cấu hình mock cho bản demo offline.'
+        );
+    }
+
+    $lprServiceFactory = static fn (): LprService => new LprService(
+        new LprAttemptRepository(Database::connection()),
+        new LprUploadService(
+            $projectRoot,
+            (string) $lprConfig['upload_directory'],
+            (int) $lprConfig['maximum_upload_bytes']
+        ),
+        new MockLprProvider(
+            (string) $lprConfig['mock']['recognized_text'],
+            (float) $lprConfig['mock']['confidence']
+        ),
+        new LicensePlateService(),
+        $logger,
+        (float) $lprConfig['confidence_threshold']
+    );
 
     $authControllerFactory = static fn (): AuthController => new AuthController(
         new AuthService(new UserRepository(Database::connection()), new AuthValidator(), $session, $logger),
@@ -99,7 +126,12 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $session,
         $tokens
     );
-    $vehicleControllerFactory = static function () use ($view, $session, $tokens): VehicleController {
+    $vehicleControllerFactory = static function () use (
+        $view,
+        $session,
+        $tokens,
+        $lprServiceFactory
+    ): VehicleController {
         $plates = new LicensePlateService();
 
         return new VehicleController(
@@ -110,7 +142,8 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
             ),
             $view,
             $session,
-            $tokens
+            $tokens,
+            $lprServiceFactory()
         );
     };
     $catalogServiceFactory = static fn (): ServiceCatalogService => new ServiceCatalogService(

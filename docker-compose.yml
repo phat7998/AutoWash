@@ -20,6 +20,9 @@ services:
       DB_TIMEZONE: "+07:00"
     volumes:
       - .:/var/www/html
+      - app_logs:/var/www/html/storage/logs
+      - app_uploads:/var/www/html/storage/uploads
+    entrypoint: ["/var/www/html/docker/php/entrypoint.sh"]
     depends_on:
       mysql:
         condition: service_healthy
@@ -47,3 +50,5 @@ services:
 
 volumes:
   mysql_data:
+  app_logs:
+  app_uploads:

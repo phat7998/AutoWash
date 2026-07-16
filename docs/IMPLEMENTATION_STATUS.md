@@ -1,11 +1,12 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
-> Cập nhật: 2026-07-16  
-> Slice hiện tại: Slice 12 — Complete
+> Cập nhật: 2026-07-17
+> Slice hiện tại: Slice 13 — Complete
 >
 > Product code: đã có nền repository/database, HTTP/security, authentication/RBAC, quản lý phương tiện,
 > danh mục dịch vụ, booking, loyalty generic credit lots, FEFO redemption/expiry, reward management và
-> monthly tier review, tier/perk/promotion configuration và checkout benefit integration.
+> monthly tier review, tier/perk/promotion configuration, checkout benefit integration và LPR adapter/mock
+> với safe upload + manual fallback.
 
 ## Tổng quan
 
@@ -25,7 +26,52 @@
 | 10 | Complete | Generic credit/debit allocation, migration/backfill, reward CRUD/redemption, FEFO, expiry CLI và concurrency |
 | 11 | Complete | Review tháng trước, spend AND visits, upgrade/downgrade/hold, history/reset, idempotency và recovery |
 | 12 | Complete | Tier/perk/promotion admin, best-benefit pricing, reward use-once và limit concurrency |
-| 13–15 | Not started | Xem `ROADMAP.md` |
+| 13 | Complete | Safe upload ngoài public, provider interface/mock, confidence, owner-only image, attempt log và manual fallback |
+| 14–15 | Not started | Xem `ROADMAP.md` |
+
+## Slice 13 — License Plate Recognition Adapter and Safe Upload
+
+- Requirements: hoàn tất LPR-02 và NFR-16; giữ nguyên LPR-01; tiếp tục NFR-03, NFR-05, NFR-11..13,
+  NFR-15, NFR-17, NFR-19 và NFR-23 trong trust boundary upload/recognition.
+- Hoàn thành:
+  - Tạo `LprProviderInterface`, typed `RecognitionResult` và `MockLprProvider`; mock offline trả text/confidence
+    cấu hình được, được ghi rõ không phải model/OCR production và không có external adapter giả khi repository
+    chưa có endpoint/model/secret.
+  - Tạo `UploadedFile` + `LprUploadService`: kiểm tra upload error, kích thước thực, MIME bằng `fileinfo`,
+    allowlist JPEG/PNG/WebP, tên ngẫu nhiên, quyền file hạn chế và bắt buộc lưu ngoài `public`.
+  - Tạo `LprService`/`LprAttemptRepository`; network/provider call diễn ra trước DB write và ngoài transaction;
+    success, failure/timeout, low-confidence và manual override đều có outcome rõ, attempt không ghi secret/PII
+    ngoài dữ liệu cần thiết của flow.
+  - Customer upload từ form thêm xe, xem ảnh qua protected controller route, nhận text/confidence rồi bắt buộc
+    xác nhận hoặc sửa; `LicensePlateService`/`VehicleService` vẫn normalize, validate, unique và ownership như
+    luồng thủ công. Failure/timeout không làm mất hoặc khóa manual form.
+  - Migration `009_create_lpr_attempts` thêm bảng theo ERD với provider, confidence, status check, FK owner và
+    index; không sửa schema/business rule ngoài Slice 13.
+  - Docker dùng volume riêng cho logs/uploads và entrypoint cấp quyền tối thiểu để Apache ghi runtime mà không
+    đưa ảnh vào bind mount/public/Git.
+- Chưa hoàn thành: external/production LPR provider hoặc self-trained model; research CSV/dashboard Slice 14;
+  hardening/performance/release Slice 15. Q-020 vẫn cần checkpoint trước phần Research/RBL chuyên sâu.
+- File thay đổi: LPR contract/provider/DTO/Service/Repository/exceptions; HTTP Request/VehicleController,
+  bootstrap/routes/view/CSS; config/env/Compose entrypoint; migration 009; unit/integration/database test;
+  README, Specification, RTM và file status này.
+- Migration: `009_create_lpr_attempts`; fresh reset/migrate/seed và migration rerun đã có automated/CLI evidence.
+- Test đã chạy:
+  - `LprFlowTest` + database foundation — pass, 13 tests/93 assertions; MIME/size/public-path, success,
+    low-confidence, failure, timeout, manual override, duplicate, CSRF, owner image/IDOR và migration.
+  - Host PHP 8.5/MySQL 8.4 `composer check` — pass, PHPCS 162/162 file; PHPUnit 158 tests/794 assertions,
+    không skip.
+  - Docker PHP 8.2.32/MySQL 8.4 `composer check` — pass, PHPCS 162/162 file; PHPUnit 158 tests/794 assertions,
+    không skip.
+  - Fresh Docker reset/migrate/seed — pass; HTTP Apache port 8081: login `303`, multipart recognition `200`,
+    protected image `200`, confirm/manual override save `303`.
+- Kết quả: đạt toàn bộ acceptance Slice 13; manual input độc lập, upload/ownership an toàn và full regression
+  host/container đều pass.
+- Quyết định: giữ nguyên DEC-001..033; thêm field `provider` đúng ERD/DEC-024 vào Specification, không đổi
+  decision hoặc business rule đã khóa.
+- Rủi ro còn lại: mock chỉ chứng minh adapter/flow offline; chất lượng OCR, latency và credential của provider
+  thật chưa có evidence và không được tuyên bố production-ready.
+- Lệnh chạy tiếp: sau khi accept Slice 13 và checkpoint Q-020, thực hiện duy nhất Slice 14.
+- Commit đề xuất: `feat(LPR): hoàn tất adapter nhận diện và upload an toàn [Slice 13]`.
 
 ## Slice 12 — Tier Configuration, Perks, Promotions and Checkout Integration
 

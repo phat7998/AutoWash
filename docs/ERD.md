@@ -1,6 +1,6 @@
 # AUTO WASH PRO — ERD VÀ KẾ HOẠCH MIGRATION
 
-> Baseline: Mini-Slice 00B Closure Patch; schema được hiện thực tại Slice 02, riêng `lpr_attempts` giữ cho Slice 13.
+> Baseline: Mini-Slice 00B Closure Patch; schema core hiện thực tại Slice 02, `lpr_attempts` tại Slice 13.
 > Quy ước: InnoDB, `utf8mb4`, money dùng `DECIMAL`, timestamp theo `Asia/Ho_Chi_Minh`.
 
 ## ERD Mermaid
@@ -433,7 +433,7 @@ Không có `reversal` trong baseline vì chưa có post-completion refund/revers
 
 ## Thứ tự schema theo dependency
 
-Slice 02 triển khai thứ tự này bằng 6 migration nhóm theo dependency. `lpr_attempts` chưa được tạo vì thuộc Slice 13:
+Slice 02 triển khai schema core bằng 6 migration nhóm theo dependency. `lpr_attempts` được bổ sung đúng Slice 13:
 
 | # | Bảng | Phụ thuộc |
 |---:|---|---|
@@ -469,3 +469,6 @@ Migration runner/history thuộc Slice 02 và không phải entity nghiệp vụ
 
 Slice 12 thêm migration `008_add_reward_percentage_cap`, bổ sung `rewards.max_discount` nullable để hiện
 thực acceptance RWD-03 đã có trong đặc tả. Migration không tạo entity hoặc quan hệ mới.
+
+Slice 13 thêm migration `009_create_lpr_attempts`, hiện thực entity đã duyệt với provider, kết quả nhận diện,
+confidence, status, owner nullable và đường dẫn ảnh ngoài public; không thay đổi quan hệ nghiệp vụ khác.

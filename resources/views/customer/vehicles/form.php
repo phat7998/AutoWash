@@ -9,6 +9,7 @@ declare(strict_types=1);
 /** @var string $mode */
 /** @var int|null $vehicleId */
 /** @var string $csrfToken */
+/** @var App\DTO\LprRecognitionOutcome|null $recognition */
 $isEdit = $mode === 'edit';
 $action = $isEdit ? '/phuong-tien/' . $vehicleId . '/sua' : '/phuong-tien/them';
 ?>
@@ -17,12 +18,71 @@ $action = $isEdit ? '/phuong-tien/' . $vehicleId . '/sua' : '/phuong-tien/them';
         <p class="eyebrow dark-eyebrow">Phương tiện</p>
         <h1><?= $isEdit ? 'Sửa thông tin phương tiện' : 'Thêm phương tiện' ?></h1>
         <p class="lead">
-            Biển số được chuẩn hóa ở backend để kiểm tra trùng. Luồng này là nhập thủ công, không phải nhận diện ảnh.
+            Bạn có thể nhập biển số thủ công hoặc dùng adapter nhận diện ảnh ở chế độ mock để hỗ trợ điền form.
+            Biển số luôn được xác nhận và kiểm tra lại ở backend trước khi lưu.
         </p>
     </div>
 
+    <?php if (!$isEdit): ?>
+        <section class="lpr-panel" aria-labelledby="lpr-panel-title">
+            <div>
+                <p class="eyebrow dark-eyebrow">Hỗ trợ từ ảnh</p>
+                <h2 id="lpr-panel-title">Nhận diện biển số</h2>
+                <p>
+                    Bản demo dùng provider mock offline, không phải mô hình LPR production.
+                    Ảnh chỉ nhận JPEG, PNG hoặc WebP theo giới hạn hệ thống và được lưu ngoài thư mục public.
+                </p>
+            </div>
+            <form method="post" action="/phuong-tien/nhan-dien" enctype="multipart/form-data" novalidate>
+                <input type="hidden" name="_csrf_token" value="<?= $e($csrfToken) ?>">
+                <div class="form-field">
+                    <label for="plate_image">Ảnh biển số <span aria-hidden="true">*</span></label>
+                    <input
+                        id="plate_image"
+                        name="plate_image"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        required
+                        aria-invalid="<?= isset($errors['plate_image']) ? 'true' : 'false' ?>"
+                        <?= isset($errors['plate_image']) ? 'aria-describedby="plate-image-error"' : '' ?>
+                    >
+                    <?php if (isset($errors['plate_image'])): ?>
+                        <span class="field-error" id="plate-image-error"><?= $e($errors['plate_image']) ?></span>
+                    <?php endif; ?>
+                </div>
+                <button class="button button-secondary" type="submit">Tải ảnh và nhận diện</button>
+            </form>
+        </section>
+
+        <?php if ($recognition !== null): ?>
+            <section class="recognition-result" aria-labelledby="recognition-result-title">
+                <img
+                    src="/phuong-tien/nhan-dien/<?= $e($recognition->attemptId) ?>/anh"
+                    alt="Ảnh biển số vừa tải lên để xác nhận"
+                >
+                <div>
+                    <h2 id="recognition-result-title">
+                        <?= $recognition->status === 'success' ? 'Kết quả gợi ý' : 'Chuyển sang nhập thủ công' ?>
+                    </h2>
+                    <?php if ($recognition->status === 'success'): ?>
+                        <p>
+                            Biển số dự đoán: <strong><?= $e($recognition->recognizedText) ?></strong>
+                            <?php if ($recognition->confidence !== null): ?>
+                                · Độ tin cậy <?= $e(number_format($recognition->confidence * 100, 1, ',', '.')) ?>%
+                            <?php endif; ?>
+                        </p>
+                    <?php endif; ?>
+                    <p><?= $e($recognition->warning ?? 'Vui lòng xác nhận hoặc sửa biển số trong form bên dưới.') ?></p>
+                </div>
+            </section>
+        <?php endif; ?>
+    <?php endif; ?>
+
     <form class="form-card vehicle-form" method="post" action="<?= $e($action) ?>" novalidate>
         <input type="hidden" name="_csrf_token" value="<?= $e($csrfToken) ?>">
+        <?php if (!$isEdit && $values['lpr_attempt_id'] !== ''): ?>
+            <input type="hidden" name="lpr_attempt_id" value="<?= $e($values['lpr_attempt_id']) ?>">
+        <?php endif; ?>
 
         <?php if ($errors !== []): ?>
             <div class="notification notification-error" role="alert" tabindex="-1">

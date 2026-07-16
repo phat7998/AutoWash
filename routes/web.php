@@ -285,6 +285,10 @@ return static function (
         $vehicleController()->create($request), $authenticated, $customer);
     $router->post('/phuong-tien/them', static fn (Request $request): Response =>
         $vehicleController()->store($request), $authenticated, $customer);
+    $router->post('/phuong-tien/nhan-dien', static fn (Request $request): Response =>
+        $vehicleController()->recognize($request), $authenticated, $customer);
+    $router->get('/phuong-tien/nhan-dien/{id}/anh', static fn (Request $request): Response =>
+        $vehicleController()->recognitionImage($request), $authenticated, $customer);
     $router->get('/phuong-tien/{id}/sua', static fn (Request $request): Response =>
         $vehicleController()->edit($request), $authenticated, $customer);
     $router->post('/phuong-tien/{id}/sua', static fn (Request $request): Response =>

@@ -11,6 +11,7 @@ final class Request
      * @param array<string, mixed> $body
      * @param array<string, mixed> $server
      * @param array<string, string> $headers
+     * @param array<string, mixed> $files
      * @param array<string, string> $routeParameters
      */
     public function __construct(
@@ -20,6 +21,7 @@ final class Request
         private readonly array $body = [],
         private readonly array $server = [],
         private readonly array $headers = [],
+        private readonly array $files = [],
         private array $routeParameters = []
     ) {
     }
@@ -45,7 +47,8 @@ final class Request
             $_GET,
             $_POST,
             $_SERVER,
-            $headers
+            $headers,
+            $_FILES
         );
     }
 
@@ -71,6 +74,17 @@ final class Request
     public function header(string $name, ?string $default = null): ?string
     {
         return $this->headers[strtolower($name)] ?? $default;
+    }
+
+    public function file(string $key): ?UploadedFile
+    {
+        $file = $this->files[$key] ?? null;
+
+        if ($file instanceof UploadedFile) {
+            return $file;
+        }
+
+        return is_array($file) ? UploadedFile::fromPhpArray($file) : null;
     }
 
     public function route(string $key, ?string $default = null): ?string

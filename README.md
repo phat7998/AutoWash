@@ -2,7 +2,7 @@
 
 AutoWash Pro là hệ thống quản lý dịch vụ chăm sóc phương tiện, đặt lịch trước và khách hàng thân thiết được xây dựng bằng Modern PHP thuần. Phiên bản đồ án cũ được lưu tại nhánh `legacy-main`.
 
-Repository hiện hoàn thành Slice 12: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
+Repository hiện hoàn thành Slice 13: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
 authentication/RBAC, quản lý phương tiện, danh mục dịch vụ và khung giờ. Customer xem được giá/thời lượng
 theo loại xe, chọn nhiều dịch vụ và tạo booking theo booking window của tier. Backend tự tính giá, tổng thời
 lượng, capacity lớn nhất, khóa mọi slot chồng lấn và lưu booking/items/reservations atomically. Admin quản lý
@@ -18,6 +18,9 @@ không chạy lặp.
 Admin cấu hình được tier rule, tier perk và promotion có target tier/service/vehicle type. Checkout tự chọn
 một perk và một promotion tốt nhất, cho customer dùng tối đa một reward đúng owner; discount được snapshot,
 promotion limit được giữ bằng locking, complete ghi usage/use-once còn cancel trả reward chưa hết hạn.
+Customer vẫn có thể nhập biển số thủ công độc lập, hoặc tải ảnh JPEG/PNG/WebP để adapter LPR mock offline
+đưa ra gợi ý và confidence trước khi xác nhận/sửa. Ảnh được kiểm tra MIME/kích thước, đổi tên ngẫu nhiên,
+lưu ngoài public và chỉ owner đọc lại qua controller; failure/timeout/độ tin cậy thấp không chặn manual fallback.
 
 ## Yêu cầu hệ thống
 
@@ -80,6 +83,8 @@ mà không tạo thêm tier, loại xe, phương tiện, dịch vụ, slot hoặ
 Migration `007_generalize_loyalty_credit_lots` đổi allocation thành debit-to-credit, backfill adjustment cũ
 theo thứ tự lịch sử và fail rõ với transaction ID nếu dữ liệu cũ không thể reconcile an toàn.
 Migration `008_add_reward_percentage_cap` bổ sung mức giảm tối đa nullable cho reward phần trăm.
+Migration `009_create_lpr_attempts` ghi provider, kết quả/confidence và trạng thái
+`success|failed|manual_override` cho từng lần nhận diện có ownership.
 
 Reset chỉ dành cho `APP_ENV=local|testing`, xóa toàn bộ dữ liệu trong database đang cấu hình và bắt buộc xác nhận rõ:
 
@@ -104,6 +109,8 @@ Không chạy lệnh reset trên database có dữ liệu cần giữ. Seed có 
 - `/tai-khoan`: vùng customer đã xác thực.
 - `/phuong-tien`: danh sách xe của customer đang đăng nhập.
 - `/phuong-tien/them`: nhập biển số thủ công và thêm xe; GET hiển thị form, POST lưu dữ liệu.
+- `/phuong-tien/nhan-dien`: POST ảnh có CSRF để provider mock đưa ra gợi ý; form vẫn yêu cầu customer xác nhận/sửa.
+- `/phuong-tien/nhan-dien/{id}/anh`: trả ảnh qua route customer có ownership, không công khai đường dẫn storage.
 - `/phuong-tien/{id}/sua`: sửa xe đúng owner; GET hiển thị form, POST lưu dữ liệu.
 - `/phuong-tien/{id}/ngung-su-dung`: chỉ nhận POST, giữ record và chuyển xe sang inactive.
 - `/dich-vu`: danh mục public theo loại phương tiện; chỉ hiển thị service/cặp giá active và supported.
@@ -157,6 +164,7 @@ Integration test database cần MySQL riêng có thể reset an toàn:
 ```bash
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Database
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Vehicle
+AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Lpr
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/CatalogSlot
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Booking
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Loyalty tests/Integration/Reward
@@ -165,6 +173,17 @@ AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Tier
 
 `monthly-review.php` mặc định xét tháng lịch vừa kết thúc. Run completed bị từ chối chạy lại; run failed
 được tiếp tục bằng cách bỏ qua customer đã có history cho kỳ đó.
+
+## LPR adapter và upload ảnh
+
+Mặc định local/demo dùng `LPR_PROVIDER=mock`. Provider này chỉ kiểm tra wiring và manual confirmation,
+không phải OCR hoặc mô hình production. Có thể điều chỉnh text/confidence demo bằng `LPR_MOCK_TEXT` và
+`LPR_MOCK_CONFIDENCE`; giới hạn mặc định là 5 MB qua `LPR_MAX_UPLOAD_BYTES`. Ảnh runtime nằm trong
+`storage/uploads/lpr`, đã bị Git ignore và được Docker mount bằng volume riêng ngoài document root.
+
+Repository chưa có endpoint/model/secret cho provider thật. Khi tích hợp sau này, adapter phải implement
+`LprProviderInterface`, chuyển timeout/lỗi provider thành `LprProviderException`, và vẫn giữ toàn bộ upload
+validation, owner guard, backend plate validation cùng manual fallback hiện có.
 
 ## Cấu trúc chính
 

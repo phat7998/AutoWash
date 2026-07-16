@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Core\Request;
 use App\Core\Response;
+use App\Core\UploadedFile;
 use PHPUnit\Framework\TestCase;
 
 final class RequestResponseTest extends TestCase
@@ -39,5 +40,14 @@ final class RequestResponseTest extends TestCase
         self::assertSame('application/json; charset=UTF-8', $json->headers()['Content-Type']);
         self::assertSame(303, $redirect->statusCode());
         self::assertSame('/trang-chu', $redirect->headers()['Location']);
+    }
+
+    public function testRequestProvidesUploadedFileWithoutTrustingBodyInput(): void
+    {
+        $file = new UploadedFile('/tmp/plate.png', 'plate.png', 'image/png', 123, UPLOAD_ERR_OK, true);
+        $request = new Request('POST', '/phuong-tien/nhan-dien', [], [], [], [], ['plate_image' => $file]);
+
+        self::assertSame($file, $request->file('plate_image'));
+        self::assertNull($request->file('missing'));
     }
 }

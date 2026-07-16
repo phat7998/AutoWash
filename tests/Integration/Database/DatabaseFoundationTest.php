@@ -71,6 +71,7 @@ final class DatabaseFoundationTest extends TestCase
             'bookings',
             'loyalty_allocations',
             'loyalty_transactions',
+            'lpr_attempts',
             'migrations',
             'monthly_review_runs',
             'promotion_services',
@@ -103,7 +104,7 @@ final class DatabaseFoundationTest extends TestCase
         )->fetchAll(PDO::FETCH_COLUMN);
 
         self::assertSame($expectedTables, $actualTables);
-        self::assertSame(8, (int) self::$database->query('SELECT COUNT(*) FROM migrations')->fetchColumn());
+        self::assertSame(9, (int) self::$database->query('SELECT COUNT(*) FROM migrations')->fetchColumn());
         self::assertSame([], self::$runner->migrate());
     }
 
