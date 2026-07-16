@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Database;
 
+use App\Services\LicensePlateService;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -31,6 +32,7 @@ final readonly class DatabaseSeeder
             $this->seedTiers($data['tiers']);
             $this->seedUsers($data['users']);
             $this->seedVehicleTypes($data['vehicle_types']);
+            $this->seedVehicles($data['vehicles']);
             $this->seedServices($data['services']);
             $this->seedServicePrices($data['service_vehicle_prices']);
             $this->seedWashSlots($data['wash_slots']);
@@ -170,6 +172,47 @@ final readonly class DatabaseSeeder
                 ['code', 'display_name', 'default_duration_minutes', 'default_capacity_units'],
                 $vehicleType
             ));
+        }
+    }
+
+    /** @param list<array{string, string, string, ?string, ?string, ?string}> $vehicles */
+    private function seedVehicles(array $vehicles): void
+    {
+        $plates = new LicensePlateService();
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            INSERT INTO vehicles (
+                user_id, vehicle_type_id, normalized_plate, display_plate, brand, model, notes, is_active
+            ) VALUES (
+                :user_id, :vehicle_type_id, :normalized_plate, :display_plate, :brand, :model, :notes, TRUE
+            )
+            ON DUPLICATE KEY UPDATE
+                vehicle_type_id = IF(user_id = VALUES(user_id), VALUES(vehicle_type_id), vehicle_type_id),
+                display_plate = IF(user_id = VALUES(user_id), VALUES(display_plate), display_plate),
+                brand = IF(user_id = VALUES(user_id), VALUES(brand), brand),
+                model = IF(user_id = VALUES(user_id), VALUES(model), model),
+                notes = IF(user_id = VALUES(user_id), VALUES(notes), notes),
+                is_active = IF(user_id = VALUES(user_id), TRUE, is_active),
+                updated_at = IF(user_id = VALUES(user_id), CURRENT_TIMESTAMP, updated_at)
+            SQL
+        );
+
+        foreach ($vehicles as [$phone, $typeCode, $plate, $brand, $model, $notes]) {
+            $normalizedPlate = $plates->normalize($plate);
+
+            if (!$plates->isCommonCivilianPlate($normalizedPlate)) {
+                throw new RuntimeException('Biển số seed không thuộc phạm vi dân sự thông dụng.');
+            }
+
+            $statement->execute([
+                'user_id' => $this->idByPhone($phone),
+                'vehicle_type_id' => $this->idByCode('vehicle_types', $typeCode),
+                'normalized_plate' => $normalizedPlate,
+                'display_plate' => $plates->display($plate),
+                'brand' => $brand,
+                'model' => $model,
+                'notes' => $notes,
+            ]);
         }
     }
 
@@ -315,6 +358,22 @@ final readonly class DatabaseSeeder
 
         if ($id === false) {
             throw new RuntimeException(sprintf('Không tìm thấy mã seed %s trong bảng %s.', $code, $table));
+        }
+
+        return (int) $id;
+    }
+
+    private function idByPhone(string $phone): int
+    {
+        $statement = $this->database->prepare('SELECT id FROM users WHERE phone = :phone');
+        $statement->execute(['phone' => $phone]);
+        $id = $statement->fetchColumn();
+
+        if ($id === false) {
+            throw new RuntimeException(sprintf(
+                'Không tìm thấy tài khoản seed có số điện thoại %s.',
+                $phone
+            ));
         }
 
         return (int) $id;

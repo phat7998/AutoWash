@@ -1,9 +1,9 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
 > Cập nhật: 2026-07-16  
-> Slice hiện tại: Slice 04 — Complete
+> Slice hiện tại: Slice 05 — Complete
 >
-> Product code: đã có nền repository/database, HTTP/security và authentication/RBAC; module nghiệp vụ bắt đầu từ Slice 05.
+> Product code: đã có nền repository/database, HTTP/security, authentication/RBAC và quản lý phương tiện.
 
 ## Tổng quan
 
@@ -15,7 +15,36 @@
 | 02 | Complete | PDO native prepares, 6 migration/26 bảng nghiệp vụ, seed idempotent, reset an toàn và MySQL 8 integration test |
 | 03 | Complete | Front Controller, router, Request/Response, session/CSRF, escaped View, PRG, request ID/error log và HTTP/security regression |
 | 04 | Complete | Register/login/logout, BCRYPT, session lifecycle, guest/auth/role middleware, demo account và Auth/RBAC regression |
-| 05–15 | Not started | Xem `ROADMAP.md` |
+| 05 | Complete | Vehicle CRUD/deactivate, shared plate validation, active type, duplicate/ownership/IDOR và manual input UI |
+| 06–15 | Not started | Xem `ROADMAP.md` |
+
+## Slice 05 — Vehicle Management and Plate Validation
+
+- Requirements: VEH-01, VEH-02, VEH-03 phần view/edit ownership, VEH-04, LPR-01; tiếp tục NFR-03, NFR-05, NFR-11, NFR-12, NFR-13, NFR-15 và NFR-19.
+- Hoàn thành:
+  - Tạo `VehicleRepository`, `VehicleService`, `VehicleController` và `VehicleValidator` đúng phân tầng; mọi query có input dùng prepared statement.
+  - Tạo `LicensePlateService` dùng chung cho ứng dụng và seeder: uppercase, bỏ khoảng trắng/`-`/`.` và kiểm tra pattern dân sự thông dụng; loại trừ series đặc biệt `NG`/`NN`/`QT` nằm ngoài baseline.
+  - Lưu `display_plate`, so trùng bằng `normalized_plate`; chuyển unique violation thành `DuplicateLicensePlateException` với thông báo nghiệp vụ.
+  - Kiểm tra `vehicle_type_id` tồn tại/active từ DB; seed bốn customer/tier và bốn xe motorbike/car/truck/bus theo DEC-015/031.
+  - Customer list, thêm, sửa và ngừng sử dụng xe qua UI tiếng Việt responsive; deactivate giữ record, không hard-delete.
+  - Route vehicle yêu cầu authenticated customer; mutation qua POST + CSRF; mọi read/update/deactivate query đều ràng buộc owner, IDOR trả 404 an toàn và không lộ xe khác.
+  - Có empty, validation, success và inactive state; output động được escape, form giữ input khi lỗi và có validation frontend hỗ trợ UX.
+- Chưa hoàn thành: ownership khi chọn xe để booking thuộc Slice 07 nên VEH-03 tổng thể giữ `In Progress`; upload ảnh/provider/`lpr_attempts` thuộc Slice 13; không có admin CRUD vehicle type hoặc reactivation vì ngoài Slice 05.
+- File thay đổi: vehicle Controller/Service/Repository/Validator/exceptions, bootstrap/routes, vehicle views/layout/dashboard/CSS, seeder/base seed, test unit/integration/database, README, RTM và file status này.
+- Migration: không có; dùng nguyên schema `vehicle_types`/`vehicles` và unique/FK của Slice 02, không đổi ERD hoặc decision.
+- Test đã chạy:
+  - `composer dump-autoload --strict-psr --no-interaction` — pass.
+  - `composer lint` — pass, PHPCS 63/63 file.
+  - `vendor/bin/phpunit tests/Unit/LicensePlateServiceTest.php tests/Feature tests/Security` — pass, 19 tests/63 assertions ở lần chạy đầu sau sửa pattern.
+  - `AUTOWASH_DB_TESTS=1 ... vendor/bin/phpunit tests/Integration/Vehicle` trên MySQL 8.4 host port 3307 — pass, 6 tests/21 assertions trước self-review; bộ Slice 05 sau self-review pass 17 tests/46 assertions.
+  - `AUTOWASH_DB_TESTS=1 ... composer check` trên host PHP 8.5/MySQL 8.4 — pass, 57 tests/207 assertions, không skip.
+  - `composer check` trong container PHP 8.2.32/MySQL 8.4 — pass, 57 tests/207 assertions, không skip.
+  - HTTP smoke Apache port 8081 — login 303, danh sách owner 200, create hợp lệ 303 PRG và xe mới xuất hiện; request thiếu loại xe trả 422 đúng backend validation.
+- Kết quả: đạt toàn bộ acceptance Slice 05; full regression MySQL pass trên host và container PHP 8.2.
+- Quyết định: giữ nguyên DEC-001..033; không phát sinh ADR, migration, schema hoặc business rule mới.
+- Rủi ro còn lại: baseline biển số cố ý chỉ dùng pattern đơn giản theo DEC-031, không bao phủ mọi series/quy tắc biển số Việt Nam; bốn tài khoản/xe seed chỉ dùng cho demo/local.
+- Lệnh chạy tiếp: sau khi accept Slice 05, thực hiện duy nhất Slice 06.
+- Commit đề xuất: `feat(VEH): hoàn tất quản lý phương tiện và biển số [Slice 05]`.
 
 ## Slice 04 — Authentication and Role Authorization
 

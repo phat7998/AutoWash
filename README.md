@@ -2,7 +2,9 @@
 
 AutoWash Pro là hệ thống quản lý dịch vụ chăm sóc phương tiện, đặt lịch trước và khách hàng thân thiết được xây dựng bằng Modern PHP thuần. Phiên bản đồ án cũ được lưu tại nhánh `legacy-main`.
 
-Repository hiện hoàn thành Slice 04: Composer/PSR-4, database foundation, hạ tầng HTTP/security và authentication/RBAC. Ứng dụng hỗ trợ đăng ký customer, đăng nhập, đăng xuất an toàn, session lifecycle và khu vực customer/admin được bảo vệ ở backend; các module nghiệp vụ bắt đầu từ quản lý phương tiện ở Slice 05.
+Repository hiện hoàn thành Slice 05: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
+authentication/RBAC và quản lý phương tiện. Customer có thể nhập biển số thủ công, thêm, sửa, xem và
+ngừng sử dụng xe của mình; backend chuẩn hóa biển số, kiểm tra loại xe active, chống trùng và IDOR.
 
 ## Yêu cầu hệ thống
 
@@ -59,7 +61,8 @@ php database/migrate.php
 php database/seed.php --demo
 ```
 
-Migration runner lưu lịch sử và có advisory lock chống hai tiến trình chạy đồng thời. Seed có thể chạy lại mà không tạo thêm tier, loại xe, dịch vụ, slot hoặc reward trùng.
+Migration runner lưu lịch sử và có advisory lock chống hai tiến trình chạy đồng thời. Seed có thể chạy lại
+mà không tạo thêm tier, loại xe, phương tiện, dịch vụ, slot hoặc reward trùng.
 
 Reset chỉ dành cho `APP_ENV=local|testing`, xóa toàn bộ dữ liệu trong database đang cấu hình và bắt buộc xác nhận rõ:
 
@@ -67,18 +70,25 @@ Reset chỉ dành cho `APP_ENV=local|testing`, xóa toàn bộ dữ liệu trong
 php database/reset.php --force --seed
 ```
 
-Không chạy lệnh reset trên database có dữ liệu cần giữ. Seed có hai tài khoản demo cố định:
+Không chạy lệnh reset trên database có dữ liệu cần giữ. Seed có năm tài khoản demo cố định:
 
 | Vai trò | Số điện thoại | Mật khẩu |
 |---|---|---|
 | Admin | `0900000001` | `AutoWash@123` |
-| Customer | `0900000002` | `AutoWash@123` |
+| Customer Member · xe máy | `0900000002` | `AutoWash@123` |
+| Customer Silver · ô tô con | `0900000003` | `AutoWash@123` |
+| Customer Gold · xe tải | `0900000004` | `AutoWash@123` |
+| Customer Platinum · xe khách | `0900000005` | `AutoWash@123` |
 
-Đây là thông tin chỉ dành cho môi trường demo/local, không dùng làm secret production. Các route chính của Slice 04:
+Đây là thông tin chỉ dành cho môi trường demo/local, không dùng làm secret production. Các route chính:
 
 - `/dang-ky`: đăng ký customer; dữ liệu role từ request luôn bị bỏ qua.
 - `/dang-nhap`: đăng nhập bằng số điện thoại và mật khẩu.
 - `/tai-khoan`: vùng customer đã xác thực.
+- `/phuong-tien`: danh sách xe của customer đang đăng nhập.
+- `/phuong-tien/them`: nhập biển số thủ công và thêm xe; GET hiển thị form, POST lưu dữ liệu.
+- `/phuong-tien/{id}/sua`: sửa xe đúng owner; GET hiển thị form, POST lưu dữ liệu.
+- `/phuong-tien/{id}/ngung-su-dung`: chỉ nhận POST, giữ record và chuyển xe sang inactive.
 - `/admin`: vùng admin đã xác thực và kiểm tra role.
 - `/dang-xuat`: chỉ nhận POST có CSRF hợp lệ.
 
@@ -94,12 +104,14 @@ composer check
 - `composer lint`: kiểm tra PSR-12 bằng PHP_CodeSniffer.
 - `composer test`: chạy PHPUnit.
 - `composer check`: chạy lint rồi toàn bộ test hiện có.
-- HTTP/security test kiểm tra router, 404/405, CSRF, session flash/cookie, escaping, PRG, production error response và Auth/RBAC.
+- HTTP/security test kiểm tra router, 404/405, CSRF, session flash/cookie, escaping, PRG, production error
+  response, Auth/RBAC và ownership phương tiện.
 
 Integration test database cần MySQL riêng có thể reset an toàn:
 
 ```bash
 AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Database
+AUTOWASH_DB_TESTS=1 vendor/bin/phpunit tests/Integration/Vehicle
 ```
 
 ## Cấu trúc chính

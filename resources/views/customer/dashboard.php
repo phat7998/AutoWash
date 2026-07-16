@@ -18,9 +18,7 @@ declare(strict_types=1);
     </div>
 <?php endif; ?>
 <section class="empty-state" aria-labelledby="customer-next-title">
-    <h2 id="customer-next-title">Chưa có phương tiện trong tài khoản</h2>
-    <p>
-        Tài khoản mới chưa có dữ liệu phương tiện. Bạn vẫn có thể kiểm tra thông tin phiên và đăng xuất an toàn
-        từ thanh điều hướng.
-    </p>
+    <h2 id="customer-next-title">Quản lý phương tiện đã sẵn sàng</h2>
+    <p>Thêm, chỉnh sửa hoặc ngừng sử dụng phương tiện thuộc tài khoản của bạn.</p>
+    <a class="button button-primary" href="/phuong-tien">Xem phương tiện</a>
 </section>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Core\CsrfTokenManager;
 use App\Controllers\AuthController;
+use App\Controllers\VehicleController;
 use App\Core\Response;
 use App\Core\Request;
 use App\Core\Router;
@@ -18,7 +19,8 @@ return static function (
     View $view,
     Session $session,
     CsrfTokenManager $tokens,
-    callable $authControllerFactory
+    callable $authControllerFactory,
+    ?callable $vehicleControllerFactory = null
 ): void {
     $router->get('/', static function () use ($view, $session, $tokens): Response {
         return Response::html($view->render('home', [
@@ -72,4 +74,23 @@ return static function (
             'flashSuccess' => $session->get('success'),
         ]));
     }, $authenticated, $admin);
+
+    if ($vehicleControllerFactory === null) {
+        return;
+    }
+
+    $customer = new RoleMiddleware($session, 'customer');
+    $vehicleController = static fn (): VehicleController => $vehicleControllerFactory();
+    $router->get('/phuong-tien', static fn (Request $request): Response =>
+        $vehicleController()->index($request), $authenticated, $customer);
+    $router->get('/phuong-tien/them', static fn (Request $request): Response =>
+        $vehicleController()->create($request), $authenticated, $customer);
+    $router->post('/phuong-tien/them', static fn (Request $request): Response =>
+        $vehicleController()->store($request), $authenticated, $customer);
+    $router->get('/phuong-tien/{id}/sua', static fn (Request $request): Response =>
+        $vehicleController()->edit($request), $authenticated, $customer);
+    $router->post('/phuong-tien/{id}/sua', static fn (Request $request): Response =>
+        $vehicleController()->update($request), $authenticated, $customer);
+    $router->post('/phuong-tien/{id}/ngung-su-dung', static fn (Request $request): Response =>
+        $vehicleController()->deactivate($request), $authenticated, $customer);
 };

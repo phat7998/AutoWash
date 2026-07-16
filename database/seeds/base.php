@@ -16,12 +16,21 @@ return [
     'users' => [
         ['0900000001', 'Quản trị viên AutoWash', 'AutoWash@123', 'admin', 'MEMBER'],
         ['0900000002', 'Khách hàng Demo', 'AutoWash@123', 'customer', 'MEMBER'],
+        ['0900000003', 'Khách hàng Bạc', 'AutoWash@123', 'customer', 'SILVER'],
+        ['0900000004', 'Khách hàng Vàng', 'AutoWash@123', 'customer', 'GOLD'],
+        ['0900000005', 'Khách hàng Bạch kim', 'AutoWash@123', 'customer', 'PLATINUM'],
     ],
     'vehicle_types' => [
         ['motorbike', 'Xe máy', 20, 1],
         ['car', 'Ô tô con', 40, 2],
         ['truck', 'Xe tải', 90, 4],
         ['bus', 'Xe khách', 120, 5],
+    ],
+    'vehicles' => [
+        ['0900000002', 'motorbike', '59A-123.45', 'Honda', 'Wave Alpha', 'Xe máy demo hạng Member'],
+        ['0900000003', 'car', '51AB-12345', 'Toyota', 'Vios', 'Ô tô demo hạng Silver'],
+        ['0900000004', 'truck', '50C-1234', 'Isuzu', 'N-Series', 'Xe tải demo hạng Gold'],
+        ['0900000005', 'bus', '29D-56789', 'Thaco', 'Mobihome', 'Xe khách demo hạng Platinum'],
     ],
     'services' => [
         ['STANDARD_WASH', 'Rửa tiêu chuẩn', 'Làm sạch ngoại thất cơ bản.'],

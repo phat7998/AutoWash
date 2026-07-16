@@ -31,6 +31,9 @@ declare(strict_types=1);
                     <a class="nav-link" href="<?= ($authUser['role'] ?? null) === 'admin' ? '/admin' : '/tai-khoan' ?>">
                         Tổng quan
                     </a>
+                    <?php if (($authUser['role'] ?? null) === 'customer'): ?>
+                        <a class="nav-link" href="/phuong-tien">Phương tiện</a>
+                    <?php endif; ?>
                     <form class="nav-form" method="post" action="/dang-xuat">
                         <input type="hidden" name="_csrf_token" value="<?= $e($csrfToken ?? '') ?>">
                         <button class="nav-link nav-button" type="submit">Đăng xuất</button>

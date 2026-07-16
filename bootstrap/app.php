@@ -13,9 +13,14 @@ use App\Core\Session;
 use App\Core\View;
 use App\Middleware\CsrfMiddleware;
 use App\Controllers\AuthController;
+use App\Controllers\VehicleController;
 use App\Repositories\UserRepository;
+use App\Repositories\VehicleRepository;
 use App\Services\AuthService;
+use App\Services\LicensePlateService;
+use App\Services\VehicleService;
 use App\Validation\AuthValidator;
+use App\Validation\VehicleValidator;
 
 $projectRoot = require __DIR__ . '/environment.php';
 $config = require $projectRoot . '/config/app.php';
@@ -47,8 +52,22 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $session,
         $tokens
     );
+    $vehicleControllerFactory = static function () use ($view, $session, $tokens): VehicleController {
+        $plates = new LicensePlateService();
+
+        return new VehicleController(
+            new VehicleService(
+                new VehicleRepository(Database::connection()),
+                new VehicleValidator($plates),
+                $plates
+            ),
+            $view,
+            $session,
+            $tokens
+        );
+    };
     $registerRoutes = require $projectRoot . '/routes/web.php';
-    $registerRoutes($router, $view, $session, $tokens, $authControllerFactory);
+    $registerRoutes($router, $view, $session, $tokens, $authControllerFactory, $vehicleControllerFactory);
 
     $errorHandler = new ErrorHandler(
         $view,

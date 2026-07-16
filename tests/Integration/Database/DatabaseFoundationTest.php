@@ -138,10 +138,28 @@ final class DatabaseFoundationTest extends TestCase
         $demoUsers = self::$database->query(
             'SELECT phone, password_hash, role FROM users ORDER BY phone'
         )->fetchAll();
-        self::assertCount(2, $demoUsers);
-        self::assertSame(['admin', 'customer'], array_column($demoUsers, 'role'));
+        self::assertCount(5, $demoUsers);
+        self::assertSame(1, count(array_filter(
+            $demoUsers,
+            static fn (array $user): bool => $user['role'] === 'admin'
+        )));
+        self::assertSame(4, count(array_filter(
+            $demoUsers,
+            static fn (array $user): bool => $user['role'] === 'customer'
+        )));
         self::assertTrue(password_verify('AutoWash@123', $demoUsers[0]['password_hash']));
         self::assertNotSame('AutoWash@123', $demoUsers[0]['password_hash']);
+        self::assertSame(
+            ['motorbike', 'car', 'truck', 'bus'],
+            self::$database->query(
+                <<<'SQL'
+                SELECT vehicle_types.code
+                FROM vehicles
+                INNER JOIN vehicle_types ON vehicle_types.id = vehicles.vehicle_type_id
+                ORDER BY vehicles.id
+                SQL
+            )->fetchAll(PDO::FETCH_COLUMN)
+        );
     }
 
     public function testImportantUniqueAndCheckConstraintsAreEnforced(): void
@@ -231,6 +249,7 @@ final class DatabaseFoundationTest extends TestCase
             'tiers',
             'users',
             'vehicle_types',
+            'vehicles',
             'services',
             'service_vehicle_prices',
             'wash_slots',
