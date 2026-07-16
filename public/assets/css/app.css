@@ -28,6 +28,8 @@
     --color-danger-700: #912018;
     --color-danger-100: #fee4e2;
     --color-focus-ring: #2563eb;
+    --color-disabled-bg: #e5e7eb;
+    --color-disabled-text: #697586;
     --space-1: 4px;
     --space-2: 8px;
     --space-3: 12px;
@@ -581,6 +583,31 @@ p {
     background: var(--color-neutral-200);
 }
 
+.status-pending {
+    color: var(--color-warning-700);
+    background: var(--color-warning-100);
+}
+
+.status-confirmed {
+    color: var(--color-info-700);
+    background: var(--color-info-100);
+}
+
+.status-completed {
+    color: var(--color-success-700);
+    background: var(--color-success-100);
+}
+
+.status-cancelled {
+    color: var(--color-neutral-700);
+    background: var(--color-neutral-200);
+}
+
+.status-no-show {
+    color: var(--color-danger-700);
+    background: var(--color-danger-100);
+}
+
 .slot-full {
     background: var(--color-neutral-50);
 }
@@ -692,6 +719,121 @@ p {
 .booking-option.is-disabled {
     cursor: not-allowed;
     background: var(--color-disabled-bg);
+}
+
+.booking-section {
+    margin-top: var(--space-8);
+}
+
+.section-heading {
+    max-width: 760px;
+    margin-bottom: var(--space-4);
+}
+
+.section-heading p {
+    margin-bottom: 0;
+    color: var(--color-text-secondary);
+}
+
+.booking-card-grid,
+.booking-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+}
+
+.booking-card,
+.admin-booking-card {
+    padding: var(--space-6);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.booking-card h2,
+.admin-booking-card h2 {
+    margin-bottom: var(--space-1);
+}
+
+.booking-services {
+    color: var(--color-text-secondary);
+}
+
+.booking-card-actions,
+.booking-back-actions {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-neutral-200);
+}
+
+.booking-cancel-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6);
+    margin-top: var(--space-6);
+    padding: var(--space-6);
+    background: var(--color-warning-100);
+    border: 1px solid var(--color-warning-700);
+    border-radius: var(--radius-md);
+}
+
+.booking-cancel-panel h2,
+.booking-cancel-panel p {
+    margin-bottom: var(--space-1);
+}
+
+.admin-booking-list {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.admin-booking-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-4);
+    margin-block: var(--space-4);
+}
+
+.admin-booking-summary div {
+    display: grid;
+    gap: var(--space-1);
+}
+
+.admin-booking-summary dt {
+    color: var(--color-text-secondary);
+}
+
+.admin-booking-summary dd {
+    margin: 0;
+    font-weight: 600;
+}
+
+.admin-booking-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.admin-booking-actions form {
+    margin: 0;
+}
+
+.admin-cancel-form {
+    display: flex;
+    align-items: end;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-neutral-200);
+}
+
+.admin-cancel-form .form-field {
+    flex: 1 1 360px;
+}
+
+.terminal-state-text {
+    margin: var(--space-4) 0 0;
 }
 
 .compact-empty {
@@ -896,8 +1038,17 @@ th {
     .catalog-grid,
     .slot-grid,
     .booking-option-grid,
-    .booking-context {
+    .booking-context,
+    .booking-card-grid,
+    .booking-detail-grid,
+    .admin-booking-summary {
         grid-template-columns: 1fr;
+    }
+
+    .booking-cancel-panel,
+    .admin-cancel-form {
+        align-items: stretch;
+        flex-direction: column;
     }
 
     .booking-steps {

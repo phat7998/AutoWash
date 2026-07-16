@@ -4,16 +4,21 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Contracts\BookingCompletionProcessorInterface;
+use App\Core\Logger;
 use App\DTO\BookingSelection;
 use App\Exceptions\BookingConflictException;
+use App\Exceptions\BookingNotFoundException;
 use App\Exceptions\BookingWindowExceededException;
 use App\Exceptions\SlotFullException;
 use App\Exceptions\ValidationException;
 use App\Exceptions\VehicleOwnershipException;
 use App\Repositories\BookingRepository;
+use App\Validation\BookingLifecycleValidator;
 use App\Validation\BookingValidator;
 use DateTimeImmutable;
 use DateTimeZone;
+use Throwable;
 
 final readonly class BookingService
 {
@@ -23,7 +28,11 @@ final readonly class BookingService
         private BookingWindowPolicy $windowPolicy,
         private PriceCalculator $priceCalculator,
         private BookingResourceCalculator $resourceCalculator,
-        private DateTimeZone $timezone
+        private DateTimeZone $timezone,
+        private BookingLifecyclePolicy $lifecyclePolicy = new BookingLifecyclePolicy(),
+        private BookingLifecycleValidator $lifecycleValidator = new BookingLifecycleValidator(),
+        private ?BookingCompletionProcessorInterface $completionProcessor = null,
+        private ?Logger $logger = null
     ) {
     }
 
@@ -185,6 +194,101 @@ final readonly class BookingService
         });
     }
 
+    /** @return array{bookings: list<array<string, mixed>>, history: list<array<string, mixed>>} */
+    public function customerOverview(int $ownerId): array
+    {
+        return [
+            'bookings' => array_map(
+                fn (array $booking): array => $this->decorateBooking($booking),
+                $this->bookings->findCustomerBookings($ownerId, false)
+            ),
+            'history' => array_map(
+                fn (array $booking): array => $this->decorateBooking($booking),
+                $this->bookings->findCustomerBookings($ownerId, true)
+            ),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public function customerDetail(int $ownerId, int $bookingId): array
+    {
+        $booking = $this->bookings->findBookingForOwner($bookingId, $ownerId);
+
+        if ($booking === null) {
+            throw new BookingNotFoundException();
+        }
+
+        return $this->decorateBooking($booking) + [
+            'items' => $this->bookings->findBookingItems($bookingId),
+        ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function adminBookings(): array
+    {
+        return array_map(function (array $booking): array {
+            $booking = $this->decorateBooking($booking);
+            $allowed = $this->lifecyclePolicy->allowedTargets((string) $booking['status']);
+            $booking['can_confirm'] = in_array('confirmed', $allowed, true);
+            $booking['can_complete'] = in_array('completed', $allowed, true);
+            $booking['can_cancel'] = in_array('cancelled', $allowed, true);
+            $booking['can_no_show'] = in_array('no_show', $allowed, true);
+
+            return $booking;
+        }, $this->bookings->findAdminBookings());
+    }
+
+    public function cancelByCustomer(
+        int $ownerId,
+        int $bookingId,
+        ?DateTimeImmutable $now = null
+    ): void {
+        $now ??= new DateTimeImmutable('now', $this->timezone);
+        $fromStatus = $this->bookings->transactional(function () use (
+            $ownerId,
+            $bookingId,
+            $now
+        ): string {
+            $booking = $this->bookings->lockBooking($bookingId, $ownerId);
+
+            if ($booking === null) {
+                throw new BookingNotFoundException();
+            }
+
+            $currentStatus = (string) $booking['status'];
+            $this->lifecyclePolicy->assertTransition($currentStatus, 'cancelled');
+            $this->lifecyclePolicy->assertCustomerCancellation(
+                new DateTimeImmutable((string) $booking['starts_at'], $this->timezone),
+                $now
+            );
+            $this->bookings->markCancelled($bookingId, 'Khách hàng tự hủy lịch đặt.');
+
+            return $currentStatus;
+        });
+        $this->logTransition($bookingId, $ownerId, $fromStatus, 'cancelled');
+    }
+
+    public function confirmByAdmin(int $adminId, int $bookingId): void
+    {
+        $this->transitionByAdmin($adminId, $bookingId, 'confirmed');
+    }
+
+    public function completeByAdmin(int $adminId, int $bookingId): void
+    {
+        $this->transitionByAdmin($adminId, $bookingId, 'completed');
+    }
+
+    public function markNoShowByAdmin(int $adminId, int $bookingId): void
+    {
+        $this->transitionByAdmin($adminId, $bookingId, 'no_show');
+    }
+
+    public function cancelByAdmin(int $adminId, int $bookingId, string $reason): void
+    {
+        $reason = $this->lifecycleValidator->cancellationReason($reason);
+        $this->transitionByAdmin($adminId, $bookingId, 'cancelled', $reason);
+    }
+
     /** @param list<array<string, mixed>> $items */
     private function assertAllServicesAvailable(BookingSelection $selection, array $items): void
     {
@@ -270,5 +374,105 @@ final readonly class BookingService
     private function bookingCode(): string
     {
         return 'AW' . date('ymd') . strtoupper(bin2hex(random_bytes(8)));
+    }
+
+    private function transitionByAdmin(
+        int $adminId,
+        int $bookingId,
+        string $targetStatus,
+        ?string $reason = null
+    ): void {
+        $fromStatus = $this->bookings->transactional(function () use (
+            $adminId,
+            $bookingId,
+            $targetStatus,
+            $reason
+        ): string {
+            $booking = $this->bookings->lockBooking($bookingId);
+
+            if ($booking === null) {
+                throw new BookingNotFoundException();
+            }
+
+            $currentStatus = (string) $booking['status'];
+            $this->lifecyclePolicy->assertTransition($currentStatus, $targetStatus);
+
+            if ($targetStatus === 'completed') {
+                $this->bookings->markCompleted($bookingId);
+
+                if ($this->completionProcessor !== null) {
+                    $this->completionProcessor->process($booking);
+                }
+            } elseif ($targetStatus === 'cancelled' && $reason !== null) {
+                $this->bookings->markCancelled($bookingId, $reason);
+                $this->bookings->insertTransitionAudit(
+                    $adminId,
+                    $bookingId,
+                    $currentStatus,
+                    $targetStatus,
+                    $reason
+                );
+            } else {
+                $this->bookings->markStatus($bookingId, $targetStatus);
+            }
+
+            return $currentStatus;
+        });
+        $this->logTransition($bookingId, $adminId, $fromStatus, $targetStatus);
+    }
+
+    /** @param array<string, mixed> $booking @return array<string, mixed> */
+    private function decorateBooking(array $booking): array
+    {
+        $status = (string) $booking['status'];
+        $start = new DateTimeImmutable((string) $booking['starts_at'], $this->timezone);
+        $now = new DateTimeImmutable('now', $this->timezone);
+        $canTransitionToCancelled = in_array(
+            'cancelled',
+            $this->lifecyclePolicy->allowedTargets($status),
+            true
+        );
+        $booking['status_label'] = match ($status) {
+            'pending' => 'Chờ xác nhận',
+            'confirmed' => 'Đã xác nhận',
+            'completed' => 'Đã hoàn thành',
+            'cancelled' => 'Đã hủy',
+            'no_show' => 'Không đến',
+            default => 'Không xác định',
+        };
+        $booking['status_class'] = match ($status) {
+            'pending' => 'status-pending',
+            'confirmed' => 'status-confirmed',
+            'completed' => 'status-completed',
+            'cancelled' => 'status-cancelled',
+            'no_show' => 'status-no-show',
+            default => 'status-neutral',
+        };
+        $booking['can_cancel_customer'] = $canTransitionToCancelled
+            && $this->lifecyclePolicy->customerCanCancel($start, $now);
+
+        return $booking;
+    }
+
+    private function logTransition(
+        int $bookingId,
+        int $actorId,
+        string $fromStatus,
+        string $toStatus
+    ): void {
+        if ($this->logger === null) {
+            return;
+        }
+
+        try {
+            $this->logger->info('Trạng thái lịch đặt đã thay đổi.', [
+                'booking_id' => $bookingId,
+                'actor_id' => $actorId,
+                'from_status' => $fromStatus,
+                'to_status' => $toStatus,
+            ]);
+        } catch (Throwable) {
+            // Lỗi ghi log sau commit không được làm sai kết quả chuyển trạng thái đã hoàn tất.
+        }
     }
 }

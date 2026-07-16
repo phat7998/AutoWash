@@ -1,10 +1,10 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
 > Cập nhật: 2026-07-16  
-> Slice hiện tại: Slice 07 — Complete
+> Slice hiện tại: Slice 08 — Complete
 >
 > Product code: đã có nền repository/database, HTTP/security, authentication/RBAC, quản lý phương tiện,
-> danh mục dịch vụ, quản lý khung giờ/capacity và tạo booking nhiều dịch vụ chống tranh chấp slot.
+> danh mục dịch vụ, quản lý khung giờ/capacity, tạo booking chống tranh chấp slot và vòng đời booking.
 
 ## Tổng quan
 
@@ -19,7 +19,35 @@
 | 05 | Complete | Vehicle CRUD/deactivate, shared plate validation, active type, duplicate/ownership/IDOR và manual input UI |
 | 06 | Complete | Catalog theo loại xe, admin service-price, slot validation, capacity từ active reservations và UI/RBAC/CSRF |
 | 07 | Complete | Booking window theo tier, server pricing, multi-service/multi-slot snapshot, transaction/locking và concurrency test hai tiến trình |
-| 08–15 | Not started | Xem `ROADMAP.md` |
+| 08 | Complete | State matrix, customer cutoff 2 giờ/ownership, admin lifecycle/audit, capacity release, wash history và completion hook |
+| 09–15 | Not started | Xem `ROADMAP.md` |
+
+## Slice 08 — Booking Lifecycle, Completion and Wash History
+
+- Requirements: hoàn tất BKG-04; phần Slice 08 của BKG-05, BKG-06 và REP-01; tiếp tục NFR-03, NFR-05, NFR-09, NFR-11, NFR-12, NFR-13, NFR-15, NFR-17, NFR-19, NFR-21 và NFR-22.
+- Hoàn thành:
+  - Tạo `BookingLifecyclePolicy` làm nguồn duy nhất cho matrix `pending -> confirmed|cancelled`, `confirmed -> completed|cancelled|no_show`; trạng thái kết thúc không chuyển tiếp và trả domain error.
+  - Customer xem danh sách, chi tiết đúng owner và wash history chỉ gồm booking `completed`; item name/price/duration/capacity lấy từ snapshot, không bị thay đổi theo cấu hình catalog mới.
+  - Customer chỉ hủy booking pending/confirmed của mình khi còn ít nhất 2 giờ theo `Asia/Ho_Chi_Minh`; đúng boundary 2 giờ được phép, dưới 2 giờ bị từ chối và IDOR trả 404 an toàn.
+  - Admin xem danh sách và thực hiện confirm, complete, cancel, no-show qua route role-guard + CSRF; admin cancel bắt buộc lý do và ghi `audit_logs` trong cùng transaction.
+  - Mọi mutation lock booking bằng `FOR UPDATE`; cancelled/no-show giữ reservation để audit nhưng tự nhiên không còn được tính vào capacity active.
+  - Complete chỉ từ confirmed, ghi `completed_at`; request complete lặp bị từ chối. `BookingCompletionProcessorInterface` chạy trong cùng transaction khi được inject và failure rollback trạng thái, sẵn sàng cho LoyaltyService Slice 09.
+  - Slice 08 không inject completion processor nên `loyalty_processed_at` vẫn `NULL` làm marker chưa xử lý; không cập nhật point balance, monthly spend/visits, promotion/reward usage hoặc research completion event giả.
+  - UI `/lich-dat`, `/lich-dat/{id}` và `/admin/lich-dat` bằng tiếng Việt, responsive, có status badge, empty/error/success state, form hủy có lý do và output escaping.
+- Chưa hoàn thành: completion + loyalty/metrics/research event thuộc Slice 09/14; reward restore và promotion/reward usage khi cancel/complete thuộc Slice 12. Do đó BKG-05, BKG-06 và REP-01 tổng thể vẫn `In Progress` trong RTM.
+- File thay đổi: lifecycle contract/policy/validator/exceptions; booking customer/admin Controller, Service, Repository; bootstrap/routes/logger; customer/admin booking views, layout/CSS; unit/integration test; README, RTM và file status này.
+- Migration: không có; dùng nguyên `bookings`, `booking_items`, `booking_slot_reservations` và `audit_logs` từ Slice 02, không đổi schema/ERD.
+- Test đã chạy:
+  - `vendor/bin/phpunit tests/Unit/BookingLifecyclePolicyTest.php` — pass, 13 tests/13 assertions.
+  - Bộ booking unit + MySQL integration Slice 07–08 — pass, 38 tests/139 assertions.
+  - `AUTOWASH_DB_TESTS=1 ... composer check` trên host PHP 8.5/MySQL 8.4 — pass, PHPCS 104/104 file; PHPUnit 106 tests/403 assertions, không skip.
+  - `docker compose exec ... composer check` trên PHP 8.2.32/MySQL 8.4 — pass, PHPCS 104/104 file; PHPUnit 106 tests/403 assertions, không skip.
+  - HTTP smoke Apache port 8081 — customer login/list/detail/cancel lần lượt 303/200/200/303; admin login/list/confirm/complete 303/200/303/303; customer owner mở history 200 và thấy booking snapshot completed.
+- Kết quả: đạt acceptance riêng của Slice 08; lifecycle transaction, boundary, ownership, capacity, audit, wash history và completion extension point có evidence thật.
+- Quyết định: giữ nguyên DEC-001..033; không phát sinh ADR, migration, schema hoặc business rule mới.
+- Rủi ro còn lại: completion hiện cố ý chưa atomic với loyalty cho đến Slice 09; booking đã completed ở Slice 08 mang marker `loyalty_processed_at = NULL` và không được diễn giải là đã cộng điểm. Reward chưa được gắn vào booking trước Slice 12 nên nhánh restore khi cancel chưa thể hoàn tất.
+- Lệnh chạy tiếp: sau khi accept Slice 08, thực hiện duy nhất Slice 09.
+- Commit đề xuất: `feat(BKG): hoàn tất vòng đời booking và lịch sử rửa xe [Slice 08]`.
 
 ## Slice 07 — Booking Creation, Tier Window, Pricing and Capacity Concurrency
 

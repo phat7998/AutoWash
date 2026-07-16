@@ -34,9 +34,11 @@ declare(strict_types=1);
                     </a>
                     <?php if (($authUser['role'] ?? null) === 'customer'): ?>
                         <a class="nav-link" href="/dat-lich">Đặt lịch</a>
+                        <a class="nav-link" href="/lich-dat">Lịch sử</a>
                         <a class="nav-link" href="/phuong-tien">Phương tiện</a>
                         <a class="nav-link" href="/khung-gio">Khung giờ</a>
                     <?php else: ?>
+                        <a class="nav-link" href="/admin/lich-dat">Lịch đặt</a>
                         <a class="nav-link" href="/admin/dich-vu">Dịch vụ</a>
                         <a class="nav-link" href="/admin/khung-gio">Khung giờ</a>
                     <?php endif; ?>

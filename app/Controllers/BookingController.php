@@ -10,7 +10,10 @@ use App\Core\Response;
 use App\Core\Session;
 use App\Core\View;
 use App\Exceptions\BookingConflictException;
+use App\Exceptions\BookingNotFoundException;
 use App\Exceptions\BookingWindowExceededException;
+use App\Exceptions\CancellationCutoffException;
+use App\Exceptions\InvalidBookingTransitionException;
 use App\Exceptions\SlotFullException;
 use App\Exceptions\ValidationException;
 use App\Exceptions\VehicleOwnershipException;
@@ -31,6 +34,54 @@ final readonly class BookingController
         $vehicleId = $this->stringInput($request, 'vehicle_id');
 
         return $this->formResponse($vehicleId, '', [], [], 200);
+    }
+
+    public function index(Request $request): Response
+    {
+        $data = $this->bookings->customerOverview($this->ownerId());
+
+        return Response::html($this->view->render('customer/bookings/index', $data + [
+            'title' => 'Lịch đặt của tôi',
+            'authUser' => $this->authUser(),
+            'csrfToken' => $this->tokens->token(),
+            'flashSuccess' => $this->session->get('success'),
+            'flashError' => $this->session->get('error'),
+        ]));
+    }
+
+    public function show(Request $request): Response
+    {
+        return Response::html($this->view->render('customer/bookings/show', [
+            'title' => 'Chi tiết lịch đặt',
+            'authUser' => $this->authUser(),
+            'csrfToken' => $this->tokens->token(),
+            'booking' => $this->bookings->customerDetail(
+                $this->ownerId(),
+                $this->resourceId($request)
+            ),
+            'flashSuccess' => $this->session->get('success'),
+            'flashError' => $this->session->get('error'),
+        ]));
+    }
+
+    public function cancel(Request $request): Response
+    {
+        $bookingId = $this->resourceId($request);
+
+        try {
+            $this->bookings->cancelByCustomer($this->ownerId(), $bookingId);
+        } catch (CancellationCutoffException | InvalidBookingTransitionException $exception) {
+            $this->session->flash('error', $exception->getMessage());
+
+            return Response::redirect('/lich-dat/' . $bookingId);
+        }
+
+        $this->session->flash(
+            'success',
+            'Đã hủy lịch đặt. Sức chứa của các khung giờ liên quan đã được giải phóng.'
+        );
+
+        return Response::redirect('/lich-dat/' . $bookingId);
     }
 
     public function store(Request $request): Response
@@ -150,5 +201,16 @@ final readonly class BookingController
         $value = $request->input($key, '');
 
         return is_string($value) ? $value : '';
+    }
+
+    private function resourceId(Request $request): int
+    {
+        $value = $request->route('id', '');
+
+        if (!is_string($value) || preg_match('/^[1-9][0-9]*$/', $value) !== 1) {
+            throw new BookingNotFoundException();
+        }
+
+        return (int) $value;
     }
 }

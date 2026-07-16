@@ -36,6 +36,14 @@ final class Logger
     /**
      * @param array<string, scalar|null> $context
      */
+    public function info(string $message, array $context = []): void
+    {
+        $this->write('info', $message, $context);
+    }
+
+    /**
+     * @param array<string, scalar|null> $context
+     */
     private function write(string $level, string $message, array $context): void
     {
         try {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Core\CsrfTokenManager;
 use App\Controllers\AuthController;
+use App\Controllers\AdminBookingController;
 use App\Controllers\AdminServiceController;
 use App\Controllers\AdminSlotController;
 use App\Controllers\BookingController;
@@ -30,7 +31,8 @@ return static function (
     ?callable $adminServiceControllerFactory = null,
     ?callable $washSlotControllerFactory = null,
     ?callable $adminSlotControllerFactory = null,
-    ?callable $bookingControllerFactory = null
+    ?callable $bookingControllerFactory = null,
+    ?callable $adminBookingControllerFactory = null
 ): void {
     $router->get('/', static function () use ($view, $session, $tokens): Response {
         return Response::html($view->render('home', [
@@ -134,6 +136,26 @@ return static function (
             $bookings()->create($request), $authenticated, $customer);
         $router->post('/dat-lich', static fn (Request $request): Response =>
             $bookings()->store($request), $authenticated, $customer);
+        $router->get('/lich-dat', static fn (Request $request): Response =>
+            $bookings()->index($request), $authenticated, $customer);
+        $router->get('/lich-dat/{id}', static fn (Request $request): Response =>
+            $bookings()->show($request), $authenticated, $customer);
+        $router->post('/lich-dat/{id}/huy', static fn (Request $request): Response =>
+            $bookings()->cancel($request), $authenticated, $customer);
+    }
+
+    if ($adminBookingControllerFactory !== null) {
+        $adminBookings = static fn (): AdminBookingController => $adminBookingControllerFactory();
+        $router->get('/admin/lich-dat', static fn (Request $request): Response =>
+            $adminBookings()->index($request), $authenticated, $admin);
+        $router->post('/admin/lich-dat/{id}/xac-nhan', static fn (Request $request): Response =>
+            $adminBookings()->confirm($request), $authenticated, $admin);
+        $router->post('/admin/lich-dat/{id}/hoan-thanh', static fn (Request $request): Response =>
+            $adminBookings()->complete($request), $authenticated, $admin);
+        $router->post('/admin/lich-dat/{id}/khong-den', static fn (Request $request): Response =>
+            $adminBookings()->noShow($request), $authenticated, $admin);
+        $router->post('/admin/lich-dat/{id}/huy', static fn (Request $request): Response =>
+            $adminBookings()->cancel($request), $authenticated, $admin);
     }
 
     if ($vehicleControllerFactory === null) {

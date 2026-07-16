@@ -13,6 +13,7 @@ use App\Core\Session;
 use App\Core\View;
 use App\Middleware\CsrfMiddleware;
 use App\Controllers\AuthController;
+use App\Controllers\AdminBookingController;
 use App\Controllers\AdminServiceController;
 use App\Controllers\AdminSlotController;
 use App\Controllers\BookingController;
@@ -30,6 +31,7 @@ use App\Services\ServiceCatalogService;
 use App\Services\VehicleService;
 use App\Services\WashSlotService;
 use App\Services\BookingService;
+use App\Services\BookingLifecyclePolicy;
 use App\Services\BookingResourceCalculator;
 use App\Services\BookingWindowPolicy;
 use App\Services\PriceCalculator;
@@ -38,6 +40,7 @@ use App\Validation\ServiceCatalogValidator;
 use App\Validation\VehicleValidator;
 use App\Validation\WashSlotValidator;
 use App\Validation\BookingValidator;
+use App\Validation\BookingLifecycleValidator;
 
 $projectRoot = require __DIR__ . '/environment.php';
 $config = require $projectRoot . '/config/app.php';
@@ -113,15 +116,26 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $session,
         $tokens
     );
+    $bookingServiceFactory = static fn (): BookingService => new BookingService(
+        new BookingRepository(Database::connection()),
+        new BookingValidator(),
+        new BookingWindowPolicy(new DateTimeZone($timezone)),
+        new PriceCalculator(),
+        new BookingResourceCalculator(),
+        new DateTimeZone($timezone),
+        new BookingLifecyclePolicy(),
+        new BookingLifecycleValidator(),
+        null,
+        $logger
+    );
     $bookingControllerFactory = static fn (): BookingController => new BookingController(
-        new BookingService(
-            new BookingRepository(Database::connection()),
-            new BookingValidator(),
-            new BookingWindowPolicy(new DateTimeZone($timezone)),
-            new PriceCalculator(),
-            new BookingResourceCalculator(),
-            new DateTimeZone($timezone)
-        ),
+        $bookingServiceFactory(),
+        $view,
+        $session,
+        $tokens
+    );
+    $adminBookingControllerFactory = static fn (): AdminBookingController => new AdminBookingController(
+        $bookingServiceFactory(),
         $view,
         $session,
         $tokens
@@ -138,7 +152,8 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $adminServiceControllerFactory,
         $washSlotControllerFactory,
         $adminSlotControllerFactory,
-        $bookingControllerFactory
+        $bookingControllerFactory,
+        $adminBookingControllerFactory
     );
 
     $errorHandler = new ErrorHandler(

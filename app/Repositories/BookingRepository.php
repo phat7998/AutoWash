@@ -168,6 +168,163 @@ final readonly class BookingRepository
         )->fetchAll();
     }
 
+    /** @return list<array<string, mixed>> */
+    public function findCustomerBookings(int $ownerId, bool $completed): array
+    {
+        $statusCondition = $completed ? "bookings.status = 'completed'" : "bookings.status <> 'completed'";
+        $statement = $this->database->prepare(
+            $this->bookingSummarySelect(false) . "\n"
+            . <<<SQL
+            WHERE bookings.user_id = :owner_id
+              AND {$statusCondition}
+            ORDER BY wash_slots.slot_date DESC, wash_slots.start_time DESC, bookings.id DESC
+            SQL
+        );
+        $statement->execute(['owner_id' => $ownerId]);
+
+        return $statement->fetchAll();
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function findAdminBookings(): array
+    {
+        return $this->database->query(
+            $this->bookingSummarySelect(true)
+            . "\n ORDER BY wash_slots.slot_date DESC, wash_slots.start_time DESC, bookings.id DESC"
+        )->fetchAll();
+    }
+
+    /** @return array<string, mixed>|null */
+    public function findBookingForOwner(int $bookingId, int $ownerId): ?array
+    {
+        $statement = $this->database->prepare(
+            $this->bookingSummarySelect(false)
+            . "\n WHERE bookings.id = :booking_id AND bookings.user_id = :owner_id LIMIT 1"
+        );
+        $statement->execute(['booking_id' => $bookingId, 'owner_id' => $ownerId]);
+        $booking = $statement->fetch();
+
+        return is_array($booking) ? $booking : null;
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function findBookingItems(int $bookingId): array
+    {
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            SELECT
+                service_name_snapshot,
+                vehicle_type_code_snapshot,
+                unit_price_snapshot,
+                duration_minutes_snapshot,
+                capacity_units_snapshot,
+                quantity,
+                line_total
+            FROM booking_items
+            WHERE booking_id = :booking_id
+            ORDER BY id
+            SQL
+        );
+        $statement->execute(['booking_id' => $bookingId]);
+
+        return $statement->fetchAll();
+    }
+
+    /** @return array<string, mixed>|null */
+    public function lockBooking(int $bookingId, ?int $ownerId = null): ?array
+    {
+        $sql = <<<'SQL'
+            SELECT
+                bookings.*,
+                TIMESTAMP(wash_slots.slot_date, wash_slots.start_time) AS starts_at,
+                wash_slots.slot_date,
+                wash_slots.start_time,
+                wash_slots.end_time
+            FROM bookings
+            INNER JOIN wash_slots ON wash_slots.id = bookings.start_slot_id
+            WHERE bookings.id = :booking_id
+            SQL;
+        $parameters = ['booking_id' => $bookingId];
+
+        if ($ownerId !== null) {
+            $sql .= ' AND bookings.user_id = :owner_id';
+            $parameters['owner_id'] = $ownerId;
+        }
+
+        $statement = $this->database->prepare($sql . ' LIMIT 1 FOR UPDATE');
+        $statement->execute($parameters);
+        $booking = $statement->fetch();
+
+        return is_array($booking) ? $booking : null;
+    }
+
+    public function markStatus(int $bookingId, string $status): void
+    {
+        $statement = $this->database->prepare(
+            'UPDATE bookings SET status = :status, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+        );
+        $statement->execute(['status' => $status, 'id' => $bookingId]);
+    }
+
+    public function markCompleted(int $bookingId): void
+    {
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            UPDATE bookings
+            SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            WHERE id = :id
+            SQL
+        );
+        $statement->execute(['id' => $bookingId]);
+    }
+
+    public function markCancelled(int $bookingId, string $reason): void
+    {
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            UPDATE bookings
+            SET
+                status = 'cancelled',
+                cancelled_at = CURRENT_TIMESTAMP,
+                cancellation_reason = :reason,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :id
+            SQL
+        );
+        $statement->execute(['reason' => $reason, 'id' => $bookingId]);
+    }
+
+    public function insertTransitionAudit(
+        int $actorId,
+        int $bookingId,
+        string $fromStatus,
+        string $toStatus,
+        string $reason
+    ): void {
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            INSERT INTO audit_logs (
+                actor_user_id, action, target_type, target_id, before_json, after_json, reason
+            ) VALUES (
+                :actor_id,
+                'booking_cancelled',
+                'booking',
+                :booking_id,
+                :before_json,
+                :after_json,
+                :reason
+            )
+            SQL
+        );
+        $statement->execute([
+            'actor_id' => $actorId,
+            'booking_id' => $bookingId,
+            'before_json' => json_encode(['status' => $fromStatus], JSON_THROW_ON_ERROR),
+            'after_json' => json_encode(['status' => $toStatus], JSON_THROW_ON_ERROR),
+            'reason' => $reason,
+        ]);
+    }
+
     /** @return array<string, mixed>|null */
     public function findStartSlot(int $slotId): ?array
     {
@@ -505,6 +662,61 @@ final readonly class BookingRepository
             FROM service_vehicle_prices
             INNER JOIN services ON services.id = service_vehicle_prices.service_id
             INNER JOIN vehicle_types ON vehicle_types.id = service_vehicle_prices.vehicle_type_id
+            SQL;
+    }
+
+    private function bookingSummarySelect(bool $includeCustomer): string
+    {
+        $customerColumns = $includeCustomer
+            ? ', users.full_name AS customer_name'
+            : '';
+
+        return <<<SQL
+            SELECT
+                bookings.id,
+                bookings.booking_code,
+                bookings.user_id,
+                bookings.status,
+                bookings.booking_duration_minutes,
+                bookings.booking_capacity_units,
+                bookings.subtotal,
+                bookings.perk_discount,
+                bookings.promotion_discount,
+                bookings.reward_discount,
+                bookings.final_price,
+                bookings.completed_at,
+                bookings.cancelled_at,
+                bookings.cancellation_reason,
+                bookings.loyalty_processed_at,
+                bookings.created_at,
+                vehicles.display_plate,
+                vehicles.brand,
+                vehicles.model,
+                vehicle_types.display_name AS vehicle_type_name,
+                wash_slots.slot_date,
+                wash_slots.start_time,
+                wash_slots.end_time,
+                TIMESTAMP(wash_slots.slot_date, wash_slots.start_time) AS starts_at,
+                DATE_ADD(
+                    TIMESTAMP(wash_slots.slot_date, wash_slots.start_time),
+                    INTERVAL bookings.booking_duration_minutes MINUTE
+                ) AS ends_at,
+                item_summaries.service_names,
+                item_summaries.item_count
+                {$customerColumns}
+            FROM bookings
+            INNER JOIN users ON users.id = bookings.user_id
+            INNER JOIN vehicles ON vehicles.id = bookings.vehicle_id
+            INNER JOIN vehicle_types ON vehicle_types.id = vehicles.vehicle_type_id
+            INNER JOIN wash_slots ON wash_slots.id = bookings.start_slot_id
+            INNER JOIN (
+                SELECT
+                    booking_id,
+                    GROUP_CONCAT(service_name_snapshot ORDER BY id SEPARATOR ', ') AS service_names,
+                    COUNT(*) AS item_count
+                FROM booking_items
+                GROUP BY booking_id
+            ) AS item_summaries ON item_summaries.booking_id = bookings.id
             SQL;
     }
 }

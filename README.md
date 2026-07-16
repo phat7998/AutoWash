@@ -2,11 +2,12 @@
 
 AutoWash Pro là hệ thống quản lý dịch vụ chăm sóc phương tiện, đặt lịch trước và khách hàng thân thiết được xây dựng bằng Modern PHP thuần. Phiên bản đồ án cũ được lưu tại nhánh `legacy-main`.
 
-Repository hiện hoàn thành Slice 07: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
+Repository hiện hoàn thành Slice 08: Composer/PSR-4, database foundation, hạ tầng HTTP/security,
 authentication/RBAC, quản lý phương tiện, danh mục dịch vụ và khung giờ. Customer xem được giá/thời lượng
 theo loại xe, chọn nhiều dịch vụ và tạo booking theo booking window của tier. Backend tự tính giá, tổng thời
 lượng, capacity lớn nhất, khóa mọi slot chồng lấn và lưu booking/items/reservations atomically. Admin quản lý
-dịch vụ, cấu hình giá và tạo/đóng khung giờ qua backend có validation, role guard và CSRF.
+dịch vụ, khung giờ và vòng đời booking qua backend có validation, role guard và CSRF. Customer xem chi tiết,
+hủy trước/đúng cutoff 2 giờ và xem wash history từ item snapshot; admin confirm/complete/cancel/no-show.
 
 ## Yêu cầu hệ thống
 
@@ -94,7 +95,10 @@ Không chạy lệnh reset trên database có dữ liệu cần giữ. Seed có 
 - `/dich-vu`: danh mục public theo loại phương tiện; chỉ hiển thị service/cặp giá active và supported.
 - `/khung-gio`: customer xem khung giờ mở và capacity units còn lại.
 - `/dat-lich`: customer chọn xe, nhiều dịch vụ và khung giờ để tạo booking pending.
+- `/lich-dat`: customer xem danh sách trạng thái và lịch sử rửa xe đã hoàn thành.
+- `/lich-dat/{id}`: customer xem chi tiết snapshot của booking đúng owner và tự hủy khi còn ít nhất 2 giờ.
 - `/admin`: vùng admin đã xác thực và kiểm tra role.
+- `/admin/lich-dat`: admin xác nhận, hoàn thành, hủy có lý do/audit hoặc đánh dấu khách không đến.
 - `/admin/dich-vu`: admin tạo, sửa, kích hoạt hoặc ngừng dịch vụ và cấu hình theo loại xe.
 - `/admin/khung-gio`: admin tạo hoặc đóng khung giờ vận hành.
 - `/dang-xuat`: chỉ nhận POST có CSRF hợp lệ.
@@ -102,7 +106,9 @@ Không chạy lệnh reset trên database có dữ liệu cần giữ. Seed có 
 Seed demo có slot trống, gần đầy, đầy và đóng ngày `15/01/2030`. Hai booking fixture
 `DEMO_NEAR_FULL`/`DEMO_FULL` phục vụ kiểm tra cách tính capacity. Seed còn tạo ba slot liên tục vào các mốc
 `+1`, `+8`, `+11`, `+13` ngày tính từ ngày chạy seed để demo booking window Member/Silver/Gold/Platinum và
-booking nhiều slot. Luồng hiện chỉ tạo booking `pending`; xác nhận, hủy, hoàn thành và wash history thuộc Slice 08.
+booking nhiều slot. Hai fixture `DEMO_NEAR_FULL`/`DEMO_FULL` có thể được admin chuyển trạng thái để demo
+confirm/complete, capacity release và wash history. Completion Slice 08 chưa cộng điểm hoặc monthly metrics;
+tích hợp loyalty atomically thuộc Slice 09.
 
 ## Kiểm tra chất lượng
 
