@@ -1,12 +1,12 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
 > Cập nhật: 2026-07-17
-> Slice hiện tại: Slice 14 — Complete
+> Slice hiện tại: Slice 15 — Complete
 >
 > Product code: đã có nền repository/database, HTTP/security, authentication/RBAC, quản lý phương tiện,
 > danh mục dịch vụ, booking, loyalty generic credit lots, FEFO redemption/expiry, reward management và
 > monthly tier review, tier/perk/promotion configuration, checkout benefit integration, LPR adapter/mock,
-> research event/CSV/synthetic data và descriptive dashboard.
+> research event/CSV/synthetic data, descriptive dashboard và release hardening/evidence.
 
 ## Tổng quan
 
@@ -28,7 +28,47 @@
 | 12 | Complete | Tier/perk/promotion admin, best-benefit pricing, reward use-once và limit concurrency |
 | 13 | Complete | Safe upload ngoài public, provider interface/mock, confidence, owner-only image, attempt log và manual fallback |
 | 14 | Complete | Sáu event type, CSV privacy allowlist, synthetic deterministic ≥2.000/four types, owner/admin dashboards và data dictionary |
-| 15 | Not started | Xem `ROADMAP.md` |
+| 15 | Complete | Security/business audit, service-price audit, 10k/20VU performance, clean setup, defense/release docs |
+
+## Slice 15 — Final Hardening, Verification and Defense Release
+
+- Requirements: đóng ADM-07/08 và NFR-01..03, NFR-05..11, NFR-15, NFR-17, NFR-19..23, NFR-25;
+  tái xác minh toàn bộ functional/NFR MUST đã Done bằng code + test/demo evidence.
+- Hoàn thành:
+  - Security/layer review SQL injection, XSS, CSRF, session fixation, RBAC/IDOR, upload, secret/log,
+    price/point tamper; thêm `release-audit.php` để gate MUST RTM, docs, SQL layer, superglobal, debug và secret.
+  - Business review slot race, duplicate completion, redeem/adjust/promotion concurrency, expiry/monthly
+    idempotency và transaction/network boundary; không phát hiện blocker/high còn mở.
+  - Bổ sung service/price audit cùng transaction với actor/action/before/after/reason; regression xác minh
+    create/update/deactivate/activate và snapshot giá, đóng ADM-08 mà không đổi schema/rule.
+  - Demo seed thêm một earn lot đã hết hạn để rehearsal expiry lần đầu/lần hai có kết quả quan sát được, vẫn
+    giữ lot sắp hết hạn và credit không hết hạn; seed rerun không phục hồi lot đã xử lý.
+  - Tạo performance data/workload tái lập: 10.000 completed booking có item/reservation, 20 customer/vehicle/
+    credit riêng; HTTP qua Apache cho login/catalog/slot/history/create/redeem/admin report.
+  - Hoàn thiện README, demo script, đúng 30 câu defense Q&A, known limitations, performance report và release
+    checklist/tag proposal; review responsive foundation/empty/error state và toàn bộ RTM.
+- File thay đổi: service Controller–Service–Repository và Catalog/Database tests; demo seed; ba release/
+  performance CLI; Composer/ignore; README; DEMO_SCRIPT, DEFENSE_QA, KNOWN_LIMITATIONS,
+  PERFORMANCE_REPORT, RELEASE_CHECKLIST, RTM/Test Plan/Roadmap và file status này.
+- Migration: không tạo; dùng nguyên 9 migration, không đổi ERD/schema/decision khóa.
+- Test/evidence:
+  - Baseline host `composer validate --strict` + `composer check`: lint pass; unit/feature pass, database skip khi
+    chưa bật MySQL được ghi nhận và không dùng làm final evidence.
+  - Docker PHP 8.2.32/MySQL 8.4 full `AUTOWASH_DB_TESTS=1 composer check`: 163 test/833 assertion, không skip;
+    PHPCS/release audit pass.
+  - Fresh reset/migrate/seed và seed rerun pass; expiry lần đầu 50 điểm/lần hai 0; monthly review lần đầu pass,
+    lần hai bị chặn; loyalty reconcile khớp.
+  - NFR-02: 10.000 booking/20 VU, 140 measured request, error 0%; P95 login 189,36 ms, service 96,49 ms,
+    slot 139,00 ms, history 142,89 ms, create 203,33 ms, redeem 98,31 ms, report 69,17 ms — đều đạt target.
+  - HTTP smoke Apache 8081 customer/admin/health và critical routes pass; research synthetic/export privacy
+    acceptance pass; `git diff --check` và final scan pass.
+- Kết quả: toàn bộ MUST trong RTM Done với evidence; không có blocker/high trong phạm vi release.
+- Quyết định: giữ DEC-001..034; không thêm ADR, migration hoặc business rule.
+- Known limitations: xem `docs/KNOWN_LIMITATIONS.md`; chính gồm external production LPR, performance local,
+  single branch, không payment/refund, special review rerun chưa có và survey/ML/paper deferred bonus.
+- Lệnh release: sau khi nhóm review commit, tạo annotated tag đề xuất `v1.0.0-defense`; không push/tag trong
+  session Slice 15.
+- Commit đề xuất: `chore(NFR): hoàn tất hardening và release bảo vệ [Slice 15]`.
 
 ## Slice 14 — Research Data, Synthetic Generator and Dashboards
 

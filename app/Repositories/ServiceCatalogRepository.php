@@ -132,9 +132,14 @@ final readonly class ServiceCatalogRepository
     /**
      * @param list<array<string, mixed>> $prices
      */
-    public function createWithPrices(string $code, string $name, ?string $description, array $prices): int
-    {
-        return $this->transactional(function () use ($code, $name, $description, $prices): int {
+    public function createWithPrices(
+        string $code,
+        string $name,
+        ?string $description,
+        array $prices,
+        int $adminId
+    ): int {
+        return $this->transactional(function () use ($code, $name, $description, $prices, $adminId): int {
             $statement = $this->database->prepare(
                 <<<'SQL'
                 INSERT INTO services (code, name, description, is_active)
@@ -144,6 +149,7 @@ final readonly class ServiceCatalogRepository
             $statement->execute(compact('code', 'name', 'description'));
             $serviceId = (int) $this->database->lastInsertId();
             $this->upsertPrices($serviceId, $prices);
+            $this->audit($adminId, 'service_created', $serviceId, null, $this->findService($serviceId));
 
             return $serviceId;
         });
@@ -155,9 +161,18 @@ final readonly class ServiceCatalogRepository
         string $code,
         string $name,
         ?string $description,
-        array $prices
+        array $prices,
+        int $adminId
     ): bool {
-        return $this->transactional(function () use ($serviceId, $code, $name, $description, $prices): bool {
+        return $this->transactional(function () use (
+            $serviceId,
+            $code,
+            $name,
+            $description,
+            $prices,
+            $adminId
+        ): bool {
+            $before = $this->findService($serviceId);
             $statement = $this->database->prepare(
                 <<<'SQL'
                 UPDATE services
@@ -175,38 +190,59 @@ final readonly class ServiceCatalogRepository
 
             if ($exists) {
                 $this->upsertPrices($serviceId, $prices);
+                $this->audit(
+                    $adminId,
+                    'service_updated',
+                    $serviceId,
+                    $before,
+                    $this->findService($serviceId)
+                );
             }
 
             return $exists;
         });
     }
 
-    public function deactivate(int $serviceId): bool
+    public function deactivate(int $serviceId, int $adminId): bool
     {
-        return $this->setActive($serviceId, false);
+        return $this->setActive($serviceId, false, $adminId);
     }
 
-    public function activate(int $serviceId): bool
+    public function activate(int $serviceId, int $adminId): bool
     {
-        return $this->setActive($serviceId, true);
+        return $this->setActive($serviceId, true, $adminId);
     }
 
-    private function setActive(int $serviceId, bool $active): bool
+    private function setActive(int $serviceId, bool $active, int $adminId): bool
     {
-        $statement = $this->database->prepare(
-            <<<'SQL'
-            UPDATE services
-            SET is_active = :is_active, updated_at = CURRENT_TIMESTAMP
-            WHERE id = :id AND is_active <> :current_state
-            SQL
-        );
-        $statement->execute([
-            'id' => $serviceId,
-            'is_active' => $active ? 1 : 0,
-            'current_state' => $active ? 1 : 0,
-        ]);
+        return $this->transactional(function () use ($serviceId, $active, $adminId): bool {
+            $before = $this->findService($serviceId);
+            $statement = $this->database->prepare(
+                <<<'SQL'
+                UPDATE services
+                SET is_active = :is_active, updated_at = CURRENT_TIMESTAMP
+                WHERE id = :id AND is_active <> :current_state
+                SQL
+            );
+            $statement->execute([
+                'id' => $serviceId,
+                'is_active' => $active ? 1 : 0,
+                'current_state' => $active ? 1 : 0,
+            ]);
+            $changed = $statement->rowCount() === 1;
 
-        return $statement->rowCount() === 1;
+            if ($changed) {
+                $this->audit(
+                    $adminId,
+                    $active ? 'service_activated' : 'service_deactivated',
+                    $serviceId,
+                    $before,
+                    $this->findService($serviceId)
+                );
+            }
+
+            return $changed;
+        });
     }
 
     /** @param list<array<string, mixed>> $prices */
@@ -244,6 +280,33 @@ final readonly class ServiceCatalogRepository
         foreach ($prices as $price) {
             $statement->execute(['service_id' => $serviceId] + $price);
         }
+    }
+
+    /** @param array<string, mixed>|null $before @param array<string, mixed>|null $after */
+    private function audit(
+        int $adminId,
+        string $action,
+        int $serviceId,
+        ?array $before,
+        ?array $after
+    ): void {
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            INSERT INTO audit_logs (
+                actor_user_id, action, target_type, target_id, before_json, after_json, reason
+            ) VALUES (
+                :actor_id, :action, 'service', :target_id, :before_json, :after_json,
+                'Cập nhật dịch vụ và cấu hình giá trong trang quản trị.'
+            )
+            SQL
+        );
+        $statement->execute([
+            'actor_id' => $adminId,
+            'action' => $action,
+            'target_id' => $serviceId,
+            'before_json' => $before === null ? null : json_encode($before, JSON_THROW_ON_ERROR),
+            'after_json' => $after === null ? null : json_encode($after, JSON_THROW_ON_ERROR),
+        ]);
     }
 
     private function transactional(callable $callback): mixed

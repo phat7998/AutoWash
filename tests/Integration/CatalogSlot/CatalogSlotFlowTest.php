@@ -121,8 +121,11 @@ final class CatalogSlotFlowTest extends TestCase
     public function testAdminCreatesUpdatesAndDeactivatesServiceAtomically(): void
     {
         $service = $this->catalogService();
+        $adminId = (int) self::$database->query(
+            "SELECT id FROM users WHERE phone = '0900000001'"
+        )->fetchColumn();
         $prices = $this->validPrices('75000', '30');
-        $serviceId = $service->create('TEST_DETAIL', 'Rửa kiểm thử', '<b>Mô tả</b>', $prices);
+        $serviceId = $service->create('TEST_DETAIL', 'Rửa kiểm thử', '<b>Mô tả</b>', $prices, $adminId);
         $created = $service->service($serviceId);
 
         self::assertSame('TEST_DETAIL', $created['code']);
@@ -130,18 +133,32 @@ final class CatalogSlotFlowTest extends TestCase
         self::assertSame('75000.00', $created['prices'][$this->vehicleTypeId('motorbike')]['price']);
 
         $prices[(string) $this->vehicleTypeId('motorbike')]['price'] = '90000.50';
-        $service->update($serviceId, 'TEST_DETAIL', 'Rửa kiểm thử mới', 'Nội dung mới', $prices);
+        $service->update($serviceId, 'TEST_DETAIL', 'Rửa kiểm thử mới', 'Nội dung mới', $prices, $adminId);
         self::assertSame('90000.50', $service->service($serviceId)['prices'][
             $this->vehicleTypeId('motorbike')
         ]['price']);
 
-        $service->deactivate($serviceId);
+        $service->deactivate($serviceId, $adminId);
         self::assertFalse((bool) $service->service($serviceId)['is_active']);
-        $service->activate($serviceId);
+        $service->activate($serviceId, $adminId);
         self::assertTrue((bool) $service->service($serviceId)['is_active']);
         self::assertSame(0, (int) self::$database->query(
             "SELECT COUNT(*) FROM booking_items WHERE service_id = {$serviceId}"
         )->fetchColumn());
+        $audits = self::$database->query(
+            "SELECT action, before_json, after_json FROM audit_logs "
+            . "WHERE target_type = 'service' AND target_id = {$serviceId} ORDER BY id"
+        )->fetchAll();
+        self::assertSame([
+            'service_created',
+            'service_updated',
+            'service_deactivated',
+            'service_activated',
+        ], array_column($audits, 'action'));
+        self::assertNull($audits[0]['before_json']);
+        self::assertStringContainsString('75000.00', (string) $audits[0]['after_json']);
+        self::assertStringContainsString('75000.00', (string) $audits[1]['before_json']);
+        self::assertStringContainsString('90000.50', (string) $audits[1]['after_json']);
     }
 
     public function testRejectsInvalidAndDuplicateServiceConfiguration(): void
@@ -150,7 +167,7 @@ final class CatalogSlotFlowTest extends TestCase
         $prices = $this->validPrices('0', '0');
 
         try {
-            $service->create('TEST_INVALID', '', '', $prices);
+            $service->create('TEST_INVALID', '', '', $prices, $this->adminId());
             self::fail('Cấu hình giá/thời lượng sai phải bị từ chối.');
         } catch (ValidationException $exception) {
             self::assertArrayHasKey('name', $exception->errors());
@@ -160,9 +177,21 @@ final class CatalogSlotFlowTest extends TestCase
             ));
         }
 
-        $service->create('TEST_DUPLICATE', 'Dịch vụ một', '', $this->validPrices('50000', '20'));
+        $service->create(
+            'TEST_DUPLICATE',
+            'Dịch vụ một',
+            '',
+            $this->validPrices('50000', '20'),
+            $this->adminId()
+        );
         $this->expectException(DuplicateCatalogException::class);
-        $service->create('TEST_DUPLICATE', 'Dịch vụ hai', '', $this->validPrices('60000', '25'));
+        $service->create(
+            'TEST_DUPLICATE',
+            'Dịch vụ hai',
+            '',
+            $this->validPrices('60000', '25'),
+            $this->adminId()
+        );
     }
 
     public function testPriceUpdateDoesNotChangeExistingBookingItemSnapshot(): void
@@ -199,7 +228,8 @@ final class CatalogSlotFlowTest extends TestCase
             (string) $configured['code'],
             (string) $configured['name'],
             (string) ($configured['description'] ?? ''),
-            $prices
+            $prices,
+            $this->adminId()
         );
 
         self::assertSame('125000.00', $service->service($serviceId)['prices'][$carId]['price']);
@@ -432,5 +462,12 @@ final class CatalogSlotFlowTest extends TestCase
         }
 
         self::fail('Không tìm thấy slot fixture ' . $startTime . '.');
+    }
+
+    private function adminId(): int
+    {
+        return (int) self::$database->query(
+            "SELECT id FROM users WHERE phone = '0900000001'"
+        )->fetchColumn();
     }
 }

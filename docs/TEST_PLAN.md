@@ -1,7 +1,8 @@
 # AUTO WASH PRO — TEST PLAN
 
 > Phiên bản: Mini-Slice 00B Closure Patch, 2026-07-16  
-> Trạng thái bảng baseline: **Planned**; evidence đã hiện thực được cập nhật theo từng slice trong `REQUIREMENT_TRACEABILITY.md` và `IMPLEMENTATION_STATUS.md`.
+> Trạng thái release: toàn bộ test MUST đã có evidence Slice 15 trong `REQUIREMENT_TRACEABILITY.md`,
+> `IMPLEMENTATION_STATUS.md` và `PERFORMANCE_REPORT.md`.
 
 ## 1. Chiến lược và nguyên tắc
 

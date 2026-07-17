@@ -161,6 +161,27 @@ final class DatabaseFoundationTest extends TestCase
                 SQL
             )->fetchAll(PDO::FETCH_COLUMN)
         );
+        self::assertSame(1, (int) self::$database->query(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM loyalty_transactions
+            WHERE source_type = 'demo_seed'
+              AND type = 'earn'
+              AND remaining_points > 0
+              AND expires_at <= CURRENT_TIMESTAMP
+            SQL
+        )->fetchColumn());
+        self::assertSame(1, (int) self::$database->query(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM loyalty_transactions
+            WHERE source_type = 'demo_seed'
+              AND type = 'earn'
+              AND remaining_points > 0
+              AND expires_at > CURRENT_TIMESTAMP
+              AND expires_at <= CURRENT_TIMESTAMP + INTERVAL 30 DAY
+            SQL
+        )->fetchColumn());
     }
 
     public function testImportantUniqueAndCheckConstraintsAreEnforced(): void

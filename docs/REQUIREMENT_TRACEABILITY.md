@@ -1,7 +1,7 @@
 # AUTO WASH PRO — REQUIREMENT TRACEABILITY MATRIX
 
-> Baseline: Mini-Slice 00B Closure Patch, 2026-07-16  
-> Trạng thái `Planned` nghĩa là đã thiết kế trace/test nhưng chưa có code hoặc evidence chạy thật.
+> Baseline đóng release: Slice 15, 2026-07-17.
+> `Done` chỉ được ghi sau khi có code, automated test hoặc demo/review evidence đã chạy thật.
 
 ## Functional requirements
 
@@ -49,8 +49,8 @@
 | ADM-04 | Reward CRUD/inactive và validation | Spec §7.9 | MUST | Admin Reward / 10 | `AdminRewardController`, `RewardService`, `RewardRepository`, `RewardValidator`, admin reward views | `RewardRulesTest`, `RewardFlowTest` | DEMO-05 | Done |
 | ADM-05 | Promotion CRUD/inactive/conditions/target tiers | Spec §7.9 | MUST | Admin Promotion / 12 | `AdminPromotionController`, `PromotionService`, `PromotionRepository`, `PromotionValidator` | `PromotionConfigurationFlowTest` | DEMO-07 | Done |
 | ADM-06 | Adjust có reason/ledger/audit; âm vượt available bị reject, không clamp; concurrent-safe | Spec §7.9; DEC-032 | MUST | Admin Loyalty / 09,12 | `app/Controllers/AdminLoyaltyController.php`, `app/Services/LoyaltyService.php`, `app/Repositories/LoyaltyTransactionRepository.php` | `LoyaltyRulesTest`, `LoyaltyFlowTest` | DEMO-08 | Done |
-| ADM-07 | Không sửa/xóa lịch sử tài chính/loyalty snapshot | Spec §7.9 | MUST | Persistence / 02+ | `database/migrations/001_create_core_tables.php`..`006_create_operations_tables.php` | `DatabaseFoundationTest`, IT-ADM-02 | DEMO-04 | In Progress |
-| ADM-08 | Log thay đổi config quan trọng | Spec §7.9, §13 | SHOULD | Audit / 12,15 | Audit tier/perk/promotion đã có; service price và special rerun tiếp tục Slice 15 | `PromotionConfigurationFlowTest`; IT-ADM-08 tiếp tục | DEMO-08 | In Progress |
+| ADM-07 | Không sửa/xóa lịch sử tài chính/loyalty snapshot | Spec §7.9 | MUST | Persistence / 02+ | Migration FK no-cascade; booking/ledger/allocation/redemption snapshot chỉ có flow append/state | `DatabaseFoundationTest`, `CatalogSlotFlowTest`, IT-ADM-02 | DEMO-04 | Done |
+| ADM-08 | Log thay đổi config quan trọng | Spec §7.9, §13 | SHOULD | Audit / 12,15 | Audit tier/perk/promotion/service-price và admin mutation có actor/before/after/reason | `PromotionConfigurationFlowTest`, `CatalogSlotFlowTest`, `LoyaltyFlowTest` | DEMO-07/08 | Done |
 | REP-01 | Customer dashboard đúng owner và có empty state | Spec §7.10 | MUST | Dashboard / 09,10,14 | `DashboardController`, `DashboardService`, `ResearchReportRepository`, `resources/views/customer/dashboard.php` | `ResearchFlowTest`, `BookingLifecycleFlowTest`, `LoyaltyFlowTest` | DEMO-04 | Done |
 | REP-02 | Admin aggregate; revenue completed-only; admin-only | Spec §7.10 | MUST | Report / 14 | `DashboardController`, `DashboardService`, `ResearchReportRepository`, `resources/views/admin/dashboard.php` | `ResearchFlowTest`, `AuthAuthorizationTest` | DEMO-08 | Done |
 | LPR-01 | Manual input + normalize/validate; không gọi là LPR | Spec §7.11 | MUST | Vehicle / 05 | `app/Controllers/VehicleController.php`, `resources/views/customer/vehicles/form.php`, `app/Services/LicensePlateService.php` | `LicensePlateServiceTest`, `VehicleFlowTest` | DEMO-01 | Done |
@@ -65,31 +65,31 @@
 
 | Requirement ID | Mô tả/acceptance rút gọn | Nguồn | Priority | Slice chính | Code | Test dự kiến | Demo | Status |
 |---|---|---|---|---|---|---|---|---|
-| NFR-01 | Responsive desktop/mobile cơ bản | Spec §14 | MUST | 15 | Planned | QT-NFR-01 | DEMO-01..08 | Planned |
-| NFR-02 | 10k bookings/20 VU; read P95 <1s; booking/redeem/report <2s; error <1% | Spec §14; DEC-026 | MUST | 15 | Planned | QT-NFR-02, PERF-00B-01..08 | Performance report | Planned |
-| NFR-03 | Empty/error state dễ hiểu | Spec §14 | MUST | 03+ | `app/Core/ErrorHandler.php`, `resources/views/errors/` | `HttpCoreTest`, `ProductionErrorTest`; FT-NFR-03 tiếp tục theo module | DEMO-01..08 | In Progress |
+| NFR-01 | Responsive desktop/mobile cơ bản | Spec §14 | MUST | 15 | `public/assets/css/app.css`, shared customer/admin layout, responsive table/card/grid | QT-NFR-01 viewport/source review | DEMO-01..08 | Done |
+| NFR-02 | 10k bookings/20 VU; read P95 <1s; booking/redeem/report <2s; error <1% | Spec §14; DEC-026 | MUST | 15 | `prepare-performance-data.php`, `run-performance-test.php` | QT-NFR-02, PERF-00B-01..08 | `PERFORMANCE_REPORT.md` | Done |
+| NFR-03 | Empty/error state dễ hiểu | Spec §14 | MUST | 03+ | `ErrorHandler`, `resources/views/errors/`, module empty/error/flash states | `HttpCoreTest`, `ProductionErrorTest`, module feature/integration tests | DEMO-01..08 | Done |
 | NFR-04 | PSR-12/lint | Spec §14 | MUST | 01+ | `composer.json`, `phpcs.xml` | QT-NFR-04: `composer lint` | — | Done |
-| NFR-05 | Đúng layer, không SQL/formula trong Controller/View | Spec §5, §14 | MUST | 01+ | `composer.json`, `app/` structure | QT-NFR-05 | — | In Progress |
-| NFR-06 | Không TODO/placeholder/code giả ở luồng MUST | Spec §14 | MUST | 15 | Planned | QT-NFR-06 | DEMO-01..08 | Planned |
-| NFR-07 | Mọi MUST có test/demo evidence | Spec §14, §15 | MUST | Mọi slice | Planned | QT-NFR-07 | DEMO-01..08 | Planned |
-| NFR-08 | Migrate/seed/reset/backup-export tái lập | Spec §12, §14 | MUST | 02,15 | `app/Database/`, `database/migrate.php`, `database/seed.php`, `database/reset.php` | `DatabaseFoundationTest`, IT-NFR-08 | DEMO setup | In Progress |
-| NFR-09 | Timezone Asia/Ho_Chi_Minh | Spec §5, §14 | MUST | 01+ | `.env.example`, `config/app.php`, `bootstrap/app.php`, `docker/php/Dockerfile` | `EnvironmentConfigTest`; UT-NFR-09 tiếp tục theo boundary nghiệp vụ | DEMO-02 | In Progress |
-| NFR-10 | DECIMAL, không float cho tiền | Spec §14 | MUST | 02+ | `database/migrations/` | `DatabaseFoundationTest`, UT-NFR-10 | DEMO-07 | In Progress |
-| NFR-11 | PDO prepared statement thật, utf8mb4 | Spec §5.4, §8 | MUST | 02+ | `app/Core/Database.php`, `app/Database/DatabaseSeeder.php` | `DatabaseFoundationTest`, ST-SQL-01 | — | In Progress |
+| NFR-05 | Đúng layer, không SQL/formula trong Controller/View | Spec §5, §14 | MUST | 01+ | Controller–Service–Repository–View; `scripts/release-audit.php` | QT-NFR-05 + release audit | — | Done |
+| NFR-06 | Không TODO/placeholder/code giả ở luồng MUST | Spec §14 | MUST | 15 | `scripts/release-audit.php` | QT-NFR-06 + full source scan | DEMO-01..08 | Done |
+| NFR-07 | Mọi MUST có test/demo evidence | Spec §14, §15 | MUST | Mọi slice | RTM + `release-audit.php` + release docs | QT-NFR-07 | DEMO-01..08 | Done |
+| NFR-08 | Migrate/seed/reset/backup-export tái lập | Spec §12, §14 | MUST | 02,15 | `app/Database/`, migrate/seed/reset, research export | `DatabaseFoundationTest`, fresh Docker reset/migrate/seed | DEMO setup | Done |
+| NFR-09 | Timezone Asia/Ho_Chi_Minh | Spec §5, §14 | MUST | 01+ | env/config/bootstrap/Docker + domain clocks | `EnvironmentConfigTest`, boundary rule tests | DEMO-02/06 | Done |
+| NFR-10 | DECIMAL, không float cho tiền | Spec §14 | MUST | 02+ | DECIMAL migrations, decimal-string calculators | `DatabaseFoundationTest`, `BookingRulesTest`, `LoyaltyRulesTest` | DEMO-07 | Done |
+| NFR-11 | PDO prepared statement thật, utf8mb4 | Spec §5.4, §8 | MUST | 02+ | `Database`, repositories, database tooling | `DatabaseFoundationTest`, ST-SQL-01 review | — | Done |
 | NFR-12 | Escape HTML mặc định | Spec §8 | MUST | 03+ | `app/Core/View.php`, `app/Support/Html.php`, `resources/views/` | `ViewTest`, ST-XSS-01 | — | Done |
 | NFR-13 | CSRF cho mọi mutation | Spec §8 | MUST | 03+ | `app/Middleware/CsrfMiddleware.php`, `app/Core/CsrfTokenManager.php` | `CsrfMiddlewareTest`, `HttpCoreTest`, ST-CSRF-01 | — | Done |
 | NFR-14 | Session cookie hardening + regenerate/logout | Spec §8 | MUST | 03,04 | `app/Core/Session.php`, `app/Services/AuthService.php`, `bootstrap/app.php` | `SessionTest`, `AuthFlowTest` | DEMO-01 | Done |
-| NFR-15 | Backend role + ownership authorization | Spec §8 | MUST | 04+ | `app/Middleware/AuthenticatedMiddleware.php`, `app/Middleware/RoleMiddleware.php`, `app/Services/VehicleService.php` | `AuthAuthorizationTest`, `VehicleFlowTest`; ownership tiếp tục theo module | DEMO-08 | In Progress |
+| NFR-15 | Backend role + ownership authorization | Spec §8 | MUST | 04+ | Auth/role middleware + owner-scoped Vehicle/Booking/Reward/LPR/Report services | authorization/ownership integration suite | DEMO-01/08 | Done |
 | NFR-16 | Upload MIME/size/random/non-executable | Spec §8 | MUST | 13 | `UploadedFile`, `LprUploadService`, protected image route, Docker runtime volumes | `LprFlowTest` | DEMO LPR | Done |
-| NFR-17 | Không commit/log secret/token/password/PII | Spec §8, §13 | MUST | 01+ | `.gitignore`, `.dockerignore`, `.env.example`, `app/Core/Logger.php`, `app/Services/AuthService.php` | `ProductionErrorTest`, `HttpSecurityConfigurationTest`, `AuthFlowTest`; ST-SECRET-01 tiếp tục toàn dự án | — | In Progress |
+| NFR-17 | Không commit/log secret/token/password/PII | Spec §8, §13 | MUST | 01+ | ignore files, sanitized logger/auth/LPR/research, release secret scan | security tests + ST-SECRET-01 release audit | — | Done |
 | NFR-18 | Production error không lộ kỹ thuật; log request ID | Spec §8, §10 | MUST | 03+ | `app/Core/Application.php`, `app/Core/ErrorHandler.php`, `app/Core/Logger.php` | `ProductionErrorTest`, `HttpCoreTest`, ST-ERROR-01 | — | Done |
-| NFR-19 | Backend validation đủ trust boundary | Spec §8.2 | MUST | 04+ | `app/Validation/AuthValidator.php`, `app/Validation/VehicleValidator.php`, `app/Services/AuthService.php`, `app/Services/VehicleService.php` | `AuthValidatorTest`, `AuthFlowTest`, `LicensePlateServiceTest`, `VehicleFlowTest`; tiếp tục theo module | DEMO-01..07 | In Progress |
-| NFR-20 | Chống client tamper giá/điểm/quyền lợi | Spec §8.3 | MUST | 07,09,10,12 | `app/Services/PriceCalculator.php`, `app/Services/BookingResourceCalculator.php`, `app/Services/BookingService.php` | `BookingRulesTest`, `BookingFlowTest`; điểm/quyền lợi tiếp tục Slice 09–12 | DEMO-07 | In Progress |
-| NFR-21 | Transaction cho critical flows | Spec §9 | MUST | 07,09..12 | `app/Services/BookingService.php`, `app/Repositories/BookingRepository.php` | `BookingFlowTest` (rollback/race); luồng critical khác tiếp tục Slice 09–12 | DEMO-03..07 | In Progress |
-| NFR-22 | Lock/unique/idempotency giữ invariant | Spec §9 | MUST | 02,07,09..12 | `database/migrations/`, `app/Repositories/BookingRepository.php`, `tests/Support/BookingConcurrencyWorker.php` | `DatabaseFoundationTest`, `BookingFlowTest`; loyalty/reward tiếp tục Slice 09–12 | DEMO-03,06 | In Progress |
-| NFR-23 | Không network call dài trong DB transaction | Spec §9 | MUST | 03+ | `app/Services/BookingService.php`, `app/Repositories/BookingRepository.php` | Review transaction Slice 07; QT-NFR-23 tiếp tục toàn dự án | — | In Progress |
+| NFR-19 | Backend validation đủ trust boundary | Spec §8.2 | MUST | 04+ | Validators + domain services cho mọi module input | unit/integration invalid/tamper matrix | DEMO-01..07 | Done |
+| NFR-20 | Chống client tamper giá/điểm/quyền lợi | Spec §8.3 | MUST | 07,09,10,12 | `PriceCalculator`, Booking/Promotion/Reward/Loyalty services | booking/reward/promotion tamper tests | DEMO-07 | Done |
+| NFR-21 | Transaction cho critical flows | Spec §9 | MUST | 07,09..12 | repository transaction boundaries cho booking/complete/redeem/expire/review/config | rollback/failure integration suite | DEMO-03..07 | Done |
+| NFR-22 | Lock/unique/idempotency giữ invariant | Spec §9 | MUST | 02,07,09..12 | DB constraints + ordered locking + idempotency source/event | concurrency/idempotency process suite | DEMO-03/06 | Done |
+| NFR-23 | Không network call dài trong DB transaction | Spec §9 | MUST | 03+ | LPR provider call trước attempt DB write; business transaction không gọi network | QT-NFR-23 code review, `LprFlowTest` | — | Done |
 | NFR-24 | Research privacy và data_source | Spec §7.12, §14 | MUST | 14 | CSV allowlist, anonymous key, source filter, synthetic source marker | `ResearchDataTest`, `ResearchFlowTest`, CSV privacy scan | DEMO-08 | Done |
-| NFR-25 | Chạy từ môi trường sạch theo README | Spec §1.2, §12, §14 | MUST | 01,15 | `README.md`, `composer.json`, `docker-compose.yml` | FT-NFR-25; Slice 01 install/config evidence | DEMO setup | In Progress |
+| NFR-25 | Chạy từ môi trường sạch theo README | Spec §1.2, §12, §14 | MUST | 01,15 | README, Compose, migration/seed/reset, release checklist | fresh Docker reset/migrate/seed + full suite | DEMO setup | Done |
 | NFR-26 | PHP 8.2+, Composer PSR-4, MySQL 8, PDO, PHPUnit, không framework | Spec §5, §14 | MUST | 01,02 | `composer.json`, `composer.lock`, `docker-compose.yml`, `app/Core/Database.php` | QT-NFR-26; Composer autoload và MySQL integration test | — | Done |
 
 ## Decision–ERD–Acceptance–Test trace cho Mini-Slice 00B

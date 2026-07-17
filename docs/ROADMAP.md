@@ -22,6 +22,9 @@
 | 14 | Research events, ≥2k synthetic, CSV/data dictionary, descriptive dashboards | RBL-01..05, REP-01/02, DEC-025/034 | 09–13; Q-020 Resolved | No-PII, four types, deterministic/idempotent export; không bịa external deliverable |
 | 15 | Security/business/performance audit, demo/release | Toàn bộ MUST, DEC-026/028 | 01–14 | Full suite; 10k/20VU report; clean setup; defense docs |
 
+Trạng thái release 2026-07-17: Slice 00–15 và Mini-Slice 00B đã Complete. Không có slice sản phẩm tiếp theo
+trong roadmap đã khóa; công việc sau release chỉ bắt đầu khi có requirement/decision mới.
+
 ## Gating bắt buộc
 
 1. Đọc specification, RTM, decisions, assumptions, status, README và Git status/log.

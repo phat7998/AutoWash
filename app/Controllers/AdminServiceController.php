@@ -43,7 +43,13 @@ final readonly class AdminServiceController
         $values = $this->inputValues($request);
 
         try {
-            $this->catalog->create($values['code'], $values['name'], $values['description'], $values['prices']);
+            $this->catalog->create(
+                $values['code'],
+                $values['name'],
+                $values['description'],
+                $values['prices'],
+                $this->adminId()
+            );
         } catch (ValidationException $exception) {
             return $this->formResponse('create', $values, $exception->errors(), 422);
         } catch (DuplicateCatalogException $exception) {
@@ -75,7 +81,8 @@ final readonly class AdminServiceController
                 $values['code'],
                 $values['name'],
                 $values['description'],
-                $values['prices']
+                $values['prices'],
+                $this->adminId()
             );
         } catch (ValidationException $exception) {
             return $this->formResponse('edit', $values, $exception->errors(), 422, $serviceId);
@@ -92,7 +99,7 @@ final readonly class AdminServiceController
     {
         $serviceId = $this->resourceId($request);
         $this->findService($serviceId);
-        $this->catalog->deactivate($serviceId);
+        $this->catalog->deactivate($serviceId, $this->adminId());
         $this->session->flash(
             'success',
             'Dịch vụ đã được ngừng hoạt động và lịch sử vẫn được giữ nguyên.'
@@ -105,7 +112,7 @@ final readonly class AdminServiceController
     {
         $serviceId = $this->resourceId($request);
         $this->findService($serviceId);
-        $this->catalog->activate($serviceId);
+        $this->catalog->activate($serviceId, $this->adminId());
         $this->session->flash('success', 'Dịch vụ đã được kích hoạt trở lại.');
 
         return Response::redirect('/admin/dich-vu');
@@ -228,5 +235,10 @@ final readonly class AdminServiceController
         $value = $request->input($key, '');
 
         return is_string($value) ? $value : '';
+    }
+
+    private function adminId(): int
+    {
+        return (int) ($this->session->get('auth_user')['id'] ?? 0);
     }
 }

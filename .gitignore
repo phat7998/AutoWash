@@ -16,3 +16,5 @@
 !/storage/logs/.gitignore
 /storage/uploads/*
 !/storage/uploads/.gitignore
+/storage/performance/*
+!/storage/performance/.gitignore

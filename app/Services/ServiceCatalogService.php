@@ -82,7 +82,8 @@ final readonly class ServiceCatalogService
         string $code,
         string $name,
         string $description,
-        array $prices
+        array $prices,
+        int $adminId
     ): int {
         [$code, $name, $description, $normalizedPrices] = $this->validatedData(
             $code,
@@ -92,7 +93,13 @@ final readonly class ServiceCatalogService
         );
 
         try {
-            return $this->catalog->createWithPrices($code, $name, $description, $normalizedPrices);
+            return $this->catalog->createWithPrices(
+                $code,
+                $name,
+                $description,
+                $normalizedPrices,
+                $adminId
+            );
         } catch (PDOException $exception) {
             $this->throwDuplicateOrOriginal($exception);
         }
@@ -104,7 +111,8 @@ final readonly class ServiceCatalogService
         string $code,
         string $name,
         string $description,
-        array $prices
+        array $prices,
+        int $adminId
     ): void {
         $this->service($serviceId);
         [$code, $name, $description, $normalizedPrices] = $this->validatedData(
@@ -120,7 +128,8 @@ final readonly class ServiceCatalogService
                 $code,
                 $name,
                 $description,
-                $normalizedPrices
+                $normalizedPrices,
+                $adminId
             );
         } catch (PDOException $exception) {
             $this->throwDuplicateOrOriginal($exception);
@@ -131,7 +140,7 @@ final readonly class ServiceCatalogService
         }
     }
 
-    public function deactivate(int $serviceId): void
+    public function deactivate(int $serviceId, int $adminId): void
     {
         $service = $this->service($serviceId);
 
@@ -139,12 +148,12 @@ final readonly class ServiceCatalogService
             return;
         }
 
-        if (!$this->catalog->deactivate($serviceId)) {
+        if (!$this->catalog->deactivate($serviceId, $adminId)) {
             throw new ValidationException(['service' => 'Không thể ngừng dịch vụ được yêu cầu.']);
         }
     }
 
-    public function activate(int $serviceId): void
+    public function activate(int $serviceId, int $adminId): void
     {
         $service = $this->service($serviceId);
 
@@ -152,7 +161,7 @@ final readonly class ServiceCatalogService
             return;
         }
 
-        if (!$this->catalog->activate($serviceId)) {
+        if (!$this->catalog->activate($serviceId, $adminId)) {
             throw new ValidationException(['service' => 'Không thể kích hoạt dịch vụ được yêu cầu.']);
         }
     }

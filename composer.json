@@ -28,9 +28,11 @@
         "lint": "phpcs",
         "db:migrate": "php database/migrate.php",
         "db:seed": "php database/seed.php --demo",
+        "release:audit": "php scripts/release-audit.php",
         "check": [
             "@lint",
-            "@test"
+            "@test",
+            "@release:audit"
         ]
     },
     "config": {
