@@ -74,6 +74,38 @@ docker compose down
 
 Port mặc định của Apache là `8080`, MySQL là `3306`. Có thể đặt `APP_PORT` hoặc `DB_FORWARD_PORT` trong `.env` nếu port local đã được sử dụng.
 
+### Xem database bằng phpMyAdmin
+
+phpMyAdmin chỉ phục vụ môi trường local development và không được triển khai public. Khởi động công cụ bằng
+profile `tools`:
+
+```bash
+docker compose --profile tools up -d phpmyadmin
+```
+
+Mở `http://localhost:8081` và đăng nhập bằng thông tin ứng dụng trong `.env`:
+
+- Máy chủ/Server: `mysql`.
+- Tên người dùng: giá trị `DB_USER`.
+- Mật khẩu: giá trị `DB_PASSWORD`.
+
+`PMA_HOST=mysql` đã được cấu hình nên giao diện thường tự kết nối tới service `mysql` và không yêu cầu nhập
+trường Server. Xem trạng thái hoặc dừng phpMyAdmin bằng các lệnh:
+
+```bash
+docker compose --profile tools ps
+docker compose stop phpmyadmin
+```
+
+Lưu ý an toàn:
+
+- Không commit `.env` và không đăng nhập bằng `root` khi tài khoản ứng dụng đã đủ quyền để xem.
+- Không bấm Drop, Empty, Truncate hoặc Delete khi chưa hiểu ảnh hưởng.
+- Không sửa trực tiếp `point_balance`, `remaining_points`, trạng thái booking, `accumulated_spend`,
+  `accumulated_visits`, loyalty allocations hoặc audit records.
+- Thay đổi dữ liệu nghiệp vụ nên đi qua giao diện hoặc service của ứng dụng; phpMyAdmin chỉ dùng để xem và
+  truy vấn database trong môi trường local.
+
 Nếu chạy bằng PHP built-in server, dùng router script là Front Controller:
 
 ```bash

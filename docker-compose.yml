@@ -48,6 +48,21 @@ services:
       timeout: 5s
       retries: 20
 
+  phpmyadmin:
+    image: phpmyadmin:5
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 64M
+    ports:
+      - "127.0.0.1:8081:80"
+    profiles:
+      - tools
+
 volumes:
   mysql_data:
   app_logs:
