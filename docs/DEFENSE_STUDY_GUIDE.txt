@@ -1,0 +1,1088 @@
+AUTOWASH PRO — TÀI LIỆU HỌC THỰC CHIẾN CHO BUỔI BẢO VỆ
+Cập nhật theo repository và runtime ngày 17/07/2026
+
+Nguyên tắc đọc bằng chứng: đường dẫn sau dấu “Bằng chứng” là vùng dòng gần đúng trong checkout hiện tại. Khi code và tài liệu khác nhau, tài liệu này ưu tiên code runtime.
+
+0. CÁCH SỬ DỤNG TÀI LIỆU
+
+Phải học thuộc ý, không học thuộc câu: bài giới thiệu 30 giây; actor và quyền; booking pipeline; state booking; công thức điểm; FEFO; năm lớp bảo vệ security; các hạn chế trung thực.
+
+Chỉ cần biết cách tìm: tên class, tên repository, chi tiết cột, migration và test. Khi thầy hỏi, bắt đầu ở routes/web.php, lần sang Controller → Validator/Service → Repository → migration/test.
+
+Cách luyện demo: một người thao tác, một người đóng vai giảng viên hỏi “request qua đâu, rule ở đâu, bảng nào đổi?”. Sau mỗi mutation, mở đúng record bằng phpMyAdmin nhưng chỉ SELECT. Luyện cả happy path và một lỗi bị backend chặn.
+
+Không cần học thuộc từng dòng code. Cần giải thích được trách nhiệm mỗi lớp, chỉ đúng file và mô tả được vì sao dữ liệu không bị ghi dở.
+
+Bằng chứng: routes/web.php:53-320; app/Services/BookingService.php:98-234; docs/DEMO_SCRIPT.md:1-141.
+
+1. BÀI GIỚI THIỆU SẢN PHẨM 30 GIÂY
+
+Phiên bản 30 giây:
+
+“AutoWash Pro là website quản lý chăm sóc phương tiện cho một chi nhánh. Guest xem dịch vụ và đăng ký; Customer quản lý xe, đặt lịch theo sức chứa, theo dõi booking, điểm và đổi reward; Admin quản lý catalog, slot, trạng thái booking, điểm, tier, perk, promotion và reward. Phần kỹ thuật trọng tâm là backend tự tính giá, giữ capacity nhiều slot bằng transaction và row lock, lưu snapshot booking, và quản lý điểm bằng ledger cùng allocation FEFO. Hệ thống viết bằng PHP 8.2 thuần theo Front Controller và Controller–Service–Repository.”
+
+Phiên bản khoảng 90 giây:
+
+“AutoWash Pro giải quyết ba việc nối liền nhau: cấu hình dịch vụ rửa xe theo loại phương tiện, đặt lịch không vượt sức chứa, và chăm sóc khách hàng bằng tier–điểm–reward. Guest có thể xem catalog và tạo tài khoản. Customer chỉ thao tác dữ liệu của mình: xe, lịch đặt, lịch sử rửa, ledger điểm và redemption. Admin vận hành dịch vụ, slot, booking, tier/perk/promotion/reward và điều chỉnh điểm có lý do.
+
+Điểm đáng giải thích nhất là hệ thống không tin dữ liệu tính toán từ trình duyệt. Khi đặt lịch, backend khóa xe và cấu hình, bắt buộc đúng một WASH_PACKAGE, cho phép nhiều ADD_ON, lấy giá/thời lượng từ database, cộng duration, lấy capacity lớn nhất, khóa toàn bộ slot chồng lấn rồi ghi booking, snapshot item, reservation và event trong một transaction. Khi hoàn thành, promotion usage, reward use, metrics và điểm được xử lý nguyên tử. Điểm không chỉ là một số dư: có ledger, credit lot, remaining points và allocation để biết debit dùng điểm từ lot nào theo FEFO.
+
+Hệ thống có adapter LPR và upload an toàn nhưng provider hiện là mock offline, không phải OCR production. Phạm vi cũng chưa có payment/refund, multi-branch hay notification production.”
+
+Bằng chứng: README.md:3-35; docs/DECISIONS.md:10-44; app/Services/BookingCompletionService.php:10-25.
+
+2. PHẠM VI SẢN PHẨM
+
+Actor | Được làm gì thực tế | Không được làm gì
+Guest | Xem trang chủ, health, catalog; đăng ký và đăng nhập | Không xem tài khoản, xe, slot customer, booking, điểm, reward hay admin
+Customer | Xem dashboard; quản lý xe của mình; upload ảnh LPR; xem catalog/slot; tạo, xem, hủy booking đúng cutoff; xem điểm; đổi reward | Không vào admin; không sửa xe/booking/LPR attempt của người khác; không tự confirm/complete; không tự chỉnh điểm
+Admin | Xem dashboard; quản lý service/price, slot, booking lifecycle, loyalty adjustment, tier/perk, promotion, reward; xem kết quả tier review | Không dùng vùng customer; không đặt lịch thay customer qua UI hiện tại; không hủy customer theo cutoff như customer
+
+Chức năng bắt buộc đã có: auth/RBAC, vehicle, catalog, slot/capacity, booking, lifecycle, loyalty/reward/tier/promotion, dashboard, audit/research plumbing, LPR adapter/manual fallback. Trạng thái tổng thể: Slice 15 Complete.
+
+Chức năng mở rộng đã có trong scope release: CSV research ẩn danh, synthetic deterministic, descriptive dashboard, local performance workload, mock LPR adapter.
+
+Chưa production-ready: external OCR/LPR, distributed login rate limit/CAPTCHA, monitoring/log tập trung, multi-branch, payment/refund/reversal, email/SMS, public deployment evidence. Survey/ML/paper là deferred bonus, không được nói là đã làm.
+
+Bằng chứng: routes/web.php:53-320; docs/IMPLEMENTATION_STATUS.md:38-54; docs/KNOWN_LIMITATIONS.md:5-20.
+
+3. KIẾN TRÚC TOÀN HỆ THỐNG
+
+Browser
+  → Apache/PHP
+  → public/index.php
+  → Application
+  → Router
+  → global CSRF middleware + auth/role guard theo route
+  → Controller
+  → Validator và Service
+  → Repository
+  → PDO/MySQL
+  → View HTML hoặc Redirect 303
+
+Front Controller: mọi URL động được rewrite về public/index.php; file này capture Request, gọi Application và send Response. Nhờ đó routing/error/security có một cửa vào. Bằng chứng: public/.htaccess:4-16; public/index.php:1-15.
+
+Router: đăng ký method/path, match tham số {id}, ghép global và route middleware, phân biệt 404/405. Bằng chứng: app/Core/Router.php:19-80.
+
+Middleware/guard: CSRF áp dụng toàn cục cho method không an toàn; Authenticated redirect guest về login; Role trả 403 nếu sai role. Bằng chứng: bootstrap/app.php:89-95; app/Middleware/CsrfMiddleware.php:12-35; app/Middleware/AuthenticatedMiddleware.php:11-26; app/Middleware/RoleMiddleware.php:12-33.
+
+Controller: đọc input/request/session, gọi use case, chuyển exception nghiệp vụ thành form error/flash/redirect. Không chứa SQL hay công thức giá. Ví dụ BookingController. Bằng chứng: app/Controllers/BookingController.php:87-139.
+
+Validator: kiểm tra shape/trust boundary như positive ID, mảng service, trùng service, field length. Bằng chứng: app/Validation/BookingValidator.php:10-80.
+
+Service: giữ thứ tự nghiệp vụ và quyết định domain: ownership, group policy, resource, benefit, lifecycle. Bằng chứng: app/Services/BookingService.php:98-234,333-415.
+
+Repository: thực hiện prepared SQL, lock, insert/update và transaction primitive; không quyết định package nào hợp lệ hay công thức điểm. Bằng chứng: app/Repositories/BookingRepository.php:43-181,668-683.
+
+View: render PHP template và escape output qua $e/htmlspecialchars; không query SQL. Bằng chứng: app/Core/View.php:20-58; app/Support/Html.php:7-12.
+
+Migration tạo/thay đổi cấu trúc có thứ tự và được ghi lịch sử; seed đưa cấu hình/dữ liệu demo idempotent vào schema đã có. Migration không phải dữ liệu demo; seed không thay thế schema. Bằng chứng: app/Database/MigrationRunner.php:21-107; app/Database/DatabaseSeeder.php:25-57; database/seeds/base.php:5-113.
+
+Không dồn logic vào Controller vì khó tái sử dụng CLI/test, khó transaction và dễ trộn HTTP với business rule. View không query SQL vì sẽ phá ownership/layering, khó test và dễ lộ dữ liệu.
+
+4. BẢN ĐỒ ROUTE QUAN TRỌNG
+
+Method | Route | Actor | Handler | Mục đích/guard
+GET | / | Public | closure | Guest thấy landing; user đã login redirect theo role
+GET | /health | Public | closure | JSON tối thiểu, không kiểm tra DB
+GET | /dich-vu | Public | CatalogController::index | Catalog active/supported
+GET/POST | /dang-ky | Guest | AuthController | Form/tạo customer; user đã login bị redirect
+GET/POST | /dang-nhap | Guest | AuthController | Form/xác thực
+POST | /dang-xuat | Authenticated | AuthController::logout | CSRF; hủy session
+GET | /tai-khoan | Customer | DashboardController::customer | Dashboard owner-scoped
+GET | /phuong-tien | Customer | VehicleController::index | Danh sách xe
+GET/POST | /phuong-tien/them | Customer | VehicleController | Tạo xe
+POST | /phuong-tien/nhan-dien | Customer | VehicleController::recognize | Upload LPR
+GET | /phuong-tien/nhan-dien/{id}/anh | Customer | VehicleController::lprImage | Ảnh đúng owner
+GET/POST | /phuong-tien/{id}/sua | Customer | VehicleController | Sửa xe đúng owner
+POST | /phuong-tien/{id}/ngung-su-dung | Customer | VehicleController | Inactive, không hard-delete
+GET | /khung-gio | Customer | WashSlotController::index | Slot open/capacity
+GET/POST | /dat-lich | Customer | BookingController | Form/tạo booking
+GET | /lich-dat | Customer | BookingController::index | Booking và wash history
+GET | /lich-dat/{id} | Customer | BookingController::show | Detail đúng owner
+POST | /lich-dat/{id}/huy | Customer | BookingController::cancel | Hủy đúng cutoff
+GET | /diem-thuong | Customer | LoyaltyController::index | Balance/ledger owner
+GET/POST | /doi-thuong[/{id}] | Customer | RewardController | Danh sách/đổi reward
+GET | /admin | Admin | DashboardController::admin | Aggregate dashboard
+GET/POST | /admin/lich-dat[...] | Admin | AdminBookingController | List/confirm/complete/no-show/cancel
+GET/POST | /admin/dich-vu[...] | Admin | AdminServiceController | CRUD/active service-price
+GET/POST | /admin/khung-gio[...] | Admin | AdminSlotController | Tạo/đóng slot
+GET/POST | /admin/diem-thuong[...] | Admin | AdminLoyaltyController | Xem/adjust có reason
+GET | /admin/xet-hang | Admin | AdminTierReviewController | Xem run/history; chạy review bằng CLI
+GET/POST | /admin/hang-thanh-vien[...] | Admin | AdminTierController | Tier CRUD/active
+GET/POST | /admin/quyen-loi[...] | Admin | AdminTierController | Perk CRUD/active
+GET/POST | /admin/promotion[...] | Admin | AdminPromotionController | Promotion CRUD/active
+GET/POST | /admin/reward[...] | Admin | AdminRewardController | Reward CRUD/active
+
+Guest vào route protected: redirect 303 về /dang-nhap. User đã login nhưng sai role: 403. Resource owner mismatch thường cố ý trả 404 để không xác nhận ID tồn tại. Mọi POST đi qua global CSRF, thiếu/sai token trả 419.
+
+Bằng chứng: routes/web.php:53-320; app/Middleware/AuthenticatedMiddleware.php:17-25; app/Middleware/RoleMiddleware.php:20-32; app/Exceptions/VehicleOwnershipException.php:7-12.
+
+5. LUỒNG ĐĂNG KÝ, ĐĂNG NHẬP VÀ SESSION
+
+Đăng ký:
+1) POST phone, full_name, password, password_confirmation; role từ request không được chuyển vào Service.
+2) AuthValidator kiểm tra phone 9–15 số, tên, độ mạnh/match và giới hạn bcrypt.
+3) UserRepository tìm trùng phone; duplicate được trả lỗi domain.
+4) password_hash(..., PASSWORD_BCRYPT); repository INSERT bằng SELECT tier MEMBER, role cố định customer, status active.
+5) Flash thành công và redirect sang /dang-nhap; không tự đăng nhập.
+Bằng chứng: app/Controllers/AuthController.php:31-51; app/Services/AuthService.php:30-59; app/Repositories/UserRepository.php:34-52; app/Validation/AuthValidator.php:10-39.
+
+Đăng nhập:
+1) Validate phone/password cơ bản.
+2) Tìm user theo phone. Nếu không tồn tại vẫn password_verify với dummy hash để giảm khác biệt timing.
+3) Chỉ user active và password đúng mới qua; lỗi dùng message chung.
+4) Update last_login_at, tạo identity tối thiểu id/full_name/role.
+5) regenerate session ID rồi lưu auth_user; redirect /admin hoặc /tai-khoan.
+Bằng chứng: app/Services/AuthService.php:62-93; app/Repositories/UserRepository.php:17-63.
+
+Đăng xuất: POST có auth + CSRF; Session::invalidate xóa data, hết hạn cookie và session_destroy; redirect trang chủ. Bằng chứng: app/Services/AuthService.php:95-98; app/Core/Session.php:72-94.
+
+Trả lời nhanh:
+- Không lưu plain text vì lộ DB sẽ lộ ngay tài khoản; hash một chiều có salt và chi phí tính toán.
+- Hash không “giải mã ngược”; login hash/verify input với hash lưu bằng password_verify.
+- Regenerate ID sau login chống session fixation: ID trước xác thực không tiếp tục đại diện phiên đã xác thực.
+- Cookie ở browser chủ yếu giữ session ID; session data như auth_user ở server.
+- Sửa cookie role không thành Admin: cookie không chứa identity tin cậy; role được lấy từ session server. Tuy nhiên bảo vệ thật là RoleMiddleware, không phải ẩn menu.
+
+6. LUỒNG QUẢN LÝ PHƯƠNG TIỆN
+
+Customer xem list theo user_id từ session. Tạo/sửa gửi vehicle_type_id, plate, brand, model, notes; backend validate type active, độ dài và biển số. Plate được uppercase, bỏ khoảng trắng/dấu chấm/gạch nối để tạo normalized_plate unique; display_plate giữ dạng hiển thị đã trim/uppercase. Pattern baseline là 2 số + 1–2 chữ + 4–5 số, loại NG/NN/QT; đây là regex validation, không phải nhận diện ảnh.
+
+Ownership được kiểm tra kép: Service tìm xe bằng (id, ownerId), repository update/deactivate cũng có WHERE id AND user_id. Customer A không đọc/sửa/inactivate xe B; trả 404 an toàn. Vehicle type ảnh hưởng catalog được hỗ trợ, giá, duration, default capacity và booking window context qua owner/tier.
+
+Bảng: vehicles ghi; vehicle_types đọc; bookings tham chiếu vehicle nên xe được inactive thay vì xóa.
+
+Câu trả lời mẫu: “ID trên URL không được tin. Owner ID lấy từ auth_user trong session; Service chỉ tải xe bằng cả vehicle_id và owner_id, rồi câu UPDATE cũng lặp lại điều kiện user_id. Nếu không khớp hệ thống trả 404 nên đổi ID không vượt được ownership.”
+
+Bằng chứng: app/Services/VehicleService.php:23-129; app/Repositories/VehicleRepository.php:15-156; app/Services/LicensePlateService.php:7-34; database/migrations/002_create_catalog_tables.php:23-39.
+
+7. LUỒNG ĐẶT LỊCH — PHẦN PHẢI HỌC KỸ NHẤT
+
+Thứ tự code runtime chính xác:
+HTTP POST /dat-lich
+→ global CsrfMiddleware (được Router chạy trước middleware riêng của route)
+→ AuthenticatedMiddleware + customer RoleMiddleware
+→ BookingController đọc vehicle_id/start_slot_id/service_ids/reward_redemption_id
+→ BookingValidator kiểm tra positive ID, mảng, duplicate
+→ mở transaction
+→ lock xe đúng owner, kiểm tra xe/type active và lấy tier/window/default capacity
+→ lock cấu hình service–vehicle type
+→ kiểm tra đủ service active/supported
+→ lock service_groups và kiểm tra selection policy
+→ tính tổng duration, capacity max và subtotal từ DB
+→ lock/tải perk, promotion, reward đủ điều kiện; tính lại discount
+→ tải start slot, kiểm tra tier window
+→ tính thời điểm kết thúc
+→ lock mọi slot overlap theo thứ tự
+→ kiểm tra coverage liên tục/open
+→ lock/check booking active trùng của xe
+→ tính active reservations và kiểm tra capacity từng slot
+→ INSERT bookings
+→ attach reward nếu dùng
+→ INSERT booking_items snapshot
+→ INSERT booking_slot_reservations
+→ INSERT research_event_logs booking_created
+→ commit; redirect 303.
+
+Bằng chứng: routes/web.php:179-191; bootstrap/app.php:89-95; app/Controllers/BookingController.php:87-139; app/Services/BookingService.php:98-234.
+
+Service selection:
+- WASH_PACKAGE seed: STANDARD_WASH và PREMIUM_WASH; policy single, min=1, max=1.
+- ADD_ON seed: ENGINE_CLEAN và TIRE_CARE; multiple, min=0, max=NULL.
+- Luôn phải đúng một package. Add-on không được đặt độc lập. Standard và Premium không được chọn cùng lúc.
+- UI dùng radio/checkbox nhưng backend tải policy DB và kiểm tra lại trước pricing/write, nên sửa HTML/request vẫn bị 422 và transaction rollback.
+Bằng chứng: database/seeds/base.php:35-61; database/migrations/010_add_service_group_selection_policy.php:30-80; app/Services/BookingService.php:333-415.
+
+Pricing:
+- Giá lấy từ service_vehicle_prices active/supported cho đúng loại xe; client không có tham số giá được Service dùng.
+- subtotal = tổng price của item bằng integer cents, không float.
+- Chọn tối đa một perk tốt nhất; một promotion tốt nhất; một reward do customer chọn và đủ điều kiện.
+- Thứ tự trừ: perk → promotion → reward. Mỗi bước bị cap bởi phần subtotal còn lại; final không âm. Percentage/fixed/service-specific và max_discount do config.
+- Booking lưu subtotal, ba discount và final_price snapshot.
+Bằng chứng: app/Services/PriceCalculator.php:18-55,58-143; database/migrations/004_create_booking_tables.php:9-47.
+
+Duration và multi-slot:
+- duration = SUM duration_minutes của mọi service đã chọn.
+- bookingStart lấy từ start slot; bookingEnd = start + duration.
+- Query lock mọi wash_slot có khoảng thời gian chồng lấn; coverage phải liên tục đến bookingEnd. Reservation được tạo cho từng slot overlap.
+Bằng chứng: app/Services/BookingResourceCalculator.php:13-35; app/Services/BookingService.php:165-188,421-472.
+
+Capacity:
+- Vehicle default seed: motorbike=1, car=2, truck=4, bus=5 units.
+- Effective service capacity = max(vehicle default, override); correction hiện đặt override của bốn service seed về NULL.
+- booking capacity = max(vehicle default, capacity của từng item), không sum.
+- Capacity là chỗ vật lý chiếm đồng thời; duration là thời gian chiếm chỗ. Nhiều service nối tiếp tăng thời gian, không làm xe vật lý tự nhân lên.
+Bằng chứng: database/seeds/base.php:23-27,45-61; app/Services/BookingResourceCalculator.php:19-34; docs/DECISIONS.md:24-29,44.
+
+Concurrency:
+- Transaction dùng InnoDB; xe, service config, groups, slot overlap, active reservation/booking liên quan được lock bằng FOR UPDATE theo thứ tự ổn định.
+- Hai customer tranh đơn vị cuối: request giữ lock trước tính usage và commit; request sau đọc usage mới rồi nhận SlotFullException. Test hai process xác nhận một winner.
+- Nếu bất kỳ insert/attach/event lỗi, rollBack xóa booking/items/reservations/reward attach cùng transaction.
+Bằng chứng: app/Repositories/BookingRepository.php:43-48,260-272,366-451,668-683; tests/Integration/Booking/BookingFlowTest.php:303-375.
+
+Snapshot:
+booking_items lưu service_id/source price ID và snapshot name, vehicle type code, unit price, duration, capacity, quantity, line total. Catalog đổi sau này không đổi hóa đơn/lịch sử booking cũ. Bằng chứng: database/migrations/004_create_booking_tables.php:65-89; app/Repositories/BookingRepository.php:523-568.
+
+Bảng tác động khi create: đọc/lock users, tiers, vehicles, vehicle_types, services, service_groups, service_vehicle_prices, wash_slots, tier_perks, promotions + association/usage, reward_redemptions/rewards; ghi bookings, booking_items, booking_slot_reservations, có thể attach reward_redemptions, research_event_logs.
+
+Lỗi phổ biến:
+Lỗi | Layer chặn → kết quả | Dữ liệu rác
+Không package | Validator/Service group policy → 422 | Không, trước insert/rollback
+Hai package | Service policy → 422 | Không
+Chỉ add-on | Service policy → 422 | Không
+Service unsupported | Service assertAllServicesAvailable → 422 | Không
+Slot thiếu capacity | Service sau row lock → 422 | Không
+Xe không thuộc user | owner query/Service → form 422 khi create; detail resource khác trả 404 | Không
+Client sửa giá/capacity | Không đọc input đó; tính từ DB | Không
+Hai booking active cùng xe/time | hasActiveVehicleOverlap → 422 | Không
+Reward/promotion sai owner/scope/limit | PromotionService trong transaction → 422/domain error | Không
+Duplicate HTTP request | Không có idempotency key tổng quát; overlap xe và reward use-once/unique source chặn phần lớn mutation lặp, booking code random unique. Không nên tuyên bố mọi duplicate mạng được dedupe tuyệt đối | Request sau bị rule/constraint hoặc có rủi ro cực thấp ở nhánh chưa có idempotency key
+
+8. VÒNG ĐỜI BOOKING
+
+pending → confirmed → completed
+   └────→ cancelled
+confirmed → cancelled
+confirmed → no_show
+
+State thật gồm pending, confirmed, completed, cancelled, no_show. Completed/cancelled/no_show là terminal.
+
+Hiện tại | Hành động | Mới | Actor | Tác động phụ
+pending | xác nhận | confirmed | Admin | status update
+pending | hủy | cancelled | Customer nếu ≥2 giờ; Admin có reason | cancelled_at/reason; reward release; capacity không còn tính
+confirmed | hoàn thành | completed | Admin | completed_at; benefit usage; metrics; earn/lot/balance; event
+confirmed | hủy | cancelled | Customer nếu ≥2 giờ; Admin có reason | reward release; capacity không còn tính; admin audit
+confirmed | không đến | no_show | Admin | reward release; capacity không còn tính; research cancellation status
+
+Customer được hủy đúng boundary 2 giờ; dưới 2 giờ bị CancellationCutoffException, Admin vẫn có thể cancel với lý do/audit. Reservation record không bị xóa; read model chỉ tính reservation của pending/confirmed nên capacity được giải phóng theo status. Complete chỉ từ confirmed; complete lần hai là invalid transition, không cộng điểm lần hai. Cancelled/no_show không earn vì completion processor không chạy.
+
+Bằng chứng: app/Services/BookingLifecyclePolicy.php:11-50; app/Services/BookingService.php:280-330,489-537; app/Repositories/BookingRepository.php:406-429.
+
+9. LOYALTY — ĐIỂM, CREDIT LOT, ALLOCATION VÀ FEFO
+
+Phân biệt:
+- users.point_balance: cache/tổng nhanh để hiển thị và lock; không phải lịch sử duy nhất.
+- loyalty_transactions: ledger bất biến theo credit/debit, source và mô tả.
+- Credit lot: transaction type earn hoặc adjust_credit có remaining_points ≥0.
+- remaining_points: phần điểm credit chưa bị debit phân bổ.
+- Debit: redeem, expire, adjust_debit có points_delta âm và remaining_points=0.
+- loyalty_allocations: nối một debit tới từng credit lot và số điểm đã lấy.
+
+Invariant: point_balance = SUM(points_delta ledger) = SUM(remaining_points của credit lot); tổng allocation của mỗi debit = trị tuyệt đối debit; remaining không âm. Reconcile CLI kiểm tra cả ba.
+Bằng chứng: docs/DECISIONS.md:20,27,41; app/Repositories/LoyaltyTransactionRepository.php:544-588; scripts/reconcile-loyalty.php:28-56.
+
+Khi hoàn thành booking:
+1) Chỉ transition confirmed→completed và loyalty_processed_at phải NULL.
+2) Trong transaction booking, lock customer active và tier.
+3) Điểm = floor(floor(final_price / 10.000) × point_rate). Tính integer/decimal, không float. Ví dụ Gold 250.000: base=25; floor(25×1,25)=31.
+4) Nếu points>0: insert earn credit lot, remaining=points, earned_at=now, expires_at đúng 12 calendar months có clamp ngày cuối tháng.
+5) Tăng monthly_spend bằng final_price, monthly_visits +1, point_balance +points; đặt marker và event.
+6) Unique source booking + marker + lifecycle terminal chống cộng lặp.
+Bằng chứng: app/Services/LoyaltyPointCalculator.php:18-53; app/Services/LoyaltyService.php:29-80; app/Repositories/LoyaltyTransactionRepository.php:56-119.
+
+Khi redeem:
+1) Transaction; lock customer rồi lock reward.
+2) Reward active, tier rank đủ, point_balance đủ. Vehicle/service restriction chủ yếu được kiểm tra khi redemption được gắn vào booking; redeem tạo quyền lợi available.
+3) Insert reward_redemptions với expiry theo valid_days_after_redeem.
+4) Loyalty debit lock các lot còn hạn, allocate FEFO, insert debit, giảm remaining và balance.
+5) Insert research event; bất kỳ lỗi nào rollback redemption, debit, allocation, balance/event.
+Bằng chứng: app/Services/RewardService.php:64-114; app/Services/LoyaltyService.php:219-253,344-381.
+
+FEFO: “First Expired, First Out” ưu tiên expires_at sớm nhất; nếu cùng expiry dùng created_at,id; lot không expiry sau cùng theo FIFO.
+Ví dụ đúng behavior: Lot A 100 điểm hết hạn sớm, Lot B 200 điểm hết hạn muộn; đổi 150 → allocation 100 từ A và 50 từ B. B còn 150.
+Bằng chứng: app/Repositories/LoyaltyTransactionRepository.php:375-394; app/Services/LoyaltyDebitAllocator.php:15-48.
+
+Expiry:
+- CLI: php scripts/expire-points.php.
+- Candidate chỉ là earn lot có remaining>0 và expires_at<=now; lock lại user và lot.
+- Debit đúng phần remaining, allocation toàn phần vào lot đó, giảm balance, ghi event.
+- Chạy lại: lot remaining=0 không còn candidate; không trừ hai lần.
+Bằng chứng: scripts/expire-points.php:15-38; app/Services/LoyaltyService.php:272-342.
+
+Admin adjustment:
+- points phải là integer khác 0; reason bắt buộc; optional source transaction phải thuộc customer.
+- Dương: adjust_credit không expiry + update balance.
+- Âm: từ chối nếu balance âm; dùng cùng FEFO/allocation; không clamp.
+- Ledger và audit chứa before/after/reason trong transaction. Không sửa thẳng balance vì sẽ phá ledger, lot và khả năng giải trình.
+Bằng chứng: app/Services/LoyaltyService.php:110-193; app/Validation/LoyaltyAdjustmentValidator.php:10-73.
+
+Trả lời nhanh:
+- Không chỉ point_balance vì không biết điểm đến từ booking/adjust nào, hết hạn khi nào, hay debit dùng lot nào.
+- FEFO khác FIFO: FEFO theo hạn dùng trước; FIFO chỉ theo thời điểm tạo.
+- Allocation cho biết từng debit đã dùng credit transaction nào.
+- Lỗi giữa chừng rollback toàn transaction.
+- Redeem không giảm spend/visits vì tier metric phản ánh giao dịch hoàn thành, tách khỏi cách dùng điểm.
+
+10. TIER VÀ MONTHLY REVIEW
+
+Seed demo (là config DB, Admin có thể đổi):
+Member: 0 VND AND 0 visit, window 7, rate 1,00.
+Silver: 300.000 AND 2, window 10, rate 1,10.
+Gold: 800.000 AND 5, window 12, rate 1,25.
+Platinum: 1.500.000 AND 8, window 14, rate 1,50.
+
+Review mặc định kỳ tháng lịch vừa kết thúc. Policy sắp tier từ cao xuống và chọn tier cao nhất thỏa đồng thời spend AND visits; vì vậy có thể upgrade, downgrade hoặc giữ. Với từng customer: lock, kiểm tra history kỳ, snapshot old/new tier và metrics, insert tier_histories + research event, update current tier và reset monthly_spend/monthly_visits trong transaction riêng. point_balance không reset.
+
+Toàn batch dùng MySQL advisory lock theo period. monthly_review_runs có running/completed/failed. Completed run bị từ chối chạy lại; failed run resume và bỏ user đã có unique history. Không có UI special rerun.
+
+Perk active của tier hiện tại được tải khi checkout; PriceCalculator chọn một perk tốt nhất. Tier còn quyết định booking window, point_rate, promotion target và minimum reward tier.
+
+Bằng chứng: database/seeds/base.php:10-15,95-99; app/Services/TierReviewPolicy.php:17-56; app/Services/TierReviewService.php:25-144; app/Repositories/TierRepository.php:18-29,124-180.
+
+11. PROMOTION, PERK VÀ REWARD
+
+Khái niệm | Nguồn | Điều kiện | Tác động | Khi áp dụng
+Tier perk | tier_perks | tier hiện tại, active, service nếu target | giảm fixed/percentage/free add-on | tự chọn tốt nhất lúc checkout
+Promotion | promotions + 3 bảng target | active/time, min order, tier/service/vehicle, total/per-user limit | fixed/percentage có cap | tự chọn tốt nhất lúc checkout; usage ghi khi complete
+Reward | rewards + reward_vehicle_types; instance ở reward_redemptions | đổi đủ điểm/tier; dùng đúng owner, còn hạn, service/vehicle phù hợp | fixed/percentage/free service/add-on | Customer redeem trước; chọn tối đa một ở checkout
+
+Promotion khác perk: promotion có thời gian, minimum order, target và usage limits; perk là quyền lợi tier. Reward khác cả hai vì Customer phải tiêu điểm để tạo redemption có hạn và dùng một lần.
+
+Service-specific reward chỉ giảm subtotal của đúng service_id. “Miễn phí Standard” không chuyển sang Premium; add-on reward chỉ có tác dụng khi add-on đó được chọn. Khi checkout redemption được lock, kiểm tra owner/status/expiry/tier/vehicle/service, rồi attach booking; complete đổi status used, cancel/no_show trả available nếu chưa hết hạn, nếu hết hạn thành expired.
+
+Stacking hiện tại: tối đa một perk tốt nhất + một promotion tốt nhất + một reward; thứ tự cap perk→promotion→reward; final không âm. Promotion limit tính cả usage đã complete và booking pending/confirmed đang giữ promotion, dưới lock.
+
+Bằng chứng: app/Services/PromotionService.php:25-258; app/Repositories/PromotionRepository.php:20-229; app/Services/PriceCalculator.php:18-55,108-143; docs/DECISIONS.md:18,31-32.
+
+12. LPR
+
+Upload flow: Customer POST multipart ảnh + CSRF → Request::file tạo UploadedFile → LprUploadService kiểm tra upload error, size thật và size khai báo, MIME bằng finfo → chỉ JPEG/PNG/WebP → tên random 40 hex, mode 0640, lưu storage/uploads/lpr ngoài public → provider nhận path → lpr_attempts ghi provider/text/normalized/confidence/status → form chỉ gợi ý, customer vẫn xác nhận/sửa → khi tạo xe backend regex validate lại.
+
+Mặc định max 5 MiB và threshold 0,80 từ config môi trường mẫu; guide không coi đó là bí mật. Confidence thấp/null chỉ cảnh báo. Provider lỗi ghi attempt failed và giữ manual fallback. Ảnh chỉ đọc qua route có attempt_id + user_id; path storage không public.
+
+Adapter: LprProviderInterface có name/recognize. MockLprProvider trả text/confidence đã cấu hình, không đọc pixel/OCR. Regex chỉ kiểm tra chuỗi biển sau nhận diện/nhập; không nhận diện ảnh.
+
+Đã làm: safe upload, interface, mock offline, attempt log, confidence, owner-only image, manual override/fallback.
+Chưa production LPR: chưa external endpoint/model/credential, chưa evidence accuracy/latency/OCR thực.
+
+Câu trả lời mẫu: “Không. Hiện đây là adapter LPR với MockLprProvider để chứng minh luồng upload–provider–confirm và khả năng thay provider. Mock trả kết quả cấu hình, không phân tích ảnh. Production cần adapter thật và evidence chất lượng; manual fallback vẫn phải giữ.”
+
+Bằng chứng: app/Services/LprUploadService.php:14-134; app/Services/LprService.php:19-147; app/Providers/MockLprProvider.php:10-26; config/lpr.php:1-16.
+
+13. SECURITY
+
+Rủi ro | Cách xử lý | File:line
+Password lộ | bcrypt hash/verify, không lưu plain | app/Services/AuthService.php:30-89
+Session fixation | regenerate ID sau login; invalidate logout | app/Core/Session.php:27-94
+Authentication | auth_user server session; guest redirect | app/Middleware/AuthenticatedMiddleware.php:17-25
+RBAC | RoleMiddleware trả 403 | app/Middleware/RoleMiddleware.php:20-32
+IDOR/ownership | query bằng id + owner; mismatch 404 | app/Services/VehicleService.php:36-44; app/Services/BookingService.php:251-263
+CSRF | global middleware cho mọi unsafe method; one-time token/hash_equals | bootstrap/app.php:89-95; app/Core/CsrfTokenManager.php:15-41
+XSS | escape ENT_QUOTES/UTF-8 khi render | app/Support/Html.php:7-12
+SQL injection | prepared statement; native prepares | app/Core/Database.php:27-48
+Upload giả | size thật, finfo MIME, allowlist, random name, ngoài public | app/Services/LprUploadService.php:53-94
+Error leakage | generic production 500 + request ID/log | app/Core/ErrorHandler.php:31-67
+Login abuse | generic error/dummy hash; chưa có distributed rate limit/CAPTCHA | app/Services/AuthService.php:62-85; docs/KNOWN_LIMITATIONS.md:11
+Audit | admin cancel/adjust/config ghi audit_logs | app/Repositories/BookingRepository.php:330-360; app/Repositories/LoyaltyTransactionRepository.php:512-541
+Bí mật cấu hình | .env ignored, Dotenv/env vars, sensitive web paths denied | .gitignore:1-20; public/.htaccess:7-16
+HTTP hardening | nosniff, referrer, frame options; Apache version minimized | public/.htaccess:19-23; docker/php/Dockerfile:7-18
+
+Ẩn menu không phải authorization; user vẫn có thể gõ URL nên route guard bắt buộc. Prepared statement tách SQL template khỏi parameter nên input không biến thành cú pháp SQL. Validate input kiểm tra dữ liệu có hợp lệ để xử lý; escape output mã hóa ký tự theo HTML context—cần cả hai. CSRF ngăn website khác gửi mutation bằng session nạn nhân; nó không thay XSS. 403 nghĩa đã biết user nhưng thiếu quyền; 404 cho resource owner mismatch giảm khả năng dò ID. Extension file do client đặt không đáng tin nên dùng MIME nội dung bằng finfo.
+
+Không tuyên bố có: distributed rate limit, CAPTCHA, CSP, WAF, SIEM, backup/monitoring production.
+
+14. DATABASE MAP
+
+Identity/config:
+- app_settings: PK id, key unique; config typed; module bootstrap/loyalty.
+- tiers: PK id; live config window, threshold, rate; users.current_tier_id FK.
+- users: PK id; FK tier; identity, role, metrics, cached balance. Không có bảng sessions; PHP session storage quản lý ngoài schema app.
+
+Catalog:
+- vehicle_types: PK id; live type/default resource; vehicles/prices tham chiếu.
+- vehicles: PK id; FK user,type; normalized plate unique; live owner resource, inactive thay delete.
+- service_groups: PK id; live selection policy; services FK.
+- services: PK id; FK group; live catalog.
+- service_vehicle_prices: PK id; FK service,type; unique pair; live price/duration/override/support.
+- wash_slots: PK id; live date/time/capacity/status.
+
+Booking/benefit:
+- bookings: PK id; FK user,vehicle,start slot,promotion; status và tổng giá/resource là snapshot tại checkout.
+- booking_items: PK id; FK booking,service,source price; name/type/price/duration/capacity là snapshot.
+- booking_slot_reservations: PK id; FK booking,slot; capacity hold; active tùy booking status.
+- rewards: PK id; FK optional service/min tier; live config.
+- reward_vehicle_types: composite PK/FK restriction.
+- reward_redemptions: PK id; FK user,reward,optional booking; instance snapshot points/status/time.
+- tier_perks: PK id; FK tier,optional service; live config.
+- promotions: PK id; live rule/time/limit.
+- promotion_tiers/services/vehicle_types: composite association.
+- promotion_usages: PK id; FK promotion,user,booking; lịch sử complete, unique promotion+booking.
+
+Loyalty/tier:
+- loyalty_transactions: PK id; FK user,created_by,self correction; ledger + credit lot remaining.
+- loyalty_allocations: PK id; FK debit và credit transaction; allocation history.
+- monthly_review_runs: PK id; period unique; batch state.
+- tier_histories: PK id; FK user,old/new tier; unique user+period; snapshot metrics.
+
+Operations/research:
+- audit_logs: PK id; optional actor FK; before/after/reason.
+- research_event_logs: PK id; event_key unique; anonymous snapshot/metrics, no direct user FK.
+- lpr_attempts: PK id; nullable user FK; image/provider/result/confidence/status.
+- migrations: migration runner history, không phải entity nghiệp vụ.
+
+Bằng chứng: database/migrations/001_create_core_tables.php:9-56; database/migrations/002_create_catalog_tables.php:9-92; database/migrations/003_create_benefit_tables.php:9-111; database/migrations/004_create_booking_tables.php:9-130; database/migrations/005_create_loyalty_tables.php:9-63; database/migrations/006_create_operations_tables.php:9-87; database/migrations/009_create_lpr_attempts.php:9-28; database/migrations/010_add_service_group_selection_policy.php:30-80.
+
+Khi thao tác X, bảng thay đổi:
+- Đăng ký: users.
+- Thêm xe: vehicles; nếu xác nhận LPR thì lpr_attempts đã được ghi/update trước.
+- Đặt lịch: bookings, booking_items, booking_slot_reservations, research_event_logs; có thể reward_redemptions.booking_id.
+- Admin confirm: bookings.
+- Admin complete: bookings, promotion_usages, reward_redemptions, users metrics/balance, loyalty_transactions, research_event_logs.
+- Customer redeem: reward_redemptions, loyalty_transactions, loyalty_allocations, users.point_balance, research_event_logs.
+- Expire: loyalty_transactions, loyalty_allocations, users.point_balance, research_event_logs.
+- Monthly review: monthly_review_runs, tier_histories, users tier/metrics, research_event_logs.
+- Admin adjust: loyalty_transactions, có thể loyalty_allocations, users.point_balance, audit_logs.
+- Upload LPR: file storage + lpr_attempts; không tự tạo vehicle.
+
+15. TRANSACTION VÀ ATOMICITY
+
+Transaction là nhóm thao tác commit tất cả hoặc rollback tất cả. Atomicity tránh trạng thái nửa vời.
+
+Use case có transaction thực tế:
+- Booking create/cancel/transition/complete: BookingRepository::transactional.
+- Completion gọi promotion/reward usage + loyalty + research trong transaction booking.
+- Reward redeem: RewardRepository::transactional; LoyaltyService yêu cầu đang trong transaction.
+- Loyalty adjust và mỗi expired lot: LoyaltyTransactionRepository::transactional.
+- Mỗi customer tier review: TierRepository::transactional; batch run state ngoài các transaction user riêng để resume.
+- Admin service, tier/perk, promotion, reward configuration dùng transaction repository để đồng bộ config/association/audit.
+- Migration/seed có transaction nơi code hỗ trợ, nhưng MySQL DDL không transactional hoàn toàn nên migration 010 preflight trước schema change.
+
+Booking thành công nhưng reservation thất bại: exception → rollBack booking và items/attach/event. Trừ lot xong nhưng tạo redemption/event lỗi: cùng transaction → remaining, allocation, balance và redemption rollback. Commit chỉ sau callback thành công; catch kiểm tra inTransaction rồi rollBack.
+
+Bằng chứng: app/Repositories/BookingRepository.php:668-683; app/Repositories/RewardRepository.php:215-230; app/Repositories/LoyaltyTransactionRepository.php:594-612; app/Repositories/TierRepository.php:276-291.
+
+16. TESTING
+
+Kết quả an toàn chạy ngày 17/07/2026:
+- composer lint: 178/178 file qua PSR-12, 3,26 giây.
+- composer test: 169 test, 250 assertion, 82 skipped, 0 failure, 0 error. Các integration MySQL bị skip vì AUTOWASH_DB_TESTS không bật.
+- Không chạy integration DB trong lượt tạo guide: mỗi suite gọi DatabaseResetter khi bật cờ và database Docker hiện tại là database manual đang chạy; không reset dữ liệu người dùng.
+
+Phân loại và rule được bảo vệ:
+- Unit: calculator/policy/validator/router/session/escape; công thức không cần DB.
+- Feature/HTTP: route 404/405, PRG, auth/RBAC, production error.
+- Integration MySQL: schema/seed, CRUD, booking/loyalty/tier/research; cần DB testing có thể reset.
+- Security: Apache deny path, env/log ignore, CSRF, XSS/RBAC/ownership trong HTTP tests.
+- Concurrency: worker hai process cho slot cuối, promotion limit, redeem và negative adjustment.
+- Migration/seed: repeatable/idempotent, constraints và backfill fail-fast.
+- Performance: workload riêng 10.000 booking/20 VU trên local; không chạy trong lượt này.
+
+Ít nhất 15 test case nên biết:
+1) Role injection đăng ký bị bỏ, bcrypt hash — tests/Integration/Auth/AuthFlowTest.php:55-89.
+2) Login generic error/disabled — tests/Integration/Auth/AuthFlowTest.php:123-156.
+3) Customer gõ URL admin nhận 403 — tests/Feature/AuthAuthorizationTest.php:49-65.
+4) Ownership xe read/update/deactivate — tests/Integration/Vehicle/VehicleFlowTest.php:110-165.
+5) LPR reject MIME/oversize — tests/Integration/Lpr/LprFlowTest.php:82-115.
+6) LPR owner-only image/manual override — tests/Integration/Lpr/LprFlowTest.php:181-251.
+7) Package + add-on hợp lệ, package pair/add-on-only bị reject — tests/Integration/Booking/BookingFlowTest.php:131-204.
+8) Multi-service snapshot và mọi slot overlap — tests/Integration/Booking/BookingFlowTest.php:84-129.
+9) Slot giữa đầy rollback toàn bộ — tests/Integration/Booking/BookingFlowTest.php:264-301.
+10) Hai process tranh slot cuối một winner — tests/Integration/Booking/BookingFlowTest.php:335-376.
+11) Lifecycle matrix/complete lặp không đổi metrics — tests/Integration/Booking/BookingLifecycleFlowTest.php:86-139.
+12) Hủy đúng 2 giờ và release capacity — tests/Integration/Booking/BookingLifecycleFlowTest.php:176-217.
+13) Completion lỗi loyalty rollback status/metrics — tests/Integration/Loyalty/LoyaltyFlowTest.php:143-184.
+14) Negative adjust concurrent không overspend — tests/Integration/Loyalty/LoyaltyFlowTest.php:245-291.
+15) Redeem FEFO và non-expiring FIFO — tests/Integration/Reward/RewardFlowTest.php:104-131.
+16) Expiry chỉ remainder và chạy lại idempotent — tests/Integration/Reward/RewardFlowTest.php:132-164.
+17) Redeem concurrent không overspend — tests/Integration/Reward/RewardFlowTest.php:194-227.
+18) Tier upgrade/downgrade/hold/reset giữ balance — tests/Integration/Tier/TierReviewFlowTest.php:72-106.
+19) Failed monthly review resume user chưa xử lý — tests/Integration/Tier/TierReviewFlowTest.php:107-132.
+20) Catalog price đổi không đổi booking snapshot — tests/Integration/CatalogSlot/CatalogSlotFlowTest.php:169-202.
+
+Test tự động không thay manual test: test chỉ chứng minh assertion đã viết. Requirement sai thì test có thể “pass” hành vi sai. Trước defense, manual test phát hiện UI checkbox cho phép Standard + Premium; test cũ phản ánh hiểu nhầm multi-service nên không bắt lỗi domain. Nhóm sửa bằng DEC-035, service_groups, backend policy và regression mới—not chỉ sửa UI. Đây là ví dụ tốt để trả lời về review AI/manual.
+
+Bằng chứng: composer.json:26-36; phpunit.xml:1-18; docs/DECISIONS.md:71-72; docs/IMPLEMENTATION_STATUS.md:78-94.
+
+17. DOCKER VÀ CÁCH CHẠY
+
+Lệnh đúng theo repository:
+- Tạo cấu hình local: cp .env.example .env
+- Build/chạy web + MySQL: docker compose up -d --build
+- Cài dependency trong container nếu cần: docker compose run --rm web composer install
+- Trạng thái: docker compose ps
+- Log: docker compose logs -f web (hoặc mysql)
+- Dừng, giữ volume: docker compose down
+- Migration: docker compose exec -T web composer db:migrate
+- Seed demo: docker compose exec -T web composer db:seed
+- Test an toàn mặc định: docker compose exec -T web composer test
+- Lint: docker compose exec -T web composer lint
+- phpMyAdmin local: docker compose --profile tools up -d phpmyadmin; mở http://localhost:8081
+- App/health: http://localhost:8080 và http://localhost:8080/health
+
+Container:
+- web: image build từ php:8.2-apache, document root public, source bind mount; volume riêng cho logs/uploads.
+- mysql: MySQL 8.4, data ở named volume mysql_data, healthcheck trước web.
+- phpmyadmin: profile tools, bind 127.0.0.1:8081, kết nối service mysql; không public production.
+- Compose network cho phép service gọi nhau bằng DNS service name. Vì thế trong web DB_HOST=mysql; localhost trong container web là chính container web, không phải container MySQL.
+
+Tắt máy/restart container không làm mất DB vì mysql_data là named volume. docker compose down giữ volume; down -v xóa volume và database, rất nguy hiểm nếu chưa backup. Image là template bất biến để tạo container; container là instance đang chạy có process/network/layer ghi. Volume tách dữ liệu bền khỏi vòng đời container.
+
+Bằng chứng: README.md:44-138,189-225; docker-compose.yml:1-69; docker/php/Dockerfile:1-20.
+
+18. CÁC QUYẾT ĐỊNH THIẾT KẾ CẦN BẢO VỆ
+
+1) PHP thuần 8.2+.
+Lý do: quyết định nhóm, thể hiện hiểu HTTP/layer/PDO; đề tài không bắt framework. Khác: Laravel/Symfony. Đánh đổi: tự xây router, DI, validation; ít convention/package sẵn.
+
+2) Front Controller.
+Lý do: một entry point cho router, CSRF, error. Khác: nhiều PHP script public. Đánh đổi: cần router/bootstrap rõ.
+
+3) Controller–Service–Repository.
+Lý do: tách HTTP, domain, SQL; dễ unit/integration test. Khác: active-record/fat controller. Đánh đổi: nhiều class/wiring.
+
+4) Giá theo service + vehicle type.
+Lý do: cùng dịch vụ khác giá/thời lượng/hỗ trợ theo xe. Khác: một price trên services. Đánh đổi: cần bảng pair và admin cấu hình.
+
+5) Service group policy DB.
+Lý do: bắt buộc đúng một package, add-on optional; chống hiểu nhầm Standard+Premium. Khác: hard-code code/name hoặc chỉ radio UI. Đánh đổi: thêm group FK/migration/validation.
+
+6) Duration sum, capacity max.
+Lý do: service nối tiếp cộng thời gian, còn một xe chiếm mức vật lý lớn nhất. Khác: sum capacity hoặc max duration. Đánh đổi: phải reserve mọi slot overlap cùng một capacity.
+
+7) Booking item snapshot.
+Lý do: lịch sử/giá cũ bất biến khi catalog sửa. Khác: join live catalog để hiển thị. Đánh đổi: dữ liệu lặp có chủ đích.
+
+8) Loyalty ledger + generic allocation.
+Lý do: audit nguồn và debit-to-credit; balance chỉ cache. Khác: chỉ một cột balance. Đánh đổi: transaction/reconcile phức tạp hơn.
+
+9) FEFO và 12 calendar months.
+Lý do: dùng điểm sắp hết hạn trước; boundary rõ. Khác: FIFO/365 ngày. Đánh đổi: lock/order lots, calendar clamp.
+
+10) Monthly review theo AND.
+Lý do: cả spending và completed visits phản ánh qualification; chọn tier cao nhất. Khác: OR/realtime tier. Đánh đổi: cần run/history/reset/recovery.
+
+11) Một perk + một promotion + một reward.
+Lý do: stacking xác định, cap final. Khác: cộng không giới hạn. Đánh đổi: thuật toán chọn “best” và limit lock.
+
+12) Mock LPR qua interface + manual fallback.
+Lý do: hoàn thiện trust boundary mà không giả OCR production. Khác: hard-code API/self-trained claim. Đánh đổi: demo không chứng minh accuracy.
+
+13) Synthetic research data có nhãn nguồn.
+Lý do: dataset deterministic ≥2.000, không bịa dữ liệu thật/PII. Khác: survey/ML chưa có. Đánh đổi: chỉ descriptive evidence.
+
+Bằng chứng: docs/DECISIONS.md:10-44; docs/ERD.md:403-450.
+
+19. NHỮNG HẠN CHẾ PHẢI THỪA NHẬN
+
+- LPR: hiện là mock adapter, không OCR/model production. Ngoài scope vì thiếu provider/evidence; mở rộng bằng ExternalLprProvider, credential vận hành và benchmark, vẫn giữ validation/fallback.
+- Performance: đã đo local 10.000 booking/20 VU, không phải SLA thương mại. Mở rộng bằng staging tương đương production, soak/load nhiều mức, monitoring.
+- Một chi nhánh: schema slot/report không có branch_id. Mở rộng phải thêm requirement, branch entity, scope/index/migration.
+- Không payment/refund/reversal: checkout là giá booking, không thu tiền; correction completed dùng admin adjustment có audit. Mở rộng cần payment state/idempotency/webhook/reconciliation/refund policy.
+- Chưa distributed rate limit/CAPTCHA: login có generic error/dummy hash nhưng internet-facing cần gateway/rate limiter.
+- Log local: có request ID nhưng chưa SIEM/rotation/alert/backup production.
+- Monthly review: completed run cố ý không rerun; failed resume. Special rerun cần admin authorization/reason/audit mới.
+- UI: responsive foundation có test, chưa visual regression đa browser/accessibility audit đầy đủ.
+- Service group: hai group seed là system config, chưa full group CRUD hay benefit target group.
+- Research: survey/ML/inference/paper chưa làm; dashboard chỉ descriptive.
+- Không email/SMS production, native app, multi-branch, inventory/accounting/microservice.
+
+Cách nói: “Trong phạm vi MUST, luồng đã có test/evidence; em không gọi nó là hệ thống production hoàn chỉnh. Các giới hạn trên là ranh giới có chủ đích và mỗi hướng mở rộng cần rule/schema/test mới.”
+
+Bằng chứng: docs/KNOWN_LIMITATIONS.md:1-20; docs/PERFORMANCE_REPORT.md:1-52.
+
+20. CÁCH TRẢ LỜI VỀ VIỆC DÙNG AI AGENT
+
+Câu trả lời mẫu:
+
+“Nhóm dùng AI agent như công cụ hỗ trợ phân tích repository, đề xuất patch, viết test và rà soát. Nhóm chia dự án thành slice dọc theo requirement; mỗi slice phải nêu acceptance, file, migration, transaction, validation, authorization và test trước khi sửa. Sinh viên chịu trách nhiệm khóa business rule, duyệt diff, chạy test thật, manual test và quyết định có nhận thay đổi hay không.
+
+Ví dụ rõ nhất là AI/test cũ từng chấp nhận cách hiểu multi-service cho phép Standard + Premium. Manual test trước bảo vệ phát hiện đó là hai package thay thế, không phải hai add-on. Nhóm cập nhật decision, schema service_groups, backend validation và regression test. Điều này cho thấy test pass không thay hiểu domain.
+
+Để chứng minh hiểu code, em có thể bắt đầu từ route cụ thể, chỉ middleware, Controller, Service, Repository, transaction/SQL, bảng và test; đồng thời giải thích trade-off và tình huống lỗi. AI không thay trách nhiệm về yêu cầu, code review hay kết luận test.”
+
+Bằng chứng: docs/AI_AGENT_EXECUTION_PLAN.md:1-120; docs/DECISIONS.md:71-72; docs/IMPLEMENTATION_STATUS.md:78-94.
+
+21. 60 CÂU HỎI GIẢNG VIÊN CÓ THỂ HỎI
+
+NHÓM A — TỔNG QUAN SẢN PHẨM
+
+1. Câu hỏi: AutoWash Pro giải quyết vấn đề gì?
+Trả lời ngắn: Quản lý catalog theo loại xe, đặt lịch theo capacity và loyalty trong một hệ thống một chi nhánh.
+Trả lời sâu hơn: Booking nối vehicle–service price–slot, sau completion mới ghi revenue/visit/point; admin cấu hình thay vì hard-code.
+Bằng chứng code: README.md:3-35; database/migrations/004_create_booking_tables.php:9-47.
+
+2. Câu hỏi: Actor nào có trong hệ thống?
+Trả lời ngắn: Guest, Customer, Admin.
+Trả lời sâu hơn: Guest public/auth; Customer owner-scoped; Admin role-guard cho vận hành. Không có staff/manager riêng.
+Bằng chứng code: routes/web.php:53-320; database/migrations/001_create_core_tables.php:36-56.
+
+3. Câu hỏi: Chức năng trung tâm là gì?
+Trả lời ngắn: Booking có server pricing, multi-slot capacity và snapshot.
+Trả lời sâu hơn: Loyalty/tier/promotion phụ thuộc booking completion, nên booking là aggregate trung tâm.
+Bằng chứng code: app/Services/BookingService.php:98-234; app/Services/BookingCompletionService.php:19-25.
+
+4. Câu hỏi: Vì sao chỉ một chi nhánh?
+Trả lời ngắn: DEC-001 khóa scope; schema không có branch.
+Trả lời sâu hơn: Multi-branch sẽ tác động slot, booking, catalog/report và authorization nên không thêm ngầm.
+Bằng chứng code: docs/DECISIONS.md:10-11; docs/KNOWN_LIMITATIONS.md:9.
+
+5. Câu hỏi: Phần nào chưa production?
+Trả lời ngắn: LPR thật, rate limit phân tán, monitoring/backup, payment/refund, multi-branch và notification.
+Trả lời sâu hơn: Release hoàn thiện phạm vi đồ án, không được suy thành SLA/production readiness.
+Bằng chứng code: docs/KNOWN_LIMITATIONS.md:5-20.
+
+NHÓM B — KIẾN TRÚC
+
+6. Câu hỏi: Tại sao dùng PHP thuần?
+Trả lời ngắn: Đây là quyết định nhóm để thể hiện HTTP/PDO/layer, đề tài không bắt framework.
+Trả lời sâu hơn: Đổi lại nhóm tự chịu trách nhiệm router, DI, security middleware và conventions.
+Bằng chứng code: docs/DECISIONS.md:21; composer.json:6-24.
+
+7. Câu hỏi: Front Controller là gì?
+Trả lời ngắn: Một entry point public/index.php nhận mọi request động.
+Trả lời sâu hơn: Apache rewrite vào index; Application dispatch và ErrorHandler tạo response thống nhất.
+Bằng chứng code: public/.htaccess:4-12; public/index.php:1-15; app/Core/Application.php:17-27.
+
+8. Câu hỏi: Router xử lý 404 và 405 thế nào?
+Trả lời ngắn: Path không khớp → 404; path khớp nhưng method sai → 405 và Allow.
+Trả lời sâu hơn: Router tích lũy method được phép rồi throw exception tương ứng.
+Bằng chứng code: app/Core/Router.php:48-80.
+
+9. Câu hỏi: Vì sao logic không nằm trong Controller?
+Trả lời ngắn: Controller chỉ adapter HTTP; Service giữ rule, Repository giữ SQL.
+Trả lời sâu hơn: Tách lớp giúp CLI dùng Service, unit test calculator/policy và transaction không phụ thuộc View.
+Bằng chứng code: app/Controllers/BookingController.php:87-139; app/Services/BookingService.php:98-234.
+
+10. Câu hỏi: Request đặt lịch đi qua lớp nào?
+Trả lời ngắn: Route/middleware → BookingController → BookingValidator/BookingService → BookingRepository → View/redirect.
+Trả lời sâu hơn: Calculator và PromotionService là collaborator domain bên trong Service.
+Bằng chứng code: routes/web.php:179-191; bootstrap/app.php:178-219.
+
+11. Câu hỏi: Migration khác seed thế nào?
+Trả lời ngắn: Migration tạo/version schema; seed thêm config/demo vào schema.
+Trả lời sâu hơn: Migration runner có history/advisory lock; seed transaction/idempotent nhưng không thay migration.
+Bằng chứng code: app/Database/MigrationRunner.php:21-107; app/Database/DatabaseSeeder.php:25-57.
+
+NHÓM C — BOOKING
+
+12. Câu hỏi: Tại sao Standard và Premium không được chọn cùng lúc?
+Trả lời ngắn: Cả hai thuộc WASH_PACKAGE với policy single min=1 max=1.
+Trả lời sâu hơn: Đây là correction DEC-035; backend tải group policy, không dựa riêng radio UI.
+Bằng chứng code: database/migrations/010_add_service_group_selection_policy.php:30-80; app/Services/BookingService.php:352-415.
+
+13. Câu hỏi: Chỉ chọn add-on được không?
+Trả lời ngắn: Không; bắt buộc đúng một package.
+Trả lời sâu hơn: ADD_ON min=0 chỉ nghĩa add-on optional sau package, không phải booking độc lập.
+Bằng chứng code: database/seeds/base.php:35-43; app/Services/BookingService.php:369-384.
+
+14. Câu hỏi: Nếu frontend gửi giá bằng 0?
+Trả lời ngắn: Backend bỏ qua vì không đọc price từ request.
+Trả lời sâu hơn: Service lock service_vehicle_prices và PriceCalculator tính integer cents; DB còn check final formula.
+Bằng chứng code: app/Services/BookingService.php:130-159; app/Services/PriceCalculator.php:18-55.
+
+15. Câu hỏi: Duration tính thế nào?
+Trả lời ngắn: Tổng duration của mọi item.
+Trả lời sâu hơn: BookingEnd quyết định toàn bộ slot overlap cần reserve liên tục.
+Bằng chứng code: app/Services/BookingResourceCalculator.php:19-34; app/Services/BookingService.php:175-188.
+
+16. Câu hỏi: Capacity vì sao max chứ không sum?
+Trả lời ngắn: Capacity là footprint vật lý của một xe, service nối tiếp không tạo thêm xe.
+Trả lời sâu hơn: Vehicle default là floor, override chỉ nâng resource; cùng capacity giữ ở mỗi slot overlap.
+Bằng chứng code: docs/DECISIONS.md:26; app/Services/BookingResourceCalculator.php:19-34.
+
+17. Câu hỏi: Nếu hai khách đặt slot cuối cùng một lúc?
+Trả lời ngắn: Slot/reservation được FOR UPDATE trong transaction; chỉ một request thắng.
+Trả lời sâu hơn: Request sau chờ lock, đọc usage đã commit rồi nhận SlotFullException; test hai process xác nhận.
+Bằng chứng code: app/Repositories/BookingRepository.php:366-429; tests/Integration/Booking/BookingFlowTest.php:335-376.
+
+18. Câu hỏi: Vì sao cần booking reservation riêng?
+Trả lời ngắn: Một booking có thể chiếm nhiều slot; start_slot_id không biểu diễn toàn bộ hold.
+Trả lời sâu hơn: Reservation cho phép tổng hợp capacity theo từng slot và giữ lịch sử khi status terminal.
+Bằng chứng code: database/migrations/004_create_booking_tables.php:50-62; app/Repositories/BookingRepository.php:570-586.
+
+19. Câu hỏi: Nếu sửa giá service thì booking cũ ra sao?
+Trả lời ngắn: Không đổi vì booking_items giữ snapshot.
+Trả lời sâu hơn: Lịch sử dùng name/price/duration/capacity snapshot, dù source FK vẫn phục vụ truy vết.
+Bằng chứng code: database/migrations/004_create_booking_tables.php:65-89; app/Services/BookingService.php:251-263.
+
+20. Câu hỏi: Nếu transaction lỗi giữa chừng?
+Trả lời ngắn: Rollback toàn bộ mutation trong use case.
+Trả lời sâu hơn: Booking insert mà reservation/event fail không để booking/items rác; callback rethrow sau rollback.
+Bằng chứng code: app/Repositories/BookingRepository.php:668-683; tests/Integration/Booking/BookingFlowTest.php:303-334.
+
+21. Câu hỏi: Complete hai lần được không?
+Trả lời ngắn: Không; completed là terminal.
+Trả lời sâu hơn: Booking row bị lock, lifecycle reject lần hai; marker/unique earn là lớp idempotency bổ sung.
+Bằng chứng code: app/Services/BookingLifecyclePolicy.php:15-28; app/Services/LoyaltyService.php:36-66.
+
+22. Câu hỏi: Hủy sát giờ xử lý ra sao?
+Trả lời ngắn: Customer được hủy nếu còn ít nhất 2 giờ; dưới đó chỉ Admin cancel có reason.
+Trả lời sâu hơn: Đúng boundary được phép; cancel/no_show không còn tính reservation active.
+Bằng chứng code: app/Services/BookingLifecyclePolicy.php:31-43; app/Services/BookingService.php:280-309.
+
+NHÓM D — DATABASE
+
+23. Câu hỏi: Bảng booking chính là gì?
+Trả lời ngắn: bookings, booking_items, booking_slot_reservations.
+Trả lời sâu hơn: Header/tổng/status; item snapshot; capacity hold từng slot.
+Bằng chứng code: database/migrations/004_create_booking_tables.php:9-89.
+
+24. Câu hỏi: PK và FK giúp gì?
+Trả lời ngắn: PK định danh; FK ngăn tham chiếu mồ côi.
+Trả lời sâu hơn: Business rule như ownership/capacity vẫn cần Service/transaction, FK không đủ.
+Bằng chứng code: database/migrations/004_create_booking_tables.php:30-37,57-60.
+
+25. Câu hỏi: Tại sao dùng DECIMAL cho tiền?
+Trả lời ngắn: Tránh sai số float.
+Trả lời sâu hơn: PHP chuyển decimal string sang integer cents; DB check final=subtotal-discounts.
+Bằng chứng code: app/Services/PriceCalculator.php:171-185; database/migrations/004_create_booking_tables.php:19-46.
+
+26. Câu hỏi: Có bảng sessions không?
+Trả lời ngắn: Không có app table; dùng PHP session storage.
+Trả lời sâu hơn: Browser giữ session ID cookie, auth_user nằm server session.
+Bằng chứng code: app/Core/Session.php:27-48; database/migrations/001_create_core_tables.php:7-58.
+
+27. Câu hỏi: Vì sao không hard-delete catalog/xe?
+Trả lời ngắn: Giữ FK và lịch sử; dùng active/inactive.
+Trả lời sâu hơn: Booking snapshot bất biến nhưng source IDs/audit vẫn cần tồn tại.
+Bằng chứng code: docs/DECISIONS.md:38; app/Services/VehicleService.php:116-129.
+
+28. Câu hỏi: Runtime có bao nhiêu bảng?
+Trả lời ngắn: Lần kiểm tra 17/07/2026 có 28 bảng, gồm migrations.
+Trả lời sâu hơn: 27 bảng domain/config được tài liệu ERD đánh số cộng bảng lịch sử migration runner.
+Bằng chứng code: docs/ERD.md:452-486; database/migrations/001_create_core_tables.php:7-58; database/migrations/010_add_service_group_selection_policy.php:7-82.
+
+NHÓM E — LOYALTY/TIER/BENEFIT
+
+29. Câu hỏi: Công thức điểm là gì?
+Trả lời ngắn: floor(floor(final_price/10.000) × point_rate).
+Trả lời sâu hơn: Dùng integer/decimal; chỉ completed; rate lấy tier DB.
+Bằng chứng code: app/Services/LoyaltyPointCalculator.php:18-53; docs/DECISIONS.md:28-30.
+
+30. Câu hỏi: Vì sao balance không phải nguồn sự thật duy nhất?
+Trả lời ngắn: Balance không có lịch sử, expiry hay mapping debit-to-credit.
+Trả lời sâu hơn: Invariant đối chiếu cache, ledger net và tổng remaining credit lots.
+Bằng chứng code: docs/DECISIONS.md:20; app/Repositories/LoyaltyTransactionRepository.php:544-588.
+
+31. Câu hỏi: FEFO khác FIFO thế nào?
+Trả lời ngắn: FEFO dùng lot hết hạn sớm trước; FIFO dùng lot tạo sớm trước.
+Trả lời sâu hơn: Lot không expiry xếp sau mọi lot có expiry, rồi FIFO nội bộ.
+Bằng chứng code: app/Repositories/LoyaltyTransactionRepository.php:375-394.
+
+32. Câu hỏi: Nếu chạy expiry hai lần?
+Trả lời ngắn: Lần hai không trừ lại vì remaining đã 0.
+Trả lời sâu hơn: Candidate và lock lại đều yêu cầu remaining>0; debit source/event còn unique/idempotent context.
+Bằng chứng code: app/Services/LoyaltyService.php:272-342; app/Repositories/LoyaltyTransactionRepository.php:399-435.
+
+33. Câu hỏi: Nếu reward bị dùng hai lần?
+Trả lời ngắn: Redemption bị lock và attach chỉ khi available, booking_id null, chưa hết hạn.
+Trả lời sâu hơn: Concurrent request chỉ một update thành công; complete chuyển used; cancel có thể release nếu còn hạn.
+Bằng chứng code: app/Repositories/PromotionRepository.php:132-177,202-227.
+
+34. Câu hỏi: Redeem có kiểm tra vehicle/service ngay không?
+Trả lời ngắn: Redeem kiểm tra active/tier/balance; vehicle/service kiểm tra khi dùng ở checkout.
+Trả lời sâu hơn: Redemption là voucher available; context booking mới biết vehicle và service selection.
+Bằng chứng code: app/Services/RewardService.php:64-114; app/Services/PromotionService.php:215-263.
+
+35. Câu hỏi: Reward miễn phí Standard có áp dụng Premium không?
+Trả lời ngắn: Không.
+Trả lời sâu hơn: Discount base chỉ cộng item đúng service_id; missing service cho discount 0/không eligible.
+Bằng chứng code: app/Services/PriceCalculator.php:115-143,146-158; tests/Integration/Booking/BookingFlowTest.php:205-240.
+
+36. Câu hỏi: Promotion limit concurrent giữ thế nào?
+Trả lời ngắn: Lock promotion, usage và active booking reservation trước kiểm tra limit.
+Trả lời sâu hơn: Count gồm promotion_usages complete và booking pending/confirmed đã snapshot promotion.
+Bằng chứng code: app/Repositories/PromotionRepository.php:39-101; app/Services/PromotionService.php:176-218.
+
+37. Câu hỏi: Tier qualification dùng AND hay OR?
+Trả lời ngắn: AND.
+Trả lời sâu hơn: Chọn tier cao nhất mà cả monthly spend và completed visits cùng đạt.
+Bằng chứng code: app/Services/TierReviewPolicy.php:30-56.
+
+38. Câu hỏi: Nếu chạy monthly review hai lần?
+Trả lời ngắn: Completed run bị từ chối.
+Trả lời sâu hơn: Advisory lock ngăn chạy song song; user+period history unique; failed run resume phần chưa xử lý.
+Bằng chứng code: app/Services/TierReviewService.php:25-92; app/Repositories/TierRepository.php:18-55,124-132.
+
+39. Câu hỏi: Redeem có giảm accumulated spending không?
+Trả lời ngắn: Không.
+Trả lời sâu hơn: Spend/visits chỉ phản ánh booking completed; tiêu điểm là ledger khác.
+Bằng chứng code: docs/DECISIONS.md:19; app/Services/RewardService.php:64-114.
+
+NHÓM F — SECURITY
+
+40. Câu hỏi: Nếu customer đổi user_id trong request?
+Trả lời ngắn: Use case không tin user_id request; lấy ID từ session.
+Trả lời sâu hơn: Repository còn lọc owner trong SQL; đổi resource ID trả 404/422 tùy flow.
+Bằng chứng code: app/Controllers/BookingController.php:189-203; app/Services/BookingService.php:113-127.
+
+41. Câu hỏi: Ẩn menu Admin đã đủ chưa?
+Trả lời ngắn: Chưa; phải guard route.
+Trả lời sâu hơn: Customer gõ trực tiếp /admin vẫn qua RoleMiddleware và nhận 403.
+Bằng chứng code: routes/web.php:128-140; app/Middleware/RoleMiddleware.php:20-32.
+
+42. Câu hỏi: CSRF hoạt động thế nào?
+Trả lời ngắn: Unsafe method phải có token session hợp lệ; token dùng một lần.
+Trả lời sâu hơn: hash_equals chống compare không an toàn; thiếu/sai/replay trả 419.
+Bằng chứng code: app/Core/CsrfTokenManager.php:15-41; app/Middleware/CsrfMiddleware.php:20-34.
+
+43. Câu hỏi: CSRF có chống XSS không?
+Trả lời ngắn: Không; hai rủi ro khác nhau.
+Trả lời sâu hơn: XSS cần escape output; CSRF xác thực nguồn mutation theo session/token.
+Bằng chứng code: app/Support/Html.php:7-12; app/Middleware/CsrfMiddleware.php:20-34.
+
+44. Câu hỏi: Prepared statement chống SQL injection ra sao?
+Trả lời ngắn: SQL và parameter được gửi tách nhau; input không thành cú pháp.
+Trả lời sâu hơn: PDO tắt emulate prepares và repository bind parameter; tên bảng động chỉ từ allowlist/code nội bộ.
+Bằng chứng code: app/Core/Database.php:35-48; app/Repositories/UserRepository.php:17-63.
+
+45. Câu hỏi: Vì sao ownership mismatch trả 404?
+Trả lời ngắn: Không tiết lộ resource người khác tồn tại.
+Trả lời sâu hơn: 403 dùng cho khu vực role; 404 dùng query owner-scoped không tìm thấy.
+Bằng chứng code: app/Exceptions/BookingNotFoundException.php:7-12; app/Exceptions/VehicleOwnershipException.php:7-12.
+
+46. Câu hỏi: Upload file giả ảnh bị chặn thế nào?
+Trả lời ngắn: Không tin extension; finfo đọc MIME nội dung và allowlist.
+Trả lời sâu hơn: Kiểm tra size thật, random filename, ngoài public, owner route khi đọc.
+Bằng chứng code: app/Services/LprUploadService.php:53-123.
+
+47. Câu hỏi: Có rate limit không?
+Trả lời ngắn: Chưa có distributed rate limit/CAPTCHA.
+Trả lời sâu hơn: Hiện có generic login error và dummy hash; production cần gateway/rate limiter.
+Bằng chứng code: docs/KNOWN_LIMITATIONS.md:11; app/Services/AuthService.php:62-85.
+
+NHÓM G — TESTING/DOCKER/LPR
+
+48. Câu hỏi: Test hiện tại bao nhiêu?
+Trả lời ngắn: Lượt an toàn: 169 test, 250 assertion, 82 skip, không failure.
+Trả lời sâu hơn: Skip là integration MySQL vì không bật cờ reset DB; lint 178 file pass.
+Bằng chứng code: phpunit.xml:1-18; composer.json:26-36.
+
+49. Câu hỏi: Test pass có nghĩa requirement đúng không?
+Trả lời ngắn: Không; test có thể mã hóa hiểu sai.
+Trả lời sâu hơn: Manual test package pair phát hiện requirement interpretation sai dù regression cũ pass.
+Bằng chứng code: docs/DECISIONS.md:71-72; tests/Integration/Booking/BookingFlowTest.php:131-204.
+
+50. Câu hỏi: Có test concurrency thật không?
+Trả lời ngắn: Có worker nhiều process cho slot, redeem, adjustment, promotion.
+Trả lời sâu hơn: Integration cần MySQL testing tách biệt; lượt viết guide không chạy để tránh reset DB manual.
+Bằng chứng code: tests/Support/BookingConcurrencyWorker.php:1-48; tests/Support/RewardRedemptionConcurrencyWorker.php:1-61.
+
+51. Câu hỏi: Tại sao DB_HOST=mysql không phải localhost?
+Trả lời ngắn: Trong Compose, mysql là DNS service name.
+Trả lời sâu hơn: localhost trong web container trỏ lại web container; host PHP trực tiếp dùng 127.0.0.1 + forwarded port.
+Bằng chứng code: docker-compose.yml:8-20; README.md:52-54.
+
+52. Câu hỏi: down -v nguy hiểm thế nào?
+Trả lời ngắn: Nó xóa named volume và dữ liệu MySQL.
+Trả lời sâu hơn: down thường giữ mysql_data; chỉ dùng -v khi chủ đích reset và đã chấp nhận mất data.
+Bằng chứng code: docker-compose.yml:43-44,66-69; README.md:68-75.
+
+53. Câu hỏi: LPR có thật không?
+Trả lời ngắn: Luồng adapter/upload là thật; provider nhận diện hiện là mock, không OCR.
+Trả lời sâu hơn: Mock trả text cấu hình, nhưng validation/MIME/ownership/attempt/fallback đều chạy thật.
+Bằng chứng code: app/Providers/MockLprProvider.php:10-26; app/Services/LprService.php:34-147.
+
+54. Câu hỏi: Confidence thấp thì sao?
+Trả lời ngắn: Cảnh báo và cho sửa thủ công, không auto-save xe.
+Trả lời sâu hơn: Tạo attempt success vẫn được; confirmation khác normalized result chuyển manual_override.
+Bằng chứng code: app/Services/LprService.php:55-85,126-135.
+
+NHÓM H — HẠN CHẾ, AI VÀ PHẢN BIỆN
+
+55. Câu hỏi: Nếu production thì còn thiếu gì?
+Trả lời ngắn: Infra/security operation, provider thật, payment/notification, backup/monitoring và scale evidence.
+Trả lời sâu hơn: Cần threat model, rate limiting, rotation/SIEM, deployment/DR, integration external và SLA test.
+Bằng chứng code: docs/KNOWN_LIMITATIONS.md:5-20.
+
+56. Câu hỏi: AI viết bao nhiêu phần?
+Trả lời ngắn: AI hỗ trợ nhiều bước phân tích/patch/test; nhóm chịu trách nhiệm requirement, review và evidence.
+Trả lời sâu hơn: Không nên bịa phần trăm khi repository không ghi; chứng minh ownership bằng khả năng lần code và giải thích trade-off.
+Bằng chứng code: AGENTS.md:1-35; docs/AI_AGENT_EXECUTION_PLAN.md:1-120.
+
+57. Câu hỏi: AI đã từng làm sai gì?
+Trả lời ngắn: Cách hiểu cũ cho phép Standard + Premium.
+Trả lời sâu hơn: Manual test phát hiện; nhóm sửa decision, migration, backend policy, UI và regression.
+Bằng chứng code: docs/DECISIONS.md:44,71-72; database/migrations/010_add_service_group_selection_policy.php:7-82.
+
+58. Câu hỏi: Nếu event research insert lỗi khi booking create?
+Trả lời ngắn: Booking create rollback vì event nằm trong cùng transaction.
+Trả lời sâu hơn: Đây là lựa chọn consistency; event_key unique hỗ trợ idempotency cho event domain.
+Bằng chứng code: app/Services/BookingService.php:204-233; app/Repositories/BookingRepository.php:606-683.
+
+59. Câu hỏi: Health route có chứng minh DB khỏe không?
+Trả lời ngắn: Không; chỉ trả status web tối thiểu.
+Trả lời sâu hơn: Không nên diễn giải /health là readiness DB; Docker MySQL có healthcheck riêng.
+Bằng chứng code: routes/web.php:67-70; docker-compose.yml:45-49.
+
+60. Câu hỏi: Nếu cần thêm multi-branch, sửa nhanh branch_id là đủ không?
+Trả lời ngắn: Không.
+Trả lời sâu hơn: Phải scope slot, booking, catalog/price, admin authorization, report, uniqueness, seed/migration/test và quyết định dữ liệu cũ.
+Bằng chứng code: docs/DECISIONS.md:10-11; docs/KNOWN_LIMITATIONS.md:9.
+
+22. 20 TÌNH HUỐNG THẦY CÓ THỂ TEST TRỰC TIẾP
+
+Thao tác | Kết quả đúng | Backend xử lý | Bảng liên quan
+1. Login sai | Form 422/generic error, không lộ phone tồn tại | AuthValidator/AuthService dummy hash | users chỉ đọc
+2. Customer vào /admin | 403 | RoleMiddleware | không đổi
+3. Thêm biển số trùng sau normalize | 422 domain error | LicensePlateService + unique + VehicleService | vehicles không thêm
+4. Chọn Standard + Premium | 422 package max=1 | BookingService group policy | không tạo booking/items/reservation
+5. Chỉ chọn add-on | 422 cần package | BookingValidator/BookingService | không đổi
+6. Chèn price=0 vào request | Giá DB vẫn dùng | BookingService/PriceCalculator | snapshot theo DB
+7. Chọn slot hết capacity | 422 SlotFull | row lock + capacity check | rollback
+8. Gửi hai request đồng thời tranh slot | Một thành công, một full | FOR UPDATE/transaction | một booking/hold
+9. Customer hủy dưới 2 giờ | Bị từ chối, status giữ | BookingLifecyclePolicy | không đổi
+10. Admin complete booking đã completed | Invalid transition/flash error | lock + lifecycle matrix | không cộng điểm lần hai
+11. Redeem quá điểm | Bị từ chối | lock customer + InsufficientPoints | rollback redemption/ledger
+12. Reward không đúng tier | Bị từ chối | RewardService rank | rollback
+13. Customer đổi ID để xem ledger người khác | Không có user_id input hiệu lực; route lấy session | LoyaltyController/Repository owner scope | chỉ đọc own ledger
+14. Upload text đổi đuôi .jpg | 422 invalid MIME | finfo allowlist | không attempt/file hợp lệ
+15. POST thiếu CSRF | 419 | global CsrfMiddleware | không mutation
+16. Admin sửa service sau booking | Catalog đổi, booking cũ giữ snapshot | booking_items snapshot | service price đổi, item cũ không
+17. Adjustment làm balance âm | InsufficientPoints, không clamp | LoyaltyService lock/check | rollback ledger/allocation/audit
+18. Chạy expire lần hai | 0 lot/0 điểm lần hai | remaining>0 candidate + lock | không debit lặp
+19. Chạy monthly review kỳ completed lần hai | Command lỗi rõ | advisory lock + run status | không history/reset lặp
+20. Mở route không tồn tại | 404 page an toàn + request ID | Router/ErrorHandler | không đổi
+
+Bằng chứng tổng: tests/Integration/Auth/AuthFlowTest.php; tests/Integration/Booking/BookingFlowTest.php; tests/Integration/Reward/RewardFlowTest.php; tests/Integration/Tier/TierReviewFlowTest.php; tests/Integration/Lpr/LprFlowTest.php; tests/Feature/HttpCoreTest.php.
+
+23. KỊCH BẢN DEMO 15 PHÚT
+
+Chuẩn bị: dùng database demo có thể khôi phục; không reset database người dùng ngay trước demo nếu chưa xác nhận. Mật khẩu demo xem README.md:140-150 tại máy; không ghi vào tài liệu này.
+
+Bước 1 (0:00–1:00) — Guest.
+URL: / và /dich-vu.
+Tài khoản: chưa login.
+Nói: actor, catalog theo vehicle type, giá DB.
+Bảng mở sau: service_groups, services, service_vehicle_prices.
+Rủi ro: catalog test data khác fresh seed. Khôi phục: giải thích runtime hiện tại; không sửa DB giữa demo.
+
+Bước 2 (1:00–2:00) — Login Customer.
+URL: /dang-nhap → /tai-khoan.
+Tài khoản: Customer Member demo trong README.
+Nói: bcrypt, session regenerate, role route.
+Bảng: users chỉ xem role/tier/metrics, không mở password_hash.
+Rủi ro: session cũ. Khôi phục: logout POST hoặc cửa sổ ẩn danh.
+
+Bước 3 (2:00–3:00) — Phương tiện/LPR.
+URL: /phuong-tien, /phuong-tien/them.
+Nói: normalized plate, ownership; mock LPR trung thực.
+Bảng: vehicles, lpr_attempts.
+Rủi ro: plate trùng. Khôi phục: dùng plate demo mới hợp lệ hoặc chỉ xem xe có sẵn.
+
+Bước 4 (3:00–6:00) — Đặt lịch.
+URL: /dat-lich.
+Nói: đúng một package radio, add-on checkbox; price/duration/capacity server; window tier.
+Bảng trước/sau: wash_slots, bookings, booking_items, booking_slot_reservations, research_event_logs.
+Rủi ro: không có slot trong window/capacity. Khôi phục: dùng relative slot seeded phù hợp tier; đổi customer tier demo đúng window.
+
+Bước 5 (6:00–7:00) — Booking detail.
+URL: /lich-dat và /lich-dat/{id}.
+Nói: pending, snapshot và cutoff.
+Bảng: booking_items snapshot.
+Rủi ro: redirect form không vào detail. Khôi phục: lấy ID mới từ list/database SELECT.
+
+Bước 6 (7:00–10:00) — Admin.
+URL: cửa sổ ẩn danh khác, /dang-nhap → /admin/lich-dat.
+Tài khoản: Admin demo trong README.
+Nói: role guard; pending→confirmed→completed; complete atomic loyalty.
+Bảng: bookings, users, loyalty_transactions, research_event_logs, promotion_usages/reward_redemptions nếu có.
+Rủi ro: complete pending trực tiếp bị chặn. Khôi phục: confirm trước, reload rồi complete.
+
+Bước 7 (10:00–12:00) — Customer loyalty/reward.
+URL: /diem-thuong, /doi-thuong.
+Nói: balance/cache, ledger, credit lot, FEFO; redeem chỉ tạo voucher available.
+Bảng: loyalty_transactions, loyalty_allocations, reward_redemptions.
+Rủi ro: earn quá ít/reward cost cao. Khôi phục: chọn customer seed có balance phù hợp; không sửa balance bằng phpMyAdmin.
+
+Bước 8 (12:00–13:30) — phpMyAdmin.
+URL: http://localhost:8081 (profile tools).
+Nói: chỉ SELECT; chỉ ra record vừa đổi và FK/snapshot; không hiện hash/PII.
+Rủi ro: thao tác nhầm. Khôi phục: không dùng edit/delete; mở read-only tab/query.
+
+Bước 9 (13:30–14:30) — Negative case.
+URL: /dat-lich hoặc POST form.
+Thử: chọn hai package qua devtools hoặc thiếu CSRF trên môi trường rehearsal.
+Nói: UI không phải security; backend 422/419 và không có partial data.
+Rủi ro: token one-time làm form cũ 419. Khôi phục: reload GET lấy token mới.
+
+Bước 10 (14:30–15:00) — Kết.
+Nói: mock LPR, one branch, no payment/refund, local performance; hướng external provider/production ops.
+
+24. CÁCH LẦN CODE KHI THẦY HỎI
+
+Câu hỏi route → routes/web.php → middleware trong app/Middleware → controller factory trong bootstrap/app.php.
+
+Câu hỏi booking → routes/web.php → app/Controllers/BookingController.php → app/Validation/BookingValidator.php → app/Services/BookingService.php → calculators/PromotionService → app/Repositories/BookingRepository.php → migrations 004/010 → tests/Integration/Booking.
+
+Câu hỏi loyalty → app/Controllers/LoyaltyController.php hoặc RewardController → LoyaltyService/RewardService → LoyaltyTransactionRepository/RewardRepository → migration 005/007 → tests Integration/Loyalty/Reward.
+
+Câu hỏi tier → TierReviewService/Policy → TierRepository → migration 006 → script monthly-review.php → TierReviewFlowTest.
+
+Câu hỏi LPR → VehicleController → LprService/LprUploadService → LprProviderInterface/MockLprProvider → LprAttemptRepository → migration 009 → LprFlowTest.
+
+Lệnh tìm thực tế:
+rg "class BookingService" app
+rg "service_group" app database tests
+rg "point_balance" app database tests
+rg "csrf" app resources tests
+rg "password_verify" app
+rg "FOR UPDATE" app database
+rg "transactional\(" app/Services app/Repositories
+rg "remaining_points|loyalty_allocations" app database tests
+rg "MockLprProvider|LprProviderInterface" app tests
+rg "router->(get|post)" routes/web.php
+rg "public function test" tests
+rg "CREATE TABLE" database/migrations
+
+25. CHEAT SHEET MỘT TRANG
+
+================ ONE-PAGE QUICK REVIEW ================
+
+GIỚI THIỆU 30 GIÂY
+AutoWash Pro quản lý dịch vụ theo loại xe, đặt lịch theo multi-slot capacity và loyalty cho một chi nhánh. Guest xem/đăng ký; Customer quản lý xe–booking–điểm–reward; Admin vận hành catalog–slot–booking–tier–benefit. PHP thuần 8.2, Front Controller, Service–Repository, transaction/lock, snapshot và FEFO.
+
+KIẾN TRÚC
+Browser → Apache → public/index.php → Application/Router → CSRF/Auth/Role → Controller → Validator/Service → Repository → PDO/MySQL → View/303.
+
+BOOKING PIPELINE
+Session owner → validate IDs → transaction → lock vehicle/context → lock service config/group → đúng 1 package + add-on optional → price DB → duration SUM → capacity MAX → benefit → window → lock overlap slots → capacity/vehicle conflict → booking → item snapshot → reservations → event → commit.
+
+BẢNG CHÍNH
+users/tiers; vehicles/vehicle_types; service_groups/services/service_vehicle_prices; wash_slots; bookings/booking_items/booking_slot_reservations; rewards/reward_redemptions; loyalty_transactions/loyalty_allocations; promotions/usages; tier_histories/runs; audit_logs/research_event_logs/lpr_attempts.
+
+LOYALTY PIPELINE
+confirmed→completed → final price → floor(floor(price/10k)×rate) → earn credit lot → balance/metrics/marker/event. Debit redeem/expire/adjust → lock user/lots → FEFO → allocations → remaining/balance → commit. Invariant cache=ledger net=sum remaining.
+
+8 CÂU SECURITY
+1) Password? bcrypt hash/verify.
+2) Session fixation? regenerate sau login.
+3) Auth? server session + route guard.
+4) RBAC? RoleMiddleware, không phải ẩn menu.
+5) IDOR? id+owner query, mismatch 404.
+6) CSRF? global unsafe method, token one-time, 419.
+7) XSS/SQLi? escape output; prepared native PDO.
+8) Upload/error? finfo+size+outside public; production generic + request ID.
+
+8 COMMAND DOCKER/CODE SEARCH
+docker compose up -d --build
+docker compose ps
+docker compose logs -f web
+docker compose down
+composer lint
+composer test
+rg "class BookingService" app
+rg "FOR UPDATE|remaining_points|service_group" app database tests
+
+10 CẢNH BÁO
+1) LPR mock, không OCR. 2) Một chi nhánh. 3) Không payment/refund/reversal. 4) Không distributed rate limit/CAPTCHA. 5) Log/monitor/backup chưa production. 6) Performance local, không SLA. 7) Survey/ML/paper chưa làm. 8) Không email/SMS thật. 9) DB integration reset data nên chỉ chạy DB testing. 10) Không sửa balance/status bằng phpMyAdmin.
+
+15 CÂU KHÓ — MỘT DÒNG
+1) Hai khách tranh slot? FOR UPDATE; một winner.
+2) Frontend price=0? Bỏ qua, lấy DB.
+3) Đổi user_id? Owner lấy session + SQL owner scope.
+4) Reward dùng hai lần? Lock/status/conditional update.
+5) Expiry hai lần? remaining=0 loại khỏi candidate.
+6) Review hai lần? advisory lock + completed run/history unique.
+7) Giá service đổi? Snapshot booking cũ không đổi.
+8) Lỗi giữa transaction? Rollback toàn use case.
+9) Cần reservation? Một booking giữ nhiều slot.
+10) Balance chưa đủ? Cần ledger + lot + allocation để audit/expiry.
+11) Standard+Premium? Cùng single WASH_PACKAGE max=1.
+12) LPR thật? Adapter thật, recognition provider hiện mock.
+13) PHP thuần? Quyết định nhóm, đổi lấy tự quản hạ tầng.
+14) Production thiếu gì? Ops/security/external integrations/scale evidence.
+15) AI viết bao nhiêu? Không bịa %, AI hỗ trợ; sinh viên chịu requirement/review/test và lần được code.
+
+================ END QUICK REVIEW ================
