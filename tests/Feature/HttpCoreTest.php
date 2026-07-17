@@ -43,7 +43,17 @@ final class HttpCoreTest extends TestCase
         $health = $application->handle(new Request('GET', '/health'));
 
         self::assertSame(200, $home->statusCode());
-        self::assertStringContainsString('Nền tảng AutoWash Pro đã sẵn sàng', $home->body());
+        self::assertStringContainsString('Chăm sóc phương tiện', $home->body());
+        self::assertStringContainsString('href="/dat-lich"', $home->body());
+        self::assertStringContainsString('href="/dich-vu"', $home->body());
+        self::assertStringContainsString('Xe máy', $home->body());
+        self::assertStringContainsString('Ô tô con', $home->body());
+        self::assertStringContainsString('Xe tải', $home->body());
+        self::assertStringContainsString('Xe khách', $home->body());
+        self::assertStringNotContainsString('Front Controller', $home->body());
+        self::assertStringNotContainsString('Post/Redirect/Get', $home->body());
+        self::assertStringNotContainsString('CSRF', $home->body());
+        self::assertStringNotContainsString('Nền tảng AutoWash Pro đã sẵn sàng', $home->body());
         self::assertArrayHasKey('X-Request-ID', $home->headers());
         self::assertSame(200, $health->statusCode());
         self::assertJsonStringEqualsJsonString(
@@ -65,6 +75,7 @@ final class HttpCoreTest extends TestCase
         self::assertSame(405, $methodMismatch->statusCode());
         self::assertSame('GET', $methodMismatch->headers()['Allow']);
         self::assertStringNotContainsString('RouteNotFoundException', $notFound->body());
+        self::assertStringContainsString('Quay lại khu vực chính', $notFound->body());
     }
 
     public function testPostRedirectGetRequiresCsrfAndReturnsFlashOnNextGet(): void

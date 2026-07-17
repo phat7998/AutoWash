@@ -13,7 +13,7 @@ use App\Support\VietnameseFormatter;
 <section class="page-heading">
     <p class="eyebrow dark-eyebrow">Danh mục chăm sóc xe</p>
     <h1>Dịch vụ theo loại phương tiện</h1>
-    <p class="lead">Giá, thời lượng và sức chứa được tải trực tiếp từ cấu hình đang hoạt động.</p>
+    <p class="lead">Xem giá và thời lượng phù hợp trước khi chọn lịch chăm sóc xe.</p>
 </section>
 
 <form class="filter-bar" method="get" action="/dich-vu">
@@ -36,7 +36,7 @@ use App\Support\VietnameseFormatter;
 <?php if ($services === []): ?>
     <section class="empty-state" aria-labelledby="catalog-empty-title">
         <h2 id="catalog-empty-title">Chưa có dịch vụ phù hợp</h2>
-        <p>Hiện chưa có dịch vụ active và supported cho <?= $e($selectedType['display_name']) ?>.</p>
+        <p>Hiện chưa có dịch vụ phù hợp cho <?= $e($selectedType['display_name']) ?>. Vui lòng chọn loại xe khác.</p>
     </section>
 <?php else: ?>
     <section class="catalog-grid" aria-label="Dịch vụ cho <?= $e($selectedType['display_name']) ?>">
@@ -52,8 +52,9 @@ use App\Support\VietnameseFormatter;
                 <p><?= $e($service['description'] ?? 'Không có mô tả.') ?></p>
                 <dl class="detail-list">
                     <div><dt>Thời lượng</dt><dd><?= $e($service['duration_minutes']) ?> phút</dd></div>
-                    <div><dt>Capacity</dt><dd><?= $e($service['capacity_units']) ?> units</dd></div>
+                    <div><dt>Khả năng phục vụ</dt><dd><?= $e($service['capacity_units']) ?> đơn vị sức chứa</dd></div>
                 </dl>
+                <a class="button button-outline" href="/dat-lich">Chọn dịch vụ này</a>
             </article>
         <?php endforeach; ?>
     </section>

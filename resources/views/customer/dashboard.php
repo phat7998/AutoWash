@@ -44,7 +44,7 @@ $bookingStatusLabels = [
         <article class="summary-card">
             <span>Sắp hết hạn trong 30 ngày</span>
             <strong><?= $e(number_format((int) $summary['expiring_points_30_days'], 0, ',', '.')) ?> điểm</strong>
-            <small>Chỉ tính các lô earn còn khả dụng.</small>
+            <small>Ưu tiên sử dụng số điểm này trước thời hạn.</small>
         </article>
     </section>
 <?php endif; ?>
@@ -71,13 +71,13 @@ $bookingStatusLabels = [
                 </div>
             </dl>
         <?php else : ?>
-            <p class="muted-text">Bạn chưa có lịch đặt nào.</p>
+            <div class="empty-state compact-empty"><h3>Chưa có lịch hẹn</h3><p>Đặt lịch đầu tiên để chủ động thời gian chăm sóc xe.</p><a href="/dat-lich">Đặt lịch ngay</a></div>
         <?php endif; ?>
     </article>
     <article class="report-card">
         <h2>Lịch sử chăm sóc gần đây</h2>
         <?php if (($wash_history ?? []) === []) : ?>
-            <p class="muted-text">Chưa có booking hoàn thành.</p>
+            <p class="muted-text">Lịch sử chăm sóc sẽ xuất hiện sau khi dịch vụ hoàn thành.</p>
         <?php else : ?>
             <ul class="compact-history-list">
                 <?php foreach ($wash_history as $booking) : ?>
@@ -94,10 +94,10 @@ $bookingStatusLabels = [
         <?php endif; ?>
     </article>
     <article class="report-card">
-        <h2>Reward khả dụng</h2>
+        <h2>Quà tặng đang có</h2>
         <strong class="report-highlight"><?= $e((int) ($available_rewards ?? 0)) ?></strong>
-        <p class="muted-text">Chỉ tính reward còn hạn, chưa gắn booking và thuộc đúng tài khoản.</p>
-        <a class="button button-outline" href="/doi-thuong">Xem reward</a>
+        <p class="muted-text">Quà còn hạn và sẵn sàng dùng cho lịch đặt phù hợp.</p>
+        <a class="button button-outline" href="/doi-thuong">Xem quà tặng</a>
     </article>
 </section>
 <section class="empty-state dashboard-next-action" aria-labelledby="customer-next-title">

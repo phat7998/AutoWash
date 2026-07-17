@@ -10,10 +10,10 @@ use App\Support\VietnameseFormatter;
 ?>
 <section class="page-header">
     <div>
-        <span class="eyebrow">LOYALTY</span>
+        <span class="eyebrow">THÀNH VIÊN</span>
         <h1>Kết quả xét hạng hàng tháng</h1>
         <p>
-            Tác vụ CLI xét tháng lịch vừa kết thúc. Mỗi khách hàng được snapshot trước khi đổi hạng
+            Kết quả xét hạng theo tháng. Chỉ số của mỗi khách hàng được lưu tại thời điểm xét
             và reset chỉ số tháng; số dư điểm không bị thay đổi.
         </p>
     </div>
@@ -69,7 +69,7 @@ use App\Support\VietnameseFormatter;
     <?php else: ?>
         <div class="table-shell">
             <table>
-                <thead><tr><th>Khách hàng</th><th>Kỳ</th><th>Thay đổi</th><th>Snapshot</th><th>Lý do</th></tr></thead>
+                <thead><tr><th>Khách hàng</th><th>Kỳ</th><th>Thay đổi</th><th>Chỉ số khi xét</th><th>Lý do</th></tr></thead>
                 <tbody>
                 <?php foreach ($histories as $history): ?>
                     <tr>

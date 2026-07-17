@@ -12,7 +12,7 @@ use App\Support\VietnameseFormatter;
 <section class="page-heading">
     <p class="eyebrow dark-eyebrow">Lịch vận hành</p>
     <h1>Khung giờ khả dụng</h1>
-    <p class="lead">Sức chứa còn lại chỉ tính các booking pending hoặc confirmed đang giữ chỗ.</p>
+    <p class="lead">Xem thời gian còn chỗ để chọn lịch phù hợp với kế hoạch của bạn.</p>
 </section>
 
 <form class="filter-bar" method="get" action="/khung-gio">
@@ -54,8 +54,9 @@ use App\Support\VietnameseFormatter;
                     </span>
                 </div>
                 <p>
-                    Còn <strong><?= $e($remaining) ?></strong> / <?= $e($slot['capacity_units']) ?> capacity units.
+                    Mức phục vụ còn lại: <strong><?= $e($remaining) ?></strong> / <?= $e($slot['capacity_units']) ?> đơn vị.
                 </p>
+                <?php if ($remaining > 0): ?><a class="button button-outline" href="/dat-lich">Đặt lịch khung giờ này</a><?php endif; ?>
             </article>
         <?php endforeach; ?>
     </section>

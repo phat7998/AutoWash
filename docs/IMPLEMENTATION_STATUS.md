@@ -10,6 +10,29 @@
 
 ## Tổng quan
 
+## UI/UX Productization Pass — Complete
+
+- Requirements: củng cố NFR-01, NFR-03, REP-01/02 và toàn bộ acceptance UI/route/RBAC/CSRF đã khóa; không
+  thay đổi schema, transaction hoặc business rule.
+- Guest `/` là landing page sản phẩm với CTA thật, dịch vụ, bốn loại phương tiện, quy trình, thành viên, FAQ
+  và footer; không còn nội dung CSRF, Front Controller, PRG hoặc scaffold kỹ thuật.
+- Customer/Admin truy cập `/` được redirect `303` lần lượt tới `/tai-khoan` và `/admin`; customer header không
+  chứa route quản trị, admin dùng sidebar/drawer responsive có đủ phân hệ.
+- Chuẩn hóa nội dung tiếng Việt, CTA, card/KPI/table/form/badge/empty state và confirmation; thay thuật ngữ
+  backend trên UI bằng ngôn ngữ vận hành hoặc khách hàng, giữ identifier kỹ thuật ở thông tin phụ khi cần.
+- Error renderer nhận context phiên để 403/404/405/419/500 giữ đúng product shell và CTA quay về khu vực an
+  toàn; production vẫn không hiển thị stack trace.
+- Migration: không có. Logic giá, lịch đặt, điểm, hạng, khuyến mãi, quà tặng, LPR và research không đổi.
+- Test/evidence: `HttpCoreTest` khóa landing/CTA/no-scaffold/error status; `AuthAuthorizationTest` khóa root
+  redirect, customer không thấy menu admin và admin navigation đủ route; full suite, Docker HTTP smoke và
+  review viewport được ghi nhận trong phần verification cuối pass.
+- Verification thực tế: Docker PHP 8.2.32/MySQL 8.4 `composer check` pass PHPCS 178 file, PHPUnit 169 test/
+  946 assertion, không skip, release audit pass. HTTP smoke trả đúng Guest `200`, health `200`, 404/405,
+  Customer/Admin root `303` và toàn bộ route navigation chính `200`. Chromium review landing, dashboard,
+  booking form và admin form tại 360/768/1024/1440 không có horizontal overflow; menu mobile và admin drawer
+  xuất hiện đúng breakpoint.
+
+
 | Slice | Trạng thái | Evidence |
 |---:|---|---|
 | 00 | Complete | Specification audit, 75-requirement RTM baseline, ERD/test/roadmap và static check |

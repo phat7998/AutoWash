@@ -27,9 +27,9 @@ declare(strict_types=1);
         <div class="form-field"><label for="end_time">Giờ kết thúc *</label><input id="end_time" name="end_time" type="time" required value="<?= $e($values['end_time']) ?>" aria-invalid="<?= isset($errors['end_time']) ? 'true' : 'false' ?>"><?php if (isset($errors['end_time'])): ?><span class="field-error"><?= $e($errors['end_time']) ?></span><?php endif; ?></div>
     </div>
     <div class="form-field">
-        <label for="capacity_units">Sức chứa (capacity units) *</label>
+        <label for="capacity_units">Sức chứa phục vụ *</label>
         <input id="capacity_units" name="capacity_units" inputmode="numeric" required value="<?= $e($values['capacity_units']) ?>" aria-invalid="<?= isset($errors['capacity_units']) ? 'true' : 'false' ?>">
-        <span class="field-help">Dùng units theo loại phương tiện, không phải số lượng xe.</span>
+        <span class="field-help">Nhập theo đơn vị sức chứa của từng loại phương tiện, không phải số lượng xe.</span>
         <?php if (isset($errors['capacity_units'])): ?><span class="field-error"><?= $e($errors['capacity_units']) ?></span><?php endif; ?>
     </div>
     <div class="form-actions"><a class="button button-outline" href="/admin/khung-gio">Hủy</a><button class="button button-primary" type="submit">Tạo khung giờ</button></div>

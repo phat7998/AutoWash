@@ -330,7 +330,7 @@ final class LoyaltyFlowTest extends TestCase
         self::assertStringContainsString('+15 điểm', $history->body());
         self::assertStringNotContainsString('loyalty-adjustment-form', $history->body());
         self::assertStringNotContainsString('/admin/diem-thuong/dieu-chinh', $history->body());
-        self::assertStringContainsString('href="/diem-thuong">Điểm</a>', $history->body());
+        self::assertStringContainsString('href="/diem-thuong">Điểm thưởng</a>', $history->body());
         self::assertSame(
             404,
             $customerApp->handle(new Request('GET', '/diem-thuong/' . $otherId))->statusCode()

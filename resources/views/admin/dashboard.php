@@ -30,10 +30,7 @@ $bookingsToday = array_sum(array_map(static fn (array $row): int => (int) $row['
 <section class="dashboard-heading">
     <p class="eyebrow dark-eyebrow">Khu vực quản trị</p>
     <h1>Tổng quan vận hành</h1>
-    <p class="lead">
-        Số liệu mô tả được tính trực tiếp từ dữ liệu hệ thống,
-        không phải kết quả nghiên cứu suy diễn.
-    </p>
+    <p class="lead">Theo dõi lịch phục vụ, doanh thu, sức chứa và hoạt động thành viên trong một màn hình.</p>
 </section>
 <?php if (isset($flashSuccess) && is_string($flashSuccess)) : ?>
     <div class="notification notification-success" role="status">
@@ -43,35 +40,35 @@ $bookingsToday = array_sum(array_map(static fn (array $row): int => (int) $row['
 <?php endif; ?>
 <section class="report-kpi-grid" aria-label="Chỉ số vận hành chính">
     <article class="summary-card">
-        <span>Booking phục vụ hôm nay</span>
+        <span>Lịch phục vụ hôm nay</span>
         <strong><?= $e(number_format($bookingsToday, 0, ',', '.')) ?></strong>
-        <small>Theo ngày của khung giờ bắt đầu.</small>
+        <small>Tổng số lịch theo ngày phục vụ.</small>
     </article>
     <article class="summary-card">
         <span>Doanh thu hoàn thành hôm nay</span>
         <strong><?= $e(number_format((float) ($revenue['today_revenue'] ?? 0), 0, ',', '.')) ?> ₫</strong>
-        <small>Chỉ booking có trạng thái completed.</small>
+        <small>Chỉ tính các lịch đã hoàn thành.</small>
     </article>
     <article class="summary-card">
         <span>Doanh thu hoàn thành lũy kế</span>
         <strong><?= $e(number_format((float) ($revenue['completed_revenue'] ?? 0), 0, ',', '.')) ?> ₫</strong>
-        <small>Dùng final_price đã snapshot.</small>
+        <small>Tổng thành tiền của các lịch đã hoàn thành.</small>
     </article>
     <article class="summary-card">
-        <span>Sử dụng capacity hôm nay</span>
+        <span>Mức sử dụng sức chứa hôm nay</span>
         <strong><?= $e((int) ($slots['utilization_percent'] ?? 0)) ?>%</strong>
         <small>
             <?= $e((int) ($slots['reserved_capacity'] ?? 0)) ?> /
-            <?= $e((int) ($slots['total_capacity'] ?? 0)) ?> capacity units.
+            <?= $e((int) ($slots['total_capacity'] ?? 0)) ?> đơn vị sức chứa.
         </small>
     </article>
 </section>
 
-<section class="report-grid" aria-label="Biểu đồ thống kê cơ bản">
+<section id="bao-cao" class="report-grid" aria-label="Báo cáo vận hành">
     <article class="report-card">
-        <h2>Booking hôm nay theo trạng thái</h2>
+        <h2>Lịch hôm nay theo trạng thái</h2>
         <?php if ($booking_status === []) : ?>
-            <p class="muted-text">Chưa có booking phục vụ hôm nay.</p>
+            <p class="muted-text">Chưa có lịch phục vụ hôm nay.</p>
         <?php else : ?>
             <div class="metric-chart">
                 <?php foreach ($booking_status as $row) : ?>
@@ -100,7 +97,7 @@ $bookingsToday = array_sum(array_map(static fn (array $row): int => (int) $row['
     <article class="report-card">
         <h2>Biến động điểm trong tháng</h2>
         <?php if ($points === []) : ?>
-            <p class="muted-text">Chưa có giao dịch earn, redeem hoặc expire trong tháng.</p>
+            <p class="muted-text">Chưa có thay đổi điểm trong tháng.</p>
         <?php else : ?>
             <dl class="report-definition-list">
                 <?php foreach ($points as $point) : ?>
@@ -115,9 +112,9 @@ $bookingsToday = array_sum(array_map(static fn (array $row): int => (int) $row['
     <article class="report-card">
         <h2>Quyền lợi dùng trong tháng</h2>
         <dl class="report-definition-list">
-            <div><dt>Reward đã dùng</dt><dd><?= $e((int) ($usage['rewards_used'] ?? 0)) ?></dd></div>
-            <div><dt>Promotion đã ghi nhận</dt><dd><?= $e((int) ($usage['promotions_used'] ?? 0)) ?></dd></div>
+            <div><dt>Quà tặng đã dùng</dt><dd><?= $e((int) ($usage['rewards_used'] ?? 0)) ?></dd></div>
+            <div><dt>Khuyến mãi đã áp dụng</dt><dd><?= $e((int) ($usage['promotions_used'] ?? 0)) ?></dd></div>
         </dl>
-        <p class="muted-text">Các chỉ số là descriptive analytics từ transaction system.</p>
+        <p class="muted-text">Số liệu tổng hợp từ hoạt động đã được ghi nhận trong tháng.</p>
     </article>
 </section>

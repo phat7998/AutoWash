@@ -37,7 +37,7 @@ use App\Support\VietnameseFormatter;
             <div><dt>Ngày phục vụ</dt><dd><?= $e(VietnameseFormatter::date((string) $booking['slot_date'])) ?></dd></div>
             <div><dt>Giờ bắt đầu</dt><dd><?= $e(VietnameseFormatter::time((string) $booking['start_time'])) ?></dd></div>
             <div><dt>Tổng thời lượng</dt><dd><?= $e($booking['booking_duration_minutes']) ?> phút</dd></div>
-            <div><dt>Capacity giữ chỗ</dt><dd><?= $e($booking['booking_capacity_units']) ?> units</dd></div>
+            <div><dt>Mức phục vụ đã giữ</dt><dd><?= $e($booking['booking_capacity_units']) ?> đơn vị</dd></div>
         </dl>
     </section>
     <section class="card" aria-labelledby="booking-price-title">
@@ -55,19 +55,19 @@ use App\Support\VietnameseFormatter;
 <section class="booking-section" aria-labelledby="booking-items-title">
     <div class="section-heading">
         <h2 id="booking-items-title">Dịch vụ đã đặt</h2>
-        <p>Thông tin dưới đây là snapshot, không thay đổi khi cấu hình dịch vụ được cập nhật.</p>
+        <p>Thông tin được giữ nguyên theo thời điểm bạn xác nhận đặt lịch.</p>
     </div>
     <div class="table-shell">
         <table>
             <caption>Danh sách dịch vụ trong lịch đặt</caption>
-            <thead><tr><th scope="col">Dịch vụ</th><th scope="col">Đơn giá</th><th scope="col">Thời lượng</th><th scope="col">Capacity</th><th scope="col">Thành tiền</th></tr></thead>
+            <thead><tr><th scope="col">Dịch vụ</th><th scope="col">Đơn giá</th><th scope="col">Thời lượng</th><th scope="col">Mức phục vụ</th><th scope="col">Thành tiền</th></tr></thead>
             <tbody>
             <?php foreach ($booking['items'] as $item): ?>
                 <tr>
                     <td data-label="Dịch vụ"><?= $e($item['service_name_snapshot']) ?></td>
                     <td data-label="Đơn giá"><?= $e(VietnameseFormatter::vnd((string) $item['unit_price_snapshot'])) ?></td>
                     <td data-label="Thời lượng"><?= $e($item['duration_minutes_snapshot']) ?> phút</td>
-                    <td data-label="Capacity"><?= $e($item['capacity_units_snapshot']) ?> units</td>
+                    <td data-label="Mức phục vụ"><?= $e($item['capacity_units_snapshot']) ?> đơn vị</td>
                     <td data-label="Thành tiền"><?= $e(VietnameseFormatter::vnd((string) $item['line_total'])) ?></td>
                 </tr>
             <?php endforeach; ?>
@@ -91,7 +91,7 @@ use App\Support\VietnameseFormatter;
             </p>
         </div>
         <?php if ((bool) $booking['can_cancel_customer']): ?>
-            <form method="post" action="/lich-dat/<?= $e($booking['id']) ?>/huy">
+            <form method="post" action="/lich-dat/<?= $e($booking['id']) ?>/huy" data-confirm="Hủy lịch đặt này? Khung giờ sẽ được trả lại cho khách hàng khác.">
                 <input type="hidden" name="_csrf_token" value="<?= $e($csrfToken) ?>">
                 <button class="button button-danger" type="submit">Hủy lịch đặt</button>
             </form>

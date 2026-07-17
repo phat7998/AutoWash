@@ -12,7 +12,7 @@ use App\Support\VietnameseFormatter;
     <div>
         <p class="eyebrow dark-eyebrow">Khách hàng thân thiết</p>
         <h1>Điểm thưởng của tôi</h1>
-        <p class="lead">Theo dõi số dư, điểm sắp hết hạn và toàn bộ thay đổi trong sổ giao dịch.</p>
+        <p class="lead">Theo dõi số dư, điểm sắp hết hạn và lịch sử tích lũy của bạn.</p>
     </div>
     <a class="button button-outline" href="/tai-khoan">Về tổng quan</a>
 </section>
@@ -21,7 +21,7 @@ use App\Support\VietnameseFormatter;
     <article class="summary-card">
         <span>Số dư khả dụng</span>
         <strong><?= $e(number_format((int) $summary['point_balance'], 0, ',', '.')) ?> điểm</strong>
-        <small>Số dư cache được đối chiếu với ledger.</small>
+        <small>Có thể dùng để đổi các quà tặng đủ điều kiện.</small>
     </article>
     <article class="summary-card">
         <span>Hạng hiện tại</span>
@@ -31,14 +31,14 @@ use App\Support\VietnameseFormatter;
     <article class="summary-card">
         <span>Sắp hết hạn trong 30 ngày</span>
         <strong><?= $e(number_format((int) $summary['expiring_points_30_days'], 0, ',', '.')) ?> điểm</strong>
-        <small>Chỉ tính các lô earn còn điểm khả dụng.</small>
+        <small>Nên ưu tiên sử dụng trước thời hạn hiển thị.</small>
     </article>
 </section>
 
 <section class="booking-section" aria-labelledby="point-history-title">
     <div class="section-heading">
         <h2 id="point-history-title">Lịch sử điểm</h2>
-        <p>Mỗi thay đổi có nguồn, mô tả và thời điểm để truy vết.</p>
+        <p>Mỗi thay đổi đều có nội dung và thời điểm rõ ràng.</p>
     </div>
     <?php if ($transactions === []): ?>
         <div class="empty-state compact-empty">
@@ -48,7 +48,7 @@ use App\Support\VietnameseFormatter;
     <?php else: ?>
         <div class="table-shell">
             <table>
-                <caption>Sổ giao dịch điểm của tài khoản</caption>
+                <caption>Lịch sử điểm của tài khoản</caption>
                 <thead>
                     <tr>
                         <th scope="col">Loại</th>

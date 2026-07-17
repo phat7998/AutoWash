@@ -13,7 +13,7 @@ use App\Support\VietnameseFormatter;
 <section class="page-heading">
     <p class="eyebrow dark-eyebrow">Vận hành dịch vụ</p>
     <h1>Quản lý lịch đặt</h1>
-    <p class="lead">Xác nhận, hoàn thành, hủy hoặc ghi nhận khách không đến theo đúng vòng đời booking.</p>
+    <p class="lead">Xác nhận lịch, ghi nhận hoàn thành hoặc xử lý ngoại lệ theo trạng thái hiện tại.</p>
 </section>
 
 <?php if (isset($flashSuccess) && $flashSuccess !== ''): ?>
@@ -58,19 +58,19 @@ use App\Support\VietnameseFormatter;
 
                 <div class="admin-booking-actions">
                     <?php if ((bool) $booking['can_confirm']): ?>
-                        <form method="post" action="/admin/lich-dat/<?= $e($booking['id']) ?>/xac-nhan">
+                        <form method="post" action="/admin/lich-dat/<?= $e($booking['id']) ?>/xac-nhan" data-confirm="Xác nhận lịch đặt này?">
                             <input type="hidden" name="_csrf_token" value="<?= $e($csrfToken) ?>">
                             <button class="button button-primary button-compact" type="submit">Xác nhận</button>
                         </form>
                     <?php endif; ?>
                     <?php if ((bool) $booking['can_complete']): ?>
-                        <form method="post" action="/admin/lich-dat/<?= $e($booking['id']) ?>/hoan-thanh">
+                        <form method="post" action="/admin/lich-dat/<?= $e($booking['id']) ?>/hoan-thanh" data-confirm="Ghi nhận lịch đã hoàn thành? Điểm và quyền lợi sẽ được xử lý theo quy định.">
                             <input type="hidden" name="_csrf_token" value="<?= $e($csrfToken) ?>">
                             <button class="button button-primary button-compact" type="submit">Hoàn thành</button>
                         </form>
                     <?php endif; ?>
                     <?php if ((bool) $booking['can_no_show']): ?>
-                        <form method="post" action="/admin/lich-dat/<?= $e($booking['id']) ?>/khong-den">
+                        <form method="post" action="/admin/lich-dat/<?= $e($booking['id']) ?>/khong-den" data-confirm="Xác nhận khách không đến lịch này?">
                             <input type="hidden" name="_csrf_token" value="<?= $e($csrfToken) ?>">
                             <button class="button button-outline button-compact" type="submit">Không đến</button>
                         </form>
@@ -78,7 +78,7 @@ use App\Support\VietnameseFormatter;
                 </div>
 
                 <?php if ((bool) $booking['can_cancel']): ?>
-                    <form class="admin-cancel-form" method="post" action="/admin/lich-dat/<?= $e($booking['id']) ?>/huy">
+                    <form class="admin-cancel-form" method="post" action="/admin/lich-dat/<?= $e($booking['id']) ?>/huy" data-confirm="Hủy lịch đặt này và trả lại sức chứa đã giữ?">
                         <input type="hidden" name="_csrf_token" value="<?= $e($csrfToken) ?>">
                         <div class="form-field">
                             <label for="reason-<?= $e($booking['id']) ?>">Lý do hủy lịch</label>
@@ -87,7 +87,7 @@ use App\Support\VietnameseFormatter;
                         <button class="button button-danger button-compact" type="submit">Hủy lịch</button>
                     </form>
                 <?php elseif (!(bool) $booking['can_confirm'] && !(bool) $booking['can_complete'] && !(bool) $booking['can_no_show']): ?>
-                    <p class="muted-text terminal-state-text">Booking đã ở trạng thái kết thúc, không còn thao tác.</p>
+                    <p class="muted-text terminal-state-text">Lịch đã kết thúc, không còn thao tác khả dụng.</p>
                 <?php endif; ?>
             </article>
         <?php endforeach; ?>

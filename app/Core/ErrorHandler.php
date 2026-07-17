@@ -13,7 +13,9 @@ final class ErrorHandler
     public function __construct(
         private readonly View $view,
         private readonly Logger $logger,
-        private readonly bool $debug
+        private readonly bool $debug,
+        private readonly ?Session $session = null,
+        private readonly ?CsrfTokenManager $tokens = null
     ) {
     }
 
@@ -58,6 +60,8 @@ final class ErrorHandler
             'message' => $publicMessage,
             'requestId' => $requestId,
             'debugMessage' => $this->debug && $statusCode === 500 ? $exception->getMessage() : null,
+            'authUser' => $this->session?->get('auth_user'),
+            'csrfToken' => $this->tokens?->token(),
         ]);
 
         return Response::html($body, $statusCode, $headers);

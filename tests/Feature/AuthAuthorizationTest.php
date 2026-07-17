@@ -53,10 +53,15 @@ final class AuthAuthorizationTest extends TestCase
 
         $ownDashboard = $application->handle(new Request('GET', '/tai-khoan'));
         $admin = $application->handle(new Request('GET', '/admin'));
+        $root = $application->handle(new Request('GET', '/'));
 
         self::assertSame(200, $ownDashboard->statusCode());
+        self::assertSame(303, $root->statusCode());
+        self::assertSame('/tai-khoan', $root->headers()['Location']);
         self::assertSame(403, $admin->statusCode());
         self::assertStringContainsString('không có quyền', $admin->body());
+        self::assertStringNotContainsString('/admin/lich-dat', $ownDashboard->body());
+        self::assertStringContainsString('/doi-thuong', $ownDashboard->body());
     }
 
     public function testAdminCanAccessAdminAndCannotEnterCustomerArea(): void
@@ -64,7 +69,26 @@ final class AuthAuthorizationTest extends TestCase
         $sessionData = ['auth_user' => ['id' => 1, 'full_name' => 'Quản trị viên', 'role' => 'admin']];
         $application = $this->application($sessionData);
 
-        self::assertSame(200, $application->handle(new Request('GET', '/admin'))->statusCode());
+        $adminDashboard = $application->handle(new Request('GET', '/admin'));
+        $root = $application->handle(new Request('GET', '/'));
+
+        self::assertSame(200, $adminDashboard->statusCode());
+        self::assertSame(303, $root->statusCode());
+        self::assertSame('/admin', $root->headers()['Location']);
+        foreach (
+            [
+                '/admin/lich-dat',
+                '/admin/dich-vu',
+                '/admin/khung-gio',
+                '/admin/diem-thuong',
+                '/admin/xet-hang',
+                '/admin/hang-thanh-vien',
+                '/admin/promotion',
+                '/admin/reward',
+            ] as $path
+        ) {
+            self::assertStringContainsString('href="' . $path . '"', $adminDashboard->body());
+        }
         self::assertSame(403, $application->handle(new Request('GET', '/tai-khoan'))->statusCode());
     }
 

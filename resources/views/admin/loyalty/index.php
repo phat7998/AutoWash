@@ -10,9 +10,9 @@ declare(strict_types=1);
 /** @var string|null $flashSuccess */
 ?>
 <section class="page-heading">
-    <p class="eyebrow dark-eyebrow">Quản trị loyalty</p>
+    <p class="eyebrow dark-eyebrow">Chăm sóc khách hàng</p>
     <h1>Điều chỉnh điểm khách hàng</h1>
-    <p class="lead">Mọi điều chỉnh đều yêu cầu lý do, ghi ledger và audit; số dư âm bị từ chối.</p>
+    <p class="lead">Cộng hoặc trừ điểm cho khách hàng với lý do rõ ràng; hệ thống không cho phép số dư âm.</p>
 </section>
 
 <?php if (isset($flashSuccess) && $flashSuccess !== ''): ?>
@@ -58,7 +58,7 @@ declare(strict_types=1);
                 <?php if (isset($errors['points'])): ?><span class="field-error"><?= $e($errors['points']) ?></span><?php endif; ?>
             </div>
             <div class="form-field">
-                <label for="source_transaction_id">Giao dịch nguồn</label>
+                <label for="source_transaction_id">Mã giao dịch liên quan</label>
                 <input id="source_transaction_id" name="source_transaction_id" inputmode="numeric" value="<?= $e($values['source_transaction_id']) ?>" aria-invalid="<?= isset($errors['source_transaction_id']) ? 'true' : 'false' ?>">
                 <span class="field-help">Không bắt buộc; chỉ dùng khi điều chỉnh một giao dịch trước đó của cùng khách hàng.</span>
                 <?php if (isset($errors['source_transaction_id'])): ?><span class="field-error"><?= $e($errors['source_transaction_id']) ?></span><?php endif; ?>

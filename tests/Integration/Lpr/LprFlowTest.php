@@ -203,7 +203,8 @@ final class LprFlowTest extends TestCase
         self::assertSame(200, $recognition->statusCode());
         self::assertStringContainsString('Kết quả gợi ý', $recognition->body());
         self::assertStringContainsString('88a-123.45', $recognition->body());
-        self::assertStringContainsString('provider mock offline', $recognition->body());
+        self::assertStringContainsString('Bạn luôn có thể sửa hoặc nhập thủ công', $recognition->body());
+        self::assertStringNotContainsString('provider mock offline', $recognition->body());
         $attemptId = (int) self::$database->query('SELECT MAX(id) FROM lpr_attempts')->fetchColumn();
 
         $image = $application->handle(new Request(

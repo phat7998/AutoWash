@@ -318,7 +318,9 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
     $errorHandler = new ErrorHandler(
         $view,
         $logger,
-        (bool) $config['debug']
+        (bool) $config['debug'],
+        $session,
+        $tokens
     );
     $errorHandler->register();
 

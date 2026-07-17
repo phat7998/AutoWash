@@ -1,6 +1,6 @@
 # AUTO WASH PRO — TEST PLAN
 
-> Phiên bản: Service Group Selection Policy correction, 2026-07-17
+> Phiên bản: UI/UX Productization Pass, 2026-07-17
 > Trạng thái release: toàn bộ test MUST đã có evidence Slice 15 trong `REQUIREMENT_TRACEABILITY.md`,
 > `IMPLEMENTATION_STATUS.md` và `PERFORMANCE_REPORT.md`.
 
@@ -139,6 +139,19 @@
 | QT-NFR-23 | Review transaction không bao network call dài | NFR-23 |
 | QT-NFR-26 | Kiểm tra version/Composer và không có framework | NFR-26 |
 | QT-RBL-01 | Review research question/objectives giữ nguyên nghĩa đề tài SU26SWP01 | RBL-01 |
+
+### 7.1. UI/UX Productization regression
+
+| Test ID | Kiểm tra | Expected |
+|---|---|---|
+| FT-UI-01 | Guest `GET /` | `200`, có hero/CTA/bốn loại xe; không có CSRF, Front Controller, PRG/scaffold |
+| FT-UI-02 | Customer/Admin `GET /` | `303` tới `/tai-khoan` hoặc `/admin` đúng role |
+| FT-UI-03 | Navigation theo role | Customer không có route admin; sidebar Admin có đủ module đã triển khai |
+| FT-UI-04 | CTA và link điều hướng | CTA landing đúng `/dat-lich`, `/dich-vu`; link chính không trả 404 sau đăng nhập phù hợp |
+| FT-UI-05 | Error page | 403/404/405/500 đúng status, product shell phù hợp, không stack trace production |
+| FT-UI-06 | Form regression | Giữ `_csrf_token`, field name/action và radio/checkbox policy của booking |
+| QT-UI-01 | Viewport 360/768/1024/1440 | Menu không tràn; admin drawer; grid reflow; table admin cuộn có chủ đích |
+| QT-UI-02 | Accessibility source/manual | Skip link, focus visible, label, heading, dialog confirm, reduced motion |
 
 ## 8. Test case bổ sung theo quyết định 00B
 

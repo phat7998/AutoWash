@@ -40,7 +40,7 @@ foreach ($services as $service) {
     <p class="eyebrow dark-eyebrow">Đặt lịch trước</p>
     <h1>Đặt lịch rửa xe</h1>
     <p class="lead">
-        Giá, thời lượng, sức chứa và giới hạn đặt trước được hệ thống tải lại từ cấu hình khi xác nhận.
+        Chọn lần lượt phương tiện, gói chăm sóc và thời gian phù hợp; thông tin sẽ được kiểm tra lại khi xác nhận.
     </p>
 </section>
 
@@ -115,7 +115,7 @@ foreach ($services as $service) {
 
         <fieldset class="booking-fieldset">
             <legend>Chọn dịch vụ</legend>
-            <p class="field-help">Thời lượng được cộng; capacity units lấy mức lớn nhất, không cộng dồn.</p>
+            <p class="field-help">Chọn đúng một gói rửa chính; dịch vụ bổ sung là tùy chọn.</p>
             <?php if ($services === []): ?>
                 <div class="empty-state compact-empty">
                     <h2>Không có dịch vụ phù hợp</h2>
@@ -149,7 +149,7 @@ foreach ($services as $service) {
                                         <span class="booking-option-meta">
                                             <?= $e(VietnameseFormatter::vnd((string) $service['price'])) ?> ·
                                             <?= $e($service['duration_minutes']) ?> phút ·
-                                            <?= $e($service['capacity_units']) ?> units
+                                            mức phục vụ <?= $e($service['capacity_units']) ?> đơn vị
                                         </span>
                                     </span>
                                 </label>
@@ -164,15 +164,14 @@ foreach ($services as $service) {
         </fieldset>
 
         <fieldset class="booking-fieldset">
-            <legend>Reward đã đổi (không bắt buộc)</legend>
+            <legend>Quà tặng đã đổi (không bắt buộc)</legend>
             <p class="field-help">
-                Chọn tối đa một reward. Backend kiểm tra lại owner, hạn dùng, dịch vụ và loại xe;
-                perk và promotion tốt nhất được tự động áp dụng.
+                Chọn tối đa một quà tặng phù hợp. Quyền lợi hạng và khuyến mãi tốt nhất sẽ được tự động áp dụng.
             </p>
             <label class="form-field" for="reward_redemption_id">
-                <span>Reward dùng cho lịch đặt</span>
+                <span>Quà tặng dùng cho lịch đặt</span>
                 <select id="reward_redemption_id" name="reward_redemption_id">
-                    <option value="">Không dùng reward</option>
+                    <option value="">Không dùng quà tặng</option>
                     <?php foreach ($reward_redemptions as $redemption): ?>
                         <?php $redemptionId = (string) $redemption['redemption_id']; ?>
                         <option value="<?= $e($redemptionId) ?>"
@@ -183,7 +182,7 @@ foreach ($services as $service) {
                     <?php endforeach; ?>
                 </select>
                 <?php if ($reward_redemptions === []): ?>
-                    <small>Chưa có reward khả dụng. Bạn có thể đổi reward tại trang Điểm thưởng.</small>
+                    <small>Chưa có quà tặng khả dụng. Bạn có thể đổi quà tại trang Quà tặng.</small>
                 <?php endif; ?>
                 <?php if (isset($errors['reward_redemption_id'])): ?>
                     <span class="field-error" role="alert"><?= $e($errors['reward_redemption_id']) ?></span>
@@ -224,7 +223,7 @@ foreach ($services as $service) {
                                     <?php elseif (!(bool) $slot['within_window']): ?>
                                         Ngoài giới hạn đặt trước của hạng hiện tại
                                     <?php else: ?>
-                                        Còn <?= $e($remaining) ?> / <?= $e($slot['capacity_units']) ?> capacity units
+                                        Còn <?= $e($remaining) ?> / <?= $e($slot['capacity_units']) ?> đơn vị phục vụ
                                     <?php endif; ?>
                                 </small>
                             </span>

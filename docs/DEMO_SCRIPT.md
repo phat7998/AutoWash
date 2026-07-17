@@ -25,6 +25,17 @@ Tài khoản demo dùng chung mật khẩu `AutoWash@123`:
 | Gold, xe tải | `0900000004` |
 | Platinum, xe khách | `0900000005` |
 
+### Kiểm tra giao diện sản phẩm trước luồng nghiệp vụ
+
+1. Mở `/` khi chưa đăng nhập: xác nhận hero “Chăm sóc phương tiện, chủ động từng khung giờ”, hai CTA, bốn
+   nhóm phương tiện, dịch vụ, quy trình, quyền lợi thành viên, FAQ và footer; không có nội dung kỹ thuật.
+2. Kiểm tra ở 360px, 768px, 1024px và 1440px: Guest/Customer menu không tràn; Admin dưới 1024px dùng drawer.
+3. Đăng nhập Customer rồi mở `/`: kỳ vọng `303` tới `/tai-khoan`, không có menu quản trị.
+4. Đăng nhập Admin rồi mở `/`: kỳ vọng `303` tới `/admin`, sidebar có đủ Lịch đặt, Dịch vụ, Khung giờ,
+   Khách hàng & điểm, Xét hạng, Hạng & quyền lợi, Khuyến mãi, Quà tặng và Báo cáo.
+5. Mở route không tồn tại và thử truy cập sai quyền: error page giữ đúng khu vực, có CTA quay lại và không lộ
+   chi tiết kỹ thuật.
+
 ## 2. DEMO-01 — Auth, RBAC, phương tiện và LPR fallback
 
 1. Đăng nhập Member tại `/dang-nhap`; xác nhận session chuyển sang `/tai-khoan`.

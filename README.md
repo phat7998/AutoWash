@@ -63,7 +63,7 @@ docker compose up -d --build
 docker compose run --rm web composer install
 ```
 
-Mở `http://localhost:8080/` để xem trang nền tảng hoặc `http://localhost:8080/health` để kiểm tra trạng thái tối thiểu. Mọi URL động được Apache chuyển qua `public/index.php`.
+Mở `http://localhost:8080/` để xem landing page AutoWash Pro hoặc `http://localhost:8080/health` để kiểm tra trạng thái tối thiểu. Guest thấy trang giới thiệu sản phẩm; Customer và Admin đã đăng nhập được chuyển lần lượt tới `/tai-khoan` và `/admin`. Mọi URL động được Apache chuyển qua `public/index.php`.
 
 Kiểm tra trạng thái hoặc dừng môi trường:
 

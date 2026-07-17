@@ -18,8 +18,7 @@ $action = $isEdit ? '/phuong-tien/' . $vehicleId . '/sua' : '/phuong-tien/them';
         <p class="eyebrow dark-eyebrow">Phương tiện</p>
         <h1><?= $isEdit ? 'Sửa thông tin phương tiện' : 'Thêm phương tiện' ?></h1>
         <p class="lead">
-            Bạn có thể nhập biển số thủ công hoặc dùng adapter nhận diện ảnh ở chế độ mock để hỗ trợ điền form.
-            Biển số luôn được xác nhận và kiểm tra lại ở backend trước khi lưu.
+            Nhập biển số trực tiếp hoặc tải ảnh để nhận gợi ý, sau đó kiểm tra lại thông tin trước khi lưu.
         </p>
     </div>
 
@@ -29,8 +28,7 @@ $action = $isEdit ? '/phuong-tien/' . $vehicleId . '/sua' : '/phuong-tien/them';
                 <p class="eyebrow dark-eyebrow">Hỗ trợ từ ảnh</p>
                 <h2 id="lpr-panel-title">Nhận diện biển số</h2>
                 <p>
-                    Bản demo dùng provider mock offline, không phải mô hình LPR production.
-                    Ảnh chỉ nhận JPEG, PNG hoặc WebP theo giới hạn hệ thống và được lưu ngoài thư mục public.
+                    Tải ảnh rõ biển số để nhận gợi ý. Bạn luôn có thể sửa hoặc nhập thủ công nếu kết quả chưa chính xác.
                 </p>
             </div>
             <form method="post" action="/phuong-tien/nhan-dien" enctype="multipart/form-data" novalidate>

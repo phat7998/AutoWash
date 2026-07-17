@@ -65,9 +65,9 @@
 
 | Requirement ID | Mô tả/acceptance rút gọn | Nguồn | Priority | Slice chính | Code | Test dự kiến | Demo | Status |
 |---|---|---|---|---|---|---|---|---|
-| NFR-01 | Responsive desktop/mobile cơ bản | Spec §14 | MUST | 15 | `public/assets/css/app.css`, shared customer/admin layout, responsive table/card/grid | QT-NFR-01 viewport/source review | DEMO-01..08 | Done |
+| NFR-01 | Responsive desktop/mobile cơ bản | Spec §14 | MUST | 15 | Productized guest/customer shell, admin sidebar/drawer, responsive table/card/grid, `app.css`/`app.js` | QT-NFR-01, QT-UI-01 viewport/source review | DEMO-01..08 | Done |
 | NFR-02 | 10k bookings/20 VU; read P95 <1s; booking/redeem/report <2s; error <1% | Spec §14; DEC-026 | MUST | 15 | `prepare-performance-data.php`, `run-performance-test.php` | QT-NFR-02, PERF-00B-01..08 | `PERFORMANCE_REPORT.md` | Done |
-| NFR-03 | Empty/error state dễ hiểu | Spec §14 | MUST | 03+ | `ErrorHandler`, `resources/views/errors/`, module empty/error/flash states | `HttpCoreTest`, `ProductionErrorTest`, module feature/integration tests | DEMO-01..08 | Done |
+| NFR-03 | Empty/error state dễ hiểu | Spec §14 | MUST | 03+ | Role-aware `ErrorHandler`, productized error/empty/flash states, CTA an toàn | `HttpCoreTest`, `ProductionErrorTest`, FT-UI-05, module tests | DEMO-01..08 | Done |
 | NFR-04 | PSR-12/lint | Spec §14 | MUST | 01+ | `composer.json`, `phpcs.xml` | QT-NFR-04: `composer lint` | — | Done |
 | NFR-05 | Đúng layer, không SQL/formula trong Controller/View | Spec §5, §14 | MUST | 01+ | Controller–Service–Repository–View; `scripts/release-audit.php` | QT-NFR-05 + release audit | — | Done |
 | NFR-06 | Không TODO/placeholder/code giả ở luồng MUST | Spec §14 | MUST | 15 | `scripts/release-audit.php` | QT-NFR-06 + full source scan | DEMO-01..08 | Done |

@@ -74,7 +74,7 @@ use App\Support\VietnameseFormatter;
 <section class="booking-section" aria-labelledby="wash-history-title">
     <div class="section-heading">
         <h2 id="wash-history-title">Lịch sử rửa xe</h2>
-        <p>Chỉ hiển thị booking đã hoàn thành, dùng tên dịch vụ và giá snapshot tại lúc đặt.</p>
+        <p>Các lần sử dụng đã hoàn thành được lưu theo thông tin tại thời điểm đặt lịch.</p>
     </div>
     <?php if ($history === []): ?>
         <div class="empty-state compact-empty">

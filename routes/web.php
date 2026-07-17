@@ -50,12 +50,17 @@ return static function (
     ?callable $adminPromotionControllerFactory = null,
     ?callable $dashboardControllerFactory = null
 ): void {
-    $router->get('/', static function () use ($view, $session, $tokens): Response {
+    $router->get('/', static function () use ($view, $session): Response {
+        $authUser = $session->get('auth_user');
+
+        if (is_array($authUser)) {
+            return Response::redirect(($authUser['role'] ?? null) === 'admin' ? '/admin' : '/tai-khoan');
+        }
+
         return Response::html($view->render('home', [
-            'title' => 'Nền tảng AutoWash Pro đã sẵn sàng',
-            'csrfToken' => $tokens->token(),
+            'title' => 'AutoWash Pro — Chăm sóc phương tiện chủ động',
             'flashSuccess' => $session->get('success'),
-            'authUser' => $session->get('auth_user'),
+            'authUser' => null,
         ]));
     });
 
