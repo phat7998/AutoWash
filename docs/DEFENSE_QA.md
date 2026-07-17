@@ -43,7 +43,8 @@ owner ID do client gửi. Test customer A truy cập resource của B xác nhậ
 ### Q09. Giá booking có thể bị sửa trên frontend không?
 
 Không. Client chỉ gửi ID selection. Backend khóa/tải service price, tier, perk, promotion, reward và capacity từ
-DB, tính lại bằng `PriceCalculator`, rồi lưu snapshot.
+DB, kiểm tra selection policy theo `service_groups`, tính lại bằng `PriceCalculator`, rồi lưu snapshot. Gửi thẳng
+Standard + Premium hoặc add-on-only vẫn bị từ chối trước mọi phép tính/ghi dữ liệu.
 
 ### Q10. Tiền có dùng float không?
 
@@ -53,7 +54,9 @@ LPR, không dùng cho tiền.
 ### Q11. Vì sao duration cộng nhưng capacity lấy max?
 
 DEC-017 định nghĩa booking nhiều dịch vụ: tổng duration, capacity lớn nhất giữa vehicle default và override.
-Cùng units được giữ trên mọi slot chồng lấn để không double-count service nối tiếp.
+Cùng units được giữ trên mọi slot chồng lấn để không double-count service nối tiếp. DEC-035 làm rõ capacity là
+sức chứa vật lý, không phải độ phức tạp/thời gian; Premium không làm xe lớn hơn nên bốn service seed dùng
+vehicle default, còn thời gian Premium nằm ở `duration_minutes`.
 
 ### Q12. Hai khách tranh slot cuối thì sao?
 
@@ -137,7 +140,7 @@ P95 <2s và error 0%; chi tiết môi trường/số đo ở `docs/PERFORMANCE_R
 
 ### Q28. Database có dựng lại được không?
 
-Có 9 migration, advisory lock, migration history, demo seed idempotent và reset chỉ cho local/testing với
+Có 10 migration, advisory lock, migration history, demo seed idempotent và reset chỉ cho local/testing với
 `--force`. Fresh reset–migrate–seed được chạy trong full DB test.
 
 ### Q29. Audit log ghi những gì?

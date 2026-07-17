@@ -26,12 +26,16 @@ declare(strict_types=1);
     <div class="table-shell">
         <table>
             <caption>Danh sách dịch vụ và số loại xe được hỗ trợ</caption>
-            <thead><tr><th scope="col">Dịch vụ</th><th scope="col">Mã</th><th scope="col">Loại xe hỗ trợ</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead>
+            <thead><tr><th scope="col">Dịch vụ</th><th scope="col">Mã</th><th scope="col">Nhóm / chính sách</th><th scope="col">Loại xe hỗ trợ</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead>
             <tbody>
             <?php foreach ($services as $service): ?>
                 <tr>
                     <td data-label="Dịch vụ"><strong><?= $e($service['name']) ?></strong></td>
                     <td data-label="Mã"><?= $e($service['code']) ?></td>
+                    <td data-label="Nhóm / chính sách">
+                        <?= $e($service['service_group_name']) ?> ·
+                        <?= $e($service['selection_mode'] === 'single' ? 'chọn một' : 'chọn nhiều') ?>
+                    </td>
                     <td data-label="Loại xe hỗ trợ"><?= $e((int) $service['supported_type_count']) ?>/4</td>
                     <td data-label="Trạng thái"><span class="status-badge <?= (bool) $service['is_active'] ? '' : 'status-neutral' ?>"><?= (bool) $service['is_active'] ? 'Đang hoạt động' : 'Ngừng hoạt động' ?></span></td>
                     <td data-label="Thao tác" class="table-actions">

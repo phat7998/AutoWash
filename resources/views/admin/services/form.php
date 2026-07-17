@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 /** @var Closure(mixed): string $e */
 /** @var list<array{id: int, code: string, display_name: string}> $vehicleTypes */
+/** @var list<array<string, mixed>> $serviceGroups */
 /** @var array<string, mixed> $values */
 /** @var array<string, string> $errors */
 /** @var string $mode */
@@ -37,6 +38,23 @@ $action = $mode === 'create' ? '/admin/dich-vu/them' : '/admin/dich-vu/' . $serv
         <label for="description">Mô tả</label>
         <textarea id="description" name="description" rows="3" maxlength="2000" aria-invalid="<?= isset($errors['description']) ? 'true' : 'false' ?>"><?= $e($values['description']) ?></textarea>
         <?php if (isset($errors['description'])): ?><span class="field-error"><?= $e($errors['description']) ?></span><?php endif; ?>
+    </div>
+    <div class="form-field">
+        <label for="service_group_id">Nhóm dịch vụ *</label>
+        <select id="service_group_id" name="service_group_id" required
+            aria-invalid="<?= isset($errors['service_group_id']) ? 'true' : 'false' ?>">
+            <option value="">Chọn nhóm dịch vụ</option>
+            <?php foreach ($serviceGroups as $group): ?>
+                <option value="<?= $e($group['id']) ?>"
+                    <?= (string) $group['id'] === (string) $values['service_group_id'] ? 'selected' : '' ?>>
+                    <?= $e($group['name']) ?> · <?= $e($group['selection_mode'] === 'single' ? 'chọn một' : 'chọn nhiều') ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <span class="field-help">Chính sách lựa chọn được tải từ nhóm hệ thống.</span>
+        <?php if (isset($errors['service_group_id'])): ?>
+            <span class="field-error"><?= $e($errors['service_group_id']) ?></span>
+        <?php endif; ?>
     </div>
     <fieldset class="price-configurations">
         <legend>Cấu hình theo loại phương tiện</legend>

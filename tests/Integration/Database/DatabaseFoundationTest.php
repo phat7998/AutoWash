@@ -83,6 +83,7 @@ final class DatabaseFoundationTest extends TestCase
             'reward_redemptions',
             'reward_vehicle_types',
             'rewards',
+            'service_groups',
             'service_vehicle_prices',
             'services',
             'tier_histories',
@@ -104,7 +105,7 @@ final class DatabaseFoundationTest extends TestCase
         )->fetchAll(PDO::FETCH_COLUMN);
 
         self::assertSame($expectedTables, $actualTables);
-        self::assertSame(9, (int) self::$database->query('SELECT COUNT(*) FROM migrations')->fetchColumn());
+        self::assertSame(10, (int) self::$database->query('SELECT COUNT(*) FROM migrations')->fetchColumn());
         self::assertSame([], self::$runner->migrate());
     }
 
@@ -135,6 +136,44 @@ final class DatabaseFoundationTest extends TestCase
         );
         self::assertSame(2, (int) self::$database->query(
             'SELECT COUNT(*) FROM service_vehicle_prices WHERE is_supported = FALSE'
+        )->fetchColumn());
+        self::assertSame([
+            [
+                'code' => 'WASH_PACKAGE',
+                'selection_mode' => 'single',
+                'min_selection' => 1,
+                'max_selection' => 1,
+            ],
+            [
+                'code' => 'ADD_ON',
+                'selection_mode' => 'multiple',
+                'min_selection' => 0,
+                'max_selection' => null,
+            ],
+        ], self::$database->query(
+            'SELECT code, selection_mode, min_selection, max_selection FROM service_groups ORDER BY id'
+        )->fetchAll());
+        self::assertSame([
+            ['code' => 'STANDARD_WASH', 'group_code' => 'WASH_PACKAGE'],
+            ['code' => 'PREMIUM_WASH', 'group_code' => 'WASH_PACKAGE'],
+            ['code' => 'ENGINE_CLEAN', 'group_code' => 'ADD_ON'],
+            ['code' => 'TIRE_CARE', 'group_code' => 'ADD_ON'],
+        ], self::$database->query(
+            <<<'SQL'
+            SELECT services.code, service_groups.code AS group_code
+            FROM services
+            INNER JOIN service_groups ON service_groups.id = services.service_group_id
+            ORDER BY services.id
+            SQL
+        )->fetchAll());
+        self::assertSame(0, (int) self::$database->query(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM service_vehicle_prices
+            INNER JOIN services ON services.id = service_vehicle_prices.service_id
+            WHERE services.code IN ('STANDARD_WASH', 'PREMIUM_WASH', 'TIRE_CARE', 'ENGINE_CLEAN')
+              AND service_vehicle_prices.capacity_units_override IS NOT NULL
+            SQL
         )->fetchColumn());
         $demoUsers = self::$database->query(
             'SELECT phone, password_hash, role FROM users ORDER BY phone'
@@ -192,6 +231,12 @@ final class DatabaseFoundationTest extends TestCase
                 code, name, rank_order, booking_window_days,
                 min_monthly_spend, min_monthly_visits, point_rate
             ) VALUES ('MEMBER', 'Trùng', 99, 1, 0, 0, 1.00)
+            SQL
+        );
+        $this->assertStatementFails(
+            <<<'SQL'
+            INSERT INTO services (code, name, description, is_active)
+            VALUES ('NO_GROUP', 'Thiếu nhóm', NULL, TRUE)
             SQL
         );
         $this->assertStatementFails(
@@ -273,6 +318,7 @@ final class DatabaseFoundationTest extends TestCase
             'vehicle_types',
             'vehicles',
             'services',
+            'service_groups',
             'service_vehicle_prices',
             'wash_slots',
             'bookings',

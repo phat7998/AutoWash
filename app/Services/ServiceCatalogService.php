@@ -65,6 +65,12 @@ final readonly class ServiceCatalogService
         return $this->catalog->findActiveVehicleTypes();
     }
 
+    /** @return list<array<string, mixed>> */
+    public function serviceGroups(): array
+    {
+        return $this->catalog->findActiveServiceGroups();
+    }
+
     /** @return array<string, mixed> */
     public function service(int $serviceId): array
     {
@@ -82,13 +88,15 @@ final readonly class ServiceCatalogService
         string $code,
         string $name,
         string $description,
+        string $serviceGroupId,
         array $prices,
         int $adminId
     ): int {
-        [$code, $name, $description, $normalizedPrices] = $this->validatedData(
+        [$code, $name, $description, $normalizedGroupId, $normalizedPrices] = $this->validatedData(
             $code,
             $name,
             $description,
+            $serviceGroupId,
             $prices
         );
 
@@ -97,6 +105,7 @@ final readonly class ServiceCatalogService
                 $code,
                 $name,
                 $description,
+                $normalizedGroupId,
                 $normalizedPrices,
                 $adminId
             );
@@ -111,14 +120,16 @@ final readonly class ServiceCatalogService
         string $code,
         string $name,
         string $description,
+        string $serviceGroupId,
         array $prices,
         int $adminId
     ): void {
         $this->service($serviceId);
-        [$code, $name, $description, $normalizedPrices] = $this->validatedData(
+        [$code, $name, $description, $normalizedGroupId, $normalizedPrices] = $this->validatedData(
             $code,
             $name,
             $description,
+            $serviceGroupId,
             $prices
         );
 
@@ -128,6 +139,7 @@ final readonly class ServiceCatalogService
                 $code,
                 $name,
                 $description,
+                $normalizedGroupId,
                 $normalizedPrices,
                 $adminId
             );
@@ -168,15 +180,29 @@ final readonly class ServiceCatalogService
 
     /**
      * @param array<string, array<string, string>> $prices
-     * @return array{string, string, ?string, list<array<string, mixed>>}
+     * @return array{string, string, ?string, int, list<array<string, mixed>>}
      */
-    private function validatedData(string $code, string $name, string $description, array $prices): array
-    {
+    private function validatedData(
+        string $code,
+        string $name,
+        string $description,
+        string $serviceGroupId,
+        array $prices
+    ): array {
         $code = strtoupper(trim($code));
         $name = trim(preg_replace('/\s+/u', ' ', $name) ?? $name);
         $description = trim($description);
         $types = $this->catalog->findActiveVehicleTypes();
-        $errors = $this->validator->validate($code, $name, $description, $prices, $types);
+        $groups = $this->catalog->findActiveServiceGroups();
+        $errors = $this->validator->validate(
+            $code,
+            $name,
+            $description,
+            $serviceGroupId,
+            $prices,
+            $types,
+            $groups
+        );
 
         if ($errors !== []) {
             throw new ValidationException($errors);
@@ -200,7 +226,13 @@ final readonly class ServiceCatalogService
             ];
         }
 
-        return [$code, $name, $description !== '' ? $description : null, $normalizedPrices];
+        return [
+            $code,
+            $name,
+            $description !== '' ? $description : null,
+            (int) $serviceGroupId,
+            $normalizedPrices,
+        ];
     }
 
     private function positiveId(string $value, string $field): int

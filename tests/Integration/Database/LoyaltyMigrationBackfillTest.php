@@ -48,7 +48,12 @@ final class LoyaltyMigrationBackfillTest extends TestCase
         $this->legacyMigrationPath = sys_get_temp_dir() . '/autowash-legacy-migrations-' . bin2hex(random_bytes(6));
         mkdir($this->legacyMigrationPath, 0700, true);
 
-        foreach (glob($this->migrationPath . '/00[1-6]_*.php') ?: [] as $file) {
+        $legacyFiles = [
+            ...(glob($this->migrationPath . '/00[1-6]_*.php') ?: []),
+            ...(glob($this->migrationPath . '/010_*.php') ?: []),
+        ];
+
+        foreach ($legacyFiles as $file) {
             copy($file, $this->legacyMigrationPath . '/' . basename($file));
         }
 

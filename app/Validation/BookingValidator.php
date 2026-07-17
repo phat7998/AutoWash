@@ -31,7 +31,7 @@ final class BookingValidator
         }
 
         if (!is_array($serviceIds) || $serviceIds === []) {
-            $errors['service_ids'] = 'Vui lòng chọn ít nhất một dịch vụ.';
+            $errors['service_ids'] = 'Vui lòng chọn một gói rửa chính.';
             $normalizedServiceIds = [];
         } else {
             $normalizedServiceIds = [];

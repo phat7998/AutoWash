@@ -30,6 +30,24 @@
 | 14 | Complete | Sáu event type, CSV privacy allowlist, synthetic deterministic ≥2.000/four types, owner/admin dashboards và data dictionary |
 | 15 | Complete | Security/business audit, service-price audit, 10k/20VU performance, clean setup, defense/release docs |
 
+## Business-rule correction — Service Group Selection Policy
+
+- Nguồn: manual test và read-only domain audit trước defense phát hiện Standard + Premium có thể được chọn
+  đồng thời vì catalog chỉ có service độc lập, UI dùng checkbox và backend chưa có combination invariant.
+- Quyết định: DEC-035; `WASH_PACKAGE` chọn đúng một, `ADD_ON` chọn nhiều/không bắt buộc nhưng không đặt độc
+  lập. Promotion/reward/perk tiếp tục target service ID, không có group targeting hoặc full group CRUD.
+- Migration 010 tạo `service_groups`, thêm `services.service_group_id` FK bắt buộc, backfill bốn service và đưa
+  capacity override hiện tại về null. Service ID, booking item/snapshot và research metadata lịch sử giữ nguyên.
+- Admin service CRUD bắt buộc active group, list/form/audit hiển thị group/policy. Customer render radio/checkbox
+  theo group; backend lock/tải group và validate trước pricing, duration, capacity, benefit, reservation/write.
+- Regression khóa Standard/Premium/add-on/POST bypass/no-artifact, capacity default, inactive group,
+  promotion/reward/perk theo service ID và legacy booking từng chứa cả hai package vẫn đọc được.
+- Verification final: host PHP 8.5 và Docker PHP 8.2/MySQL 8.4 cùng pass PHPCS 178 file, PHPUnit
+  168 test/897 assertion không skip và release audit. Fresh `autowash_test` reset/migrate/seed tạo 10 migration,
+  2 group, 4 mapping, 0 override. HTTP smoke admin/customer pass; bypass trả 422 và artifact count không đổi.
+- Migration in-place trên dữ liệu demo từ 9 lên 10 giữ nguyên booking ID 18 từng có Standard + Premium,
+  toàn bộ item price/duration/capacity snapshot và research metadata trước/sau.
+
 ## Slice 15 — Final Hardening, Verification and Defense Release
 
 - Requirements: đóng ADM-07/08 và NFR-01..03, NFR-05..11, NFR-15, NFR-17, NFR-19..23, NFR-25;

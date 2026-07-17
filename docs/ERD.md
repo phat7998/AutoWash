@@ -1,6 +1,7 @@
 # AUTO WASH PRO — ERD VÀ KẾ HOẠCH MIGRATION
 
-> Baseline: Mini-Slice 00B Closure Patch; schema core hiện thực tại Slice 02, `lpr_attempts` tại Slice 13.
+> Baseline: Mini-Slice 00B Closure Patch; schema core hiện thực tại Slice 02, `lpr_attempts` tại Slice 13,
+> service selection policy tại migration 010 trước defense.
 > Quy ước: InnoDB, `utf8mb4`, money dùng `DECIMAL`, timestamp theo `Asia/Ho_Chi_Minh`.
 
 ## ERD Mermaid
@@ -63,8 +64,21 @@ erDiagram
         datetime updated_at
     }
 
+    SERVICE_GROUPS {
+        bigint id PK
+        varchar code UK
+        varchar name
+        varchar selection_mode
+        int min_selection
+        int max_selection
+        boolean is_active
+        datetime created_at
+        datetime updated_at
+    }
+
     SERVICES {
         bigint id PK
+        bigint service_group_id FK
         varchar code UK
         varchar name
         text description
@@ -339,6 +353,7 @@ erDiagram
     TIERS ||--o{ USERS : current_tier
     USERS ||--o{ VEHICLES : owns
     VEHICLE_TYPES ||--o{ VEHICLES : classifies
+    SERVICE_GROUPS ||--o{ SERVICES : selection_policy
     SERVICES ||--o{ SERVICE_VEHICLE_PRICES : priced_for
     VEHICLE_TYPES ||--o{ SERVICE_VEHICLE_PRICES : has_price
 
@@ -392,10 +407,13 @@ erDiagram
 | Vehicle type | `vehicle_types.code` unique; không ENUM; default duration/capacity >0; referenced type không hard-delete |
 | Vehicle | `normalized_plate` unique sau uppercase/bỏ space/`-`/`.`; common civilian pattern `^[0-9]{2}[A-Z]{1,2}[0-9]{4,5}$`; validator tập trung; FK owner/type; inactive thay hard-delete khi có history |
 | Service price | Unique `(service_id, vehicle_type_id)`; supported ⇒ price/duration >0; override null hoặc >0 |
+| Service group | Mỗi service có group FK bắt buộc; `WASH_PACKAGE=single/1/1`, `ADD_ON=multiple/0/null`; runtime không phân loại theo tên/code service |
+| Service selection | Booking mới có đúng một WASH_PACKAGE; add-on không tồn tại độc lập; validation trước pricing/benefit/write |
 | Slot | Unique `(slot_date,start_time,end_time)`; capacity_units >0 |
 | Booking formula | `booking_duration_minutes = SUM(item.duration_minutes_snapshot)`; `booking_capacity_units = MAX(vehicle default, item capacity snapshots)`; không cộng units; không tin client |
 | Booking capacity | Unique `(booking_id,wash_slot_id)`; tổng reservation pending/confirmed không vượt từng slot; mọi slot chồng lấn được lock theo thứ tự và giữ atomically |
 | Booking history | Item snapshot giữ service name, type code, price, duration, capacity; config đổi không sửa lịch sử |
+| Capacity semantic | Capacity là sức chứa vật lý, duration là thời gian; bốn service seed có override null và dùng vehicle default; snapshot cũ bất biến |
 | Active vehicle/time | Một vehicle không có hai booking active có khoảng thời gian chồng lấn; enforce bằng transaction và constraint/index phù hợp |
 | Loyalty source | Unique idempotency theo type/source; `earn` và `adjust_credit` là credit lot; `redeem`, `expire`, `adjust_debit` là debit; adjustment correction có nullable self-FK |
 | Allocation | Unique `(debit_transaction_id,credit_transaction_id)`; `allocated_points > 0`; mọi debit phân bổ đủ vào credit lot và không vượt `remaining_points` |
@@ -472,3 +490,8 @@ thực acceptance RWD-03 đã có trong đặc tả. Migration không tạo enti
 
 Slice 13 thêm migration `009_create_lpr_attempts`, hiện thực entity đã duyệt với provider, kết quả nhận diện,
 confidence, status, owner nullable và đường dẫn ảnh ngoài public; không thay đổi quan hệ nghiệp vụ khác.
+
+Correction trước defense thêm migration `010_add_service_group_selection_policy`: tạo `service_groups`,
+backfill bốn service, đưa catalog capacity override của chúng về null rồi ràng buộc
+`services.service_group_id NOT NULL`. Migration không update `bookings`, `booking_items` hoặc
+`research_event_logs`; snapshot lịch sử tiếp tục là nguồn hiển thị.

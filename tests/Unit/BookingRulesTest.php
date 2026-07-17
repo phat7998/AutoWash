@@ -154,4 +154,17 @@ final class BookingRulesTest extends TestCase
         $this->expectException(ValidationException::class);
         $validator->selection('2', '8', ['3', '3']);
     }
+
+    public function testValidatorRejectsEmptySelectionWithPackageMessage(): void
+    {
+        try {
+            (new BookingValidator())->selection('2', '8', []);
+            self::fail('Booking không chọn service phải bị từ chối.');
+        } catch (ValidationException $exception) {
+            self::assertSame(
+                'Vui lòng chọn một gói rửa chính.',
+                $exception->errors()['service_ids']
+            );
+        }
+    }
 }

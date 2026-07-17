@@ -45,6 +45,19 @@ final readonly class ServiceCatalogRepository
     }
 
     /** @return list<array<string, mixed>> */
+    public function findActiveServiceGroups(): array
+    {
+        return $this->database->query(
+            <<<'SQL'
+            SELECT id, code, name, selection_mode, min_selection, max_selection
+            FROM service_groups
+            WHERE is_active = TRUE
+            ORDER BY id
+            SQL
+        )->fetchAll();
+    }
+
+    /** @return list<array<string, mixed>> */
     public function findActiveCatalogForType(int $vehicleTypeId): array
     {
         $statement = $this->database->prepare(
@@ -54,6 +67,12 @@ final readonly class ServiceCatalogRepository
                 services.code,
                 services.name,
                 services.description,
+                service_groups.id AS service_group_id,
+                service_groups.code AS service_group_code,
+                service_groups.name AS service_group_name,
+                service_groups.selection_mode,
+                service_groups.min_selection,
+                service_groups.max_selection,
                 service_vehicle_prices.price,
                 service_vehicle_prices.duration_minutes,
                 COALESCE(
@@ -62,13 +81,15 @@ final readonly class ServiceCatalogRepository
                 ) AS capacity_units
             FROM services
             INNER JOIN service_vehicle_prices ON service_vehicle_prices.service_id = services.id
+            INNER JOIN service_groups ON service_groups.id = services.service_group_id
             INNER JOIN vehicle_types ON vehicle_types.id = service_vehicle_prices.vehicle_type_id
             WHERE services.is_active = TRUE
               AND service_vehicle_prices.vehicle_type_id = :vehicle_type_id
               AND service_vehicle_prices.is_supported = TRUE
               AND service_vehicle_prices.is_active = TRUE
               AND vehicle_types.is_active = TRUE
-            ORDER BY services.name, services.id
+              AND service_groups.is_active = TRUE
+            ORDER BY service_groups.id, services.id
             SQL
         );
         $statement->execute(['vehicle_type_id' => $vehicleTypeId]);
@@ -87,9 +108,15 @@ final readonly class ServiceCatalogRepository
                 services.name,
                 services.description,
                 services.is_active,
+                service_groups.code AS service_group_code,
+                service_groups.name AS service_group_name,
+                service_groups.selection_mode,
+                service_groups.min_selection,
+                service_groups.max_selection,
                 SUM(service_vehicle_prices.is_supported = TRUE AND service_vehicle_prices.is_active = TRUE)
                     AS supported_type_count
             FROM services
+            INNER JOIN service_groups ON service_groups.id = services.service_group_id
             LEFT JOIN service_vehicle_prices ON service_vehicle_prices.service_id = services.id
             GROUP BY services.id
             ORDER BY services.is_active DESC, services.name, services.id
@@ -101,7 +128,19 @@ final readonly class ServiceCatalogRepository
     public function findService(int $serviceId): ?array
     {
         $statement = $this->database->prepare(
-            'SELECT id, code, name, description, is_active FROM services WHERE id = :id LIMIT 1'
+            <<<'SQL'
+            SELECT services.id, services.code, services.name, services.description,
+                services.service_group_id, services.is_active,
+                service_groups.code AS service_group_code,
+                service_groups.name AS service_group_name,
+                service_groups.selection_mode,
+                service_groups.min_selection,
+                service_groups.max_selection
+            FROM services
+            INNER JOIN service_groups ON service_groups.id = services.service_group_id
+            WHERE services.id = :id
+            LIMIT 1
+            SQL
         );
         $statement->execute(['id' => $serviceId]);
         $service = $statement->fetch();
@@ -136,17 +175,30 @@ final readonly class ServiceCatalogRepository
         string $code,
         string $name,
         ?string $description,
+        int $serviceGroupId,
         array $prices,
         int $adminId
     ): int {
-        return $this->transactional(function () use ($code, $name, $description, $prices, $adminId): int {
+        return $this->transactional(function () use (
+            $code,
+            $name,
+            $description,
+            $serviceGroupId,
+            $prices,
+            $adminId
+        ): int {
             $statement = $this->database->prepare(
                 <<<'SQL'
-                INSERT INTO services (code, name, description, is_active)
-                VALUES (:code, :name, :description, TRUE)
+                INSERT INTO services (code, name, description, service_group_id, is_active)
+                VALUES (:code, :name, :description, :service_group_id, TRUE)
                 SQL
             );
-            $statement->execute(compact('code', 'name', 'description'));
+            $statement->execute([
+                'code' => $code,
+                'name' => $name,
+                'description' => $description,
+                'service_group_id' => $serviceGroupId,
+            ]);
             $serviceId = (int) $this->database->lastInsertId();
             $this->upsertPrices($serviceId, $prices);
             $this->audit($adminId, 'service_created', $serviceId, null, $this->findService($serviceId));
@@ -161,6 +213,7 @@ final readonly class ServiceCatalogRepository
         string $code,
         string $name,
         ?string $description,
+        int $serviceGroupId,
         array $prices,
         int $adminId
     ): bool {
@@ -169,6 +222,7 @@ final readonly class ServiceCatalogRepository
             $code,
             $name,
             $description,
+            $serviceGroupId,
             $prices,
             $adminId
         ): bool {
@@ -176,7 +230,8 @@ final readonly class ServiceCatalogRepository
             $statement = $this->database->prepare(
                 <<<'SQL'
                 UPDATE services
-                SET code = :code, name = :name, description = :description, updated_at = CURRENT_TIMESTAMP
+                SET code = :code, name = :name, description = :description,
+                    service_group_id = :service_group_id, updated_at = CURRENT_TIMESTAMP
                 WHERE id = :id
                 SQL
             );
@@ -185,6 +240,7 @@ final readonly class ServiceCatalogRepository
                 'code' => $code,
                 'name' => $name,
                 'description' => $description,
+                'service_group_id' => $serviceGroupId,
             ]);
             $exists = $statement->rowCount() === 1 || $this->findService($serviceId) !== null;
 

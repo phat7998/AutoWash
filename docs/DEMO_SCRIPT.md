@@ -41,6 +41,20 @@ Tài khoản demo dùng chung mật khẩu `AutoWash@123`:
 3. Gold `0900000004` chọn `+11 ngày`; Platinum `0900000005` chọn `+13 ngày`. Kỳ vọng đều hợp lệ.
 4. Trên form, sửa giá/discount/capacity bằng DevTools. Kỳ vọng backend bỏ qua, tải cấu hình DB và lưu snapshot.
 
+### DEMO-02A — Service group selection correction
+
+1. Mở `/dat-lich`: phần “Chọn một gói rửa chính” dùng radio cho Standard/Premium; “Dịch vụ bổ sung — không
+   bắt buộc” dùng checkbox cho Tire Care/Engine Clean.
+2. Chọn Premium rồi Standard. Kỳ vọng radio tự bỏ lựa chọn cũ; booking item chỉ lưu package cuối và add-on
+   thực sự chọn, không tự thêm Standard vào Premium.
+3. Dùng DevTools/resend POST để gửi đồng thời ID Standard + Premium. Kỳ vọng HTTP 422 với “Chỉ được chọn một
+   gói rửa chính: Rửa tiêu chuẩn hoặc Rửa cao cấp.” và không tạo booking/item/reservation/event/audit.
+4. Gửi add-on-only hoặc không có package. Kỳ vọng 422 “Vui lòng chọn một gói rửa chính.”
+5. Admin mở `/admin/dich-vu`: list/form hiển thị group và policy; bỏ group hoặc gửi group inactive bị backend
+   từ chối. Audit service có group trước/sau.
+6. Giải thích migration 010: bốn capacity override catalog là null, booking mới dùng vehicle default; booking
+   lịch sử và snapshot price/duration/capacity không bị sửa hoặc revalidate.
+
 ## 4. DEMO-03 — Slot race và multi-slot
 
 1. Dùng fixture `DEMO_NEAR_FULL` ngày `15/01/2030` để giải thích capacity units; xe tải giữ 4/5 units.

@@ -132,6 +132,7 @@ final readonly class BookingService
                 $selection->serviceIds
             );
             $this->assertAllServicesAvailable($selection, $items);
+            $this->assertSelectionPolicy($items, $this->bookings->lockActiveServiceGroups());
             $resources = $this->resourceCalculator->calculate(
                 (int) $context['default_capacity_units'],
                 $items
@@ -340,6 +341,75 @@ final readonly class BookingService
                 'service_ids' => (
                     'Có dịch vụ không hoạt động hoặc không hỗ trợ loại phương tiện đã chọn.'
                 ),
+            ]);
+        }
+    }
+
+    /**
+     * @param list<array<string, mixed>> $items
+     * @param list<array<string, mixed>> $groups
+     */
+    private function assertSelectionPolicy(array $items, array $groups): void
+    {
+        $selectedByGroup = [];
+
+        foreach ($items as $item) {
+            $groupId = (int) $item['service_group_id'];
+            $selectedByGroup[$groupId] = ($selectedByGroup[$groupId] ?? 0) + 1;
+        }
+
+        $washPackageFound = false;
+
+        foreach ($groups as $group) {
+            $groupId = (int) $group['id'];
+            $selected = $selectedByGroup[$groupId] ?? 0;
+            $minimum = (int) $group['min_selection'];
+            $maximum = $group['max_selection'] === null ? null : (int) $group['max_selection'];
+
+            if ((string) $group['code'] === 'WASH_PACKAGE') {
+                $washPackageFound = true;
+
+                if ($selected < $minimum) {
+                    throw new ValidationException([
+                        'service_ids' => 'Vui lòng chọn một gói rửa chính.',
+                    ]);
+                }
+
+                if ($maximum !== null && $selected > $maximum) {
+                    throw new ValidationException([
+                        'service_ids' => (
+                            'Chỉ được chọn một gói rửa chính: Rửa tiêu chuẩn hoặc Rửa cao cấp.'
+                        ),
+                    ]);
+                }
+
+                continue;
+            }
+
+            if ($selected < $minimum) {
+                throw new ValidationException([
+                    'service_ids' => sprintf(
+                        'Vui lòng chọn ít nhất %d dịch vụ trong nhóm %s.',
+                        $minimum,
+                        (string) $group['name']
+                    ),
+                ]);
+            }
+
+            if ($maximum !== null && $selected > $maximum) {
+                throw new ValidationException([
+                    'service_ids' => sprintf(
+                        'Chỉ được chọn tối đa %d dịch vụ trong nhóm %s.',
+                        $maximum,
+                        (string) $group['name']
+                    ),
+                ]);
+            }
+        }
+
+        if (!$washPackageFound) {
+            throw new ValidationException([
+                'service_ids' => 'Hiện chưa có nhóm gói rửa chính đang hoạt động.',
             ]);
         }
     }

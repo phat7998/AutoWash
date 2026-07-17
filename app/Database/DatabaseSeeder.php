@@ -36,6 +36,7 @@ final readonly class DatabaseSeeder
             $this->seedUsers($data['users']);
             $this->seedVehicleTypes($data['vehicle_types']);
             $this->seedVehicles($data['vehicles']);
+            $this->seedServiceGroups($data['service_groups']);
             $this->seedServices($data['services']);
             $this->seedServicePrices($data['service_vehicle_prices']);
             $this->seedWashSlots($data['wash_slots']);
@@ -314,23 +315,64 @@ final readonly class DatabaseSeeder
         }
     }
 
-    /** @param list<array{string, string, string}> $services */
-    private function seedServices(array $services): void
+    /** @param list<array{string, string, string, int, ?int}> $groups */
+    private function seedServiceGroups(array $groups): void
     {
         $statement = $this->database->prepare(
             <<<'SQL'
-            INSERT INTO services (code, name, description, is_active)
-            VALUES (:code, :name, :description, TRUE)
+            INSERT INTO service_groups (
+                code, name, selection_mode, min_selection, max_selection, is_active
+            ) VALUES (
+                :code, :name, :selection_mode, :min_selection, :max_selection, TRUE
+            )
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
-                description = VALUES(description),
+                selection_mode = VALUES(selection_mode),
+                min_selection = VALUES(min_selection),
+                max_selection = VALUES(max_selection),
                 is_active = TRUE,
                 updated_at = CURRENT_TIMESTAMP
             SQL
         );
 
-        foreach ($services as [$code, $name, $description]) {
-            $statement->execute(compact('code', 'name', 'description'));
+        foreach ($groups as [$code, $name, $selectionMode, $minimum, $maximum]) {
+            $statement->execute([
+                'code' => $code,
+                'name' => $name,
+                'selection_mode' => $selectionMode,
+                'min_selection' => $minimum,
+                'max_selection' => $maximum,
+            ]);
+        }
+    }
+
+    /** @param list<array{string, string, string, string}> $services */
+    private function seedServices(array $services): void
+    {
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            INSERT INTO services (code, name, description, service_group_id, is_active)
+            VALUES (
+                :code, :name, :description,
+                (SELECT id FROM service_groups WHERE code = :group_code),
+                TRUE
+            )
+            ON DUPLICATE KEY UPDATE
+                name = VALUES(name),
+                description = VALUES(description),
+                service_group_id = VALUES(service_group_id),
+                is_active = TRUE,
+                updated_at = CURRENT_TIMESTAMP
+            SQL
+        );
+
+        foreach ($services as [$code, $name, $description, $groupCode]) {
+            $statement->execute([
+                'code' => $code,
+                'name' => $name,
+                'description' => $description,
+                'group_code' => $groupCode,
+            ]);
         }
     }
 

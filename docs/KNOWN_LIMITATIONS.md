@@ -12,6 +12,7 @@
 | Low | Log lưu file local, chưa có SIEM/rotation tập trung. | Request ID và event quan trọng đã có; vận hành thật cần retention/rotation/monitoring. |
 | Low | Special monthly-review rerun không có UI/command riêng. | Completed run cố ý bị chặn; failed run resume an toàn. Nếu thêm rerun phải có authorization/reason/audit. |
 | Low | UI responsive được kiểm tra foundation và viewport cơ bản, chưa có visual regression đa trình duyệt. | CSS có breakpoint 1023/639, table overflow, focus/reduced-motion; nên bổ sung Playwright khi CI hỗ trợ browser. |
+| Low | Hai service group hiện là cấu hình hệ thống seed, chưa có full group CRUD hoặc promotion/reward group targeting. | Chủ đích giới hạn bugfix theo DEC-035; admin service chỉ chọn active group, benefit vẫn target service ID để không đổi semantics/lịch sử. |
 | Info | Survey thật, ML, kiểm định chuyên sâu và paper chưa thực hiện. | Deferred bonus work theo DEC-034; không chặn release và không được suy diễn từ descriptive analytics. |
 | Info | Không có email/SMS thật, native app, multi-branch, inventory/accounting hoặc microservice. | Ngoài phạm vi đồ án; không có button/placeholder giả trong luồng MUST. |
 

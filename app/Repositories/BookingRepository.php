@@ -96,9 +96,10 @@ final readonly class BookingRepository
              WHERE service_vehicle_prices.vehicle_type_id = :vehicle_type_id
                AND services.is_active = TRUE
                AND service_vehicle_prices.is_supported = TRUE
-               AND service_vehicle_prices.is_active = TRUE
-               AND vehicle_types.is_active = TRUE
-             ORDER BY services.name, services.id
+              AND service_vehicle_prices.is_active = TRUE
+              AND vehicle_types.is_active = TRUE
+              AND service_groups.is_active = TRUE
+             ORDER BY service_groups.id, services.id
             SQL
         );
         $statement->execute(['vehicle_type_id' => $vehicleTypeId]);
@@ -122,6 +123,7 @@ final readonly class BookingRepository
                AND service_vehicle_prices.is_supported = TRUE
                AND service_vehicle_prices.is_active = TRUE
                AND vehicle_types.is_active = TRUE
+               AND service_groups.is_active = TRUE
              ORDER BY services.id
              FOR SHARE
             SQL
@@ -129,6 +131,20 @@ final readonly class BookingRepository
         $statement->execute([$vehicleTypeId, ...$serviceIds]);
 
         return $statement->fetchAll();
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function lockActiveServiceGroups(): array
+    {
+        return $this->database->query(
+            <<<'SQL'
+            SELECT id, code, name, selection_mode, min_selection, max_selection
+            FROM service_groups
+            WHERE is_active = TRUE
+            ORDER BY id
+            FOR SHARE
+            SQL
+        )->fetchAll();
     }
 
     /** @return list<array<string, mixed>> */
@@ -675,6 +691,12 @@ final readonly class BookingRepository
                 services.code AS service_code,
                 services.name AS service_name,
                 services.description,
+                service_groups.id AS service_group_id,
+                service_groups.code AS service_group_code,
+                service_groups.name AS service_group_name,
+                service_groups.selection_mode,
+                service_groups.min_selection,
+                service_groups.max_selection,
                 service_vehicle_prices.id AS price_id,
                 service_vehicle_prices.price,
                 service_vehicle_prices.duration_minutes,
@@ -685,6 +707,7 @@ final readonly class BookingRepository
                 vehicle_types.code AS vehicle_type_code
             FROM service_vehicle_prices
             INNER JOIN services ON services.id = service_vehicle_prices.service_id
+            INNER JOIN service_groups ON service_groups.id = services.service_group_id
             INNER JOIN vehicle_types ON vehicle_types.id = service_vehicle_prices.vehicle_type_id
             SQL;
     }

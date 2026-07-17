@@ -164,6 +164,7 @@ final class PromotionConfigurationFlowTest extends TestCase
             'id' => $promotionId,
         ]);
         $standardServiceId = $this->id('services', 'code', 'STANDARD_WASH');
+        $premiumServiceId = $this->id('services', 'code', 'PREMIUM_WASH');
         $engineServiceId = $this->id('services', 'code', 'ENGINE_CLEAN');
         $carTypeId = $this->id('vehicle_types', 'code', 'car');
         $busTypeId = $this->id('vehicle_types', 'code', 'bus');
@@ -205,6 +206,30 @@ final class PromotionConfigurationFlowTest extends TestCase
             null,
             $at
         )['promotions']);
+        self::$database->exec(
+            "INSERT INTO promotion_services (promotion_id, service_id) VALUES ({$promotionId}, {$standardServiceId})"
+        );
+        self::assertSame([], $this->checkoutBenefits(
+            $this->id('users', 'phone', '0900000003'),
+            $this->id('tiers', 'code', 'SILVER'),
+            $carTypeId,
+            [$premiumServiceId],
+            '200000.00',
+            null,
+            $at
+        )['promotions']);
+        self::$database->exec(
+            "INSERT INTO promotion_services (promotion_id, service_id) VALUES ({$promotionId}, {$premiumServiceId})"
+        );
+        self::assertCount(1, $this->checkoutBenefits(
+            $this->id('users', 'phone', '0900000003'),
+            $this->id('tiers', 'code', 'SILVER'),
+            $carTypeId,
+            [$premiumServiceId],
+            '200000.00',
+            null,
+            $at
+        )['promotions']);
         self::assertCount(1, $this->checkoutBenefits(
             $this->id('users', 'phone', '0900000003'),
             $this->id('tiers', 'code', 'SILVER'),
@@ -233,9 +258,6 @@ final class PromotionConfigurationFlowTest extends TestCase
             $at->modify('+1 hour 1 second')
         )['promotions']);
 
-        self::$database->exec(
-            "INSERT INTO promotion_services (promotion_id, service_id) VALUES ({$promotionId}, {$standardServiceId})"
-        );
         self::assertSame([], $this->checkoutBenefits(
             $this->id('users', 'phone', '0900000003'),
             $this->id('tiers', 'code', 'SILVER'),

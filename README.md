@@ -5,7 +5,8 @@ AutoWash Pro là hệ thống quản lý dịch vụ chăm sóc phương tiện,
 Repository hiện hoàn thành Slice 15 và sẵn sàng demo/bảo vệ trong phạm vi đã khóa: Composer/PSR-4,
 database foundation, hạ tầng HTTP/security,
 authentication/RBAC, quản lý phương tiện, danh mục dịch vụ và khung giờ. Customer xem được giá/thời lượng
-theo loại xe, chọn nhiều dịch vụ và tạo booking theo booking window của tier. Backend tự tính giá, tổng thời
+theo loại xe, chọn đúng một gói rửa chính cùng các add-on tùy chọn và tạo booking theo booking window của
+tier. Backend tự tính giá, tổng thời
 lượng, capacity lớn nhất, khóa mọi slot chồng lấn và lưu booking/items/reservations atomically. Admin quản lý
 dịch vụ, khung giờ và vòng đời booking qua backend có validation, role guard và CSRF. Customer xem chi tiết,
 hủy trước/đúng cutoff 2 giờ và xem wash history từ item snapshot. Khi admin complete, monthly metrics, earn
@@ -27,6 +28,11 @@ và sinh deterministic synthetic dataset tối thiểu 2.000 record đủ bốn 
 thị số liệu owner-scoped hoặc aggregate completed-only cùng biểu đồ descriptive cơ bản. Final hardening đã
 đóng traceability MUST, audit service/price, clean setup, full MySQL regression, workload 10.000 booking/20 VU
 và bộ tài liệu demo/defense/release.
+
+Correction trước defense theo DEC-035 bổ sung `service_groups`: Standard/Premium là hai package thay thế,
+Tire Care/Engine Clean là add-on không đặt độc lập. UI render radio/checkbox theo policy trong database và
+backend kiểm tra lại trước mọi phép tính hoặc ghi booking. Capacity biểu diễn sức chứa vật lý nên bốn service
+seed dùng vehicle default; migration 010 không sửa service ID hay booking item/snapshot/research lịch sử.
 
 ## Yêu cầu hệ thống
 

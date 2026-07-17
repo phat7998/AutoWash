@@ -93,7 +93,7 @@ final class CatalogSlotFlowTest extends TestCase
         $busId = $this->vehicleTypeId('bus');
         $catalog = $service->customerCatalog((string) $busId);
 
-        self::assertSame(['TIRE_CARE', 'PREMIUM_WASH', 'STANDARD_WASH'], array_column(
+        self::assertSame(['STANDARD_WASH', 'PREMIUM_WASH', 'TIRE_CARE'], array_column(
             $catalog['services'],
             'code'
         ));
@@ -101,7 +101,7 @@ final class CatalogSlotFlowTest extends TestCase
         $premium = $this->rowByCode($catalog['services'], 'PREMIUM_WASH');
         self::assertSame('550000.00', $premium['price']);
         self::assertSame(150, (int) $premium['duration_minutes']);
-        self::assertSame(6, (int) $premium['capacity_units']);
+        self::assertSame(5, (int) $premium['capacity_units']);
 
         self::$database->prepare(
             <<<'SQL'
@@ -125,15 +125,32 @@ final class CatalogSlotFlowTest extends TestCase
             "SELECT id FROM users WHERE phone = '0900000001'"
         )->fetchColumn();
         $prices = $this->validPrices('75000', '30');
-        $serviceId = $service->create('TEST_DETAIL', 'Rửa kiểm thử', '<b>Mô tả</b>', $prices, $adminId);
+        $groupId = (string) $this->serviceGroupId('ADD_ON');
+        $serviceId = $service->create(
+            'TEST_DETAIL',
+            'Rửa kiểm thử',
+            '<b>Mô tả</b>',
+            $groupId,
+            $prices,
+            $adminId
+        );
         $created = $service->service($serviceId);
 
         self::assertSame('TEST_DETAIL', $created['code']);
         self::assertCount(4, $created['prices']);
+        self::assertSame('ADD_ON', $created['service_group_code']);
         self::assertSame('75000.00', $created['prices'][$this->vehicleTypeId('motorbike')]['price']);
 
         $prices[(string) $this->vehicleTypeId('motorbike')]['price'] = '90000.50';
-        $service->update($serviceId, 'TEST_DETAIL', 'Rửa kiểm thử mới', 'Nội dung mới', $prices, $adminId);
+        $service->update(
+            $serviceId,
+            'TEST_DETAIL',
+            'Rửa kiểm thử mới',
+            'Nội dung mới',
+            $groupId,
+            $prices,
+            $adminId
+        );
         self::assertSame('90000.50', $service->service($serviceId)['prices'][
             $this->vehicleTypeId('motorbike')
         ]['price']);
@@ -157,6 +174,7 @@ final class CatalogSlotFlowTest extends TestCase
         ], array_column($audits, 'action'));
         self::assertNull($audits[0]['before_json']);
         self::assertStringContainsString('75000.00', (string) $audits[0]['after_json']);
+        self::assertStringContainsString('ADD_ON', (string) $audits[0]['after_json']);
         self::assertStringContainsString('75000.00', (string) $audits[1]['before_json']);
         self::assertStringContainsString('90000.50', (string) $audits[1]['after_json']);
     }
@@ -165,9 +183,40 @@ final class CatalogSlotFlowTest extends TestCase
     {
         $service = $this->catalogService();
         $prices = $this->validPrices('0', '0');
+        $groupId = (string) $this->serviceGroupId('ADD_ON');
 
         try {
-            $service->create('TEST_INVALID', '', '', $prices, $this->adminId());
+            $service->create('TEST_NO_GROUP', 'Thiếu nhóm', '', '', $prices, $this->adminId());
+            self::fail('Dịch vụ thiếu nhóm phải bị từ chối.');
+        } catch (ValidationException $exception) {
+            self::assertArrayHasKey('service_group_id', $exception->errors());
+        }
+
+        self::$database->exec(
+            "INSERT INTO service_groups "
+            . "(code, name, selection_mode, min_selection, max_selection, is_active) "
+            . "VALUES ('TEST_INACTIVE_GROUP', 'Nhóm ngừng hoạt động', 'multiple', 0, NULL, FALSE)"
+        );
+        $inactiveGroupId = (string) self::$database->lastInsertId();
+
+        try {
+            $service->create(
+                'TEST_INACTIVE_GROUP_SERVICE',
+                'Nhóm không hoạt động',
+                '',
+                $inactiveGroupId,
+                $this->validPrices('50000', '20'),
+                $this->adminId()
+            );
+            self::fail('Nhóm ngừng hoạt động phải bị từ chối.');
+        } catch (ValidationException $exception) {
+            self::assertArrayHasKey('service_group_id', $exception->errors());
+        } finally {
+            self::$database->exec("DELETE FROM service_groups WHERE code = 'TEST_INACTIVE_GROUP'");
+        }
+
+        try {
+            $service->create('TEST_INVALID', '', '', $groupId, $prices, $this->adminId());
             self::fail('Cấu hình giá/thời lượng sai phải bị từ chối.');
         } catch (ValidationException $exception) {
             self::assertArrayHasKey('name', $exception->errors());
@@ -181,6 +230,7 @@ final class CatalogSlotFlowTest extends TestCase
             'TEST_DUPLICATE',
             'Dịch vụ một',
             '',
+            $groupId,
             $this->validPrices('50000', '20'),
             $this->adminId()
         );
@@ -189,6 +239,7 @@ final class CatalogSlotFlowTest extends TestCase
             'TEST_DUPLICATE',
             'Dịch vụ hai',
             '',
+            $groupId,
             $this->validPrices('60000', '25'),
             $this->adminId()
         );
@@ -216,31 +267,42 @@ final class CatalogSlotFlowTest extends TestCase
         $carId = $this->vehicleTypeId('car');
         $snapshotBefore = self::$database->query(
             <<<'SQL'
-            SELECT booking_items.unit_price_snapshot
+            SELECT booking_items.unit_price_snapshot,
+                booking_items.duration_minutes_snapshot,
+                booking_items.capacity_units_snapshot
             FROM booking_items
             INNER JOIN bookings ON bookings.id = booking_items.booking_id
             WHERE bookings.booking_code = 'DEMO_FULL'
             SQL
-        )->fetchColumn();
+        )->fetch();
+        self::assertIsArray($snapshotBefore);
         $prices[(string) $carId]['price'] = '125000';
+        $prices[(string) $carId]['duration_minutes'] = '55';
+        $prices[(string) $carId]['capacity_units_override'] = '7';
         $service->update(
             $serviceId,
             (string) $configured['code'],
             (string) $configured['name'],
             (string) ($configured['description'] ?? ''),
+            (string) $configured['service_group_id'],
             $prices,
             $this->adminId()
         );
 
-        self::assertSame('125000.00', $service->service($serviceId)['prices'][$carId]['price']);
+        $updated = $service->service($serviceId)['prices'][$carId];
+        self::assertSame('125000.00', $updated['price']);
+        self::assertSame(55, (int) $updated['duration_minutes']);
+        self::assertSame(7, (int) $updated['capacity_units_override']);
         self::assertSame($snapshotBefore, self::$database->query(
             <<<'SQL'
-            SELECT booking_items.unit_price_snapshot
+            SELECT booking_items.unit_price_snapshot,
+                booking_items.duration_minutes_snapshot,
+                booking_items.capacity_units_snapshot
             FROM booking_items
             INNER JOIN bookings ON bookings.id = booking_items.booking_id
             WHERE bookings.booking_code = 'DEMO_FULL'
             SQL
-        )->fetchColumn());
+        )->fetch());
     }
 
     public function testCapacityComesFromActiveReservationsAndCancelledDoesNotOccupy(): void
@@ -333,6 +395,7 @@ final class CatalogSlotFlowTest extends TestCase
             'code' => 'TEST_HTTP',
             'name' => 'Dịch vụ HTTP',
             'description' => '<script>alert(1)</script>',
+            'service_group_id' => (string) $this->serviceGroupId('ADD_ON'),
             'prices' => $this->validPrices('65000', '25'),
         ]));
         self::assertSame(303, $response->statusCode());
@@ -427,6 +490,14 @@ final class CatalogSlotFlowTest extends TestCase
     private function vehicleTypeId(string $code): int
     {
         $statement = self::$database->prepare('SELECT id FROM vehicle_types WHERE code = :code');
+        $statement->execute(['code' => $code]);
+
+        return (int) $statement->fetchColumn();
+    }
+
+    private function serviceGroupId(string $code): int
+    {
+        $statement = self::$database->prepare('SELECT id FROM service_groups WHERE code = :code');
         $statement->execute(['code' => $code]);
 
         return (int) $statement->fetchColumn();

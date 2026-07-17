@@ -47,6 +47,7 @@ final readonly class AdminServiceController
                 $values['code'],
                 $values['name'],
                 $values['description'],
+                $values['service_group_id'],
                 $values['prices'],
                 $this->adminId()
             );
@@ -81,6 +82,7 @@ final readonly class AdminServiceController
                 $values['code'],
                 $values['name'],
                 $values['description'],
+                $values['service_group_id'],
                 $values['prices'],
                 $this->adminId()
             );
@@ -129,11 +131,18 @@ final readonly class AdminServiceController
         int $status = 200,
         ?int $serviceId = null
     ): Response {
-        $defaults = ['code' => '', 'name' => '', 'description' => '', 'prices' => []];
+        $defaults = [
+            'code' => '',
+            'name' => '',
+            'description' => '',
+            'service_group_id' => '',
+            'prices' => [],
+        ];
 
         return Response::html($this->view->render('admin/services/form', $this->commonData() + [
             'title' => $mode === 'create' ? 'Thêm dịch vụ' : 'Sửa dịch vụ',
             'vehicleTypes' => $this->catalog->vehicleTypes(),
+            'serviceGroups' => $this->catalog->serviceGroups(),
             'values' => $values + $defaults,
             'errors' => $errors,
             'mode' => $mode,
@@ -150,6 +159,7 @@ final readonly class AdminServiceController
             'code' => $this->stringInput($request, 'code'),
             'name' => $this->stringInput($request, 'name'),
             'description' => $this->stringInput($request, 'description'),
+            'service_group_id' => $this->stringInput($request, 'service_group_id'),
             'prices' => is_array($prices) ? $this->stringPriceInputs($prices) : [],
         ];
     }
@@ -196,6 +206,7 @@ final readonly class AdminServiceController
             'code' => (string) $service['code'],
             'name' => (string) $service['name'],
             'description' => (string) ($service['description'] ?? ''),
+            'service_group_id' => (string) $service['service_group_id'],
             'prices' => $prices,
         ];
     }

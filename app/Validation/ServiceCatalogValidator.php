@@ -9,14 +9,17 @@ final class ServiceCatalogValidator
     /**
      * @param array<string, array<string, string>> $prices
      * @param list<array{id: int, code: string, display_name: string}> $vehicleTypes
+     * @param list<array{id: int, code: string, name: string}> $serviceGroups
      * @return array<string, string>
      */
     public function validate(
         string $code,
         string $name,
         string $description,
+        string $serviceGroupId,
         array $prices,
-        array $vehicleTypes
+        array $vehicleTypes,
+        array $serviceGroups
     ): array {
         $errors = [];
 
@@ -32,6 +35,15 @@ final class ServiceCatalogValidator
 
         if (mb_strlen($description) > 2000) {
             $errors['description'] = 'Mô tả không được vượt quá 2.000 ký tự.';
+        }
+
+        $validGroupIds = array_map(
+            static fn (array $group): string => (string) $group['id'],
+            $serviceGroups
+        );
+
+        if (!in_array($serviceGroupId, $validGroupIds, true)) {
+            $errors['service_group_id'] = 'Vui lòng chọn nhóm dịch vụ đang hoạt động.';
         }
 
         foreach ($vehicleTypes as $type) {

@@ -1,6 +1,6 @@
 # AUTO WASH PRO — TEST PLAN
 
-> Phiên bản: Mini-Slice 00B Closure Patch, 2026-07-16  
+> Phiên bản: Service Group Selection Policy correction, 2026-07-17
 > Trạng thái release: toàn bộ test MUST đã có evidence Slice 15 trong `REQUIREMENT_TRACEABILITY.md`,
 > `IMPLEMENTATION_STATUS.md` và `PERFORMANCE_REPORT.md`.
 
@@ -39,11 +39,17 @@
 | IT-VEH-02 | Duplicate normalized plate | VEH-02 | DB unique được bắt thành domain error |
 | IT-VEH-03 | Ownership query/update | VEH-03 | User A không đọc/sửa/đặt bằng xe B |
 | IT-CAT-01 | Catalog theo active/type và price DB | CAT-01, CAT-02 | Cặp supported/active tồn tại; client price bị bỏ qua |
+| IT-CAT-GROUP-01 | Fresh migrate/seed và legacy backfill service groups | CAT-01, ADM-07 | Đúng hai group/bốn mapping; service ID và booking/research snapshot cũ bất biến |
+| IT-CAT-GROUP-02 | Admin tạo/sửa service với group | ADM-02, ADM-08 | Thiếu/invalid/inactive group bị chặn; audit before/after có group |
+| IT-CAT-CAP-01 | Capacity correction catalog | CAT-02, SLOT-01 | Bốn service override null; booking mới dùng vehicle default; snapshot cũ không đổi |
 | IT-SLOT-01 | Slot closed/past/thiếu capacity units | SLOT-01 | Requested units tính backend; slot không hợp lệ bị từ chối |
 | IT-SLOT-02 | Hai transaction tranh capacity cuối | SLOT-02 | Tổng units không vượt slot |
 | IT-BKG-04 | State transition matrix | BKG-04 | Chỉ transition khai báo được commit |
 | IT-BKG-05 | Cancel boundary/capacity/reward restore | BKG-05 | ≥2h cho phép, <2h chặn customer; capacity/reward đúng |
 | IT-BKG-06 | Complete transaction/idempotency | BKG-06 | Status, metrics, point, usage, event atomic; không lặp |
+| IT-BKG-GROUP-01 | Standard/Premium đơn và package + add-on | CAT-01, BKG-03/07 | Đúng một package pass; nhiều add-on pass; không cộng giá/duration trùng |
+| IT-BKG-GROUP-02 | Hai package/add-on-only/empty/POST bypass | CAT-01, NFR-19/20 | 422 tiếng Việt; không booking/item/reservation/research/audit rác |
+| IT-BKG-GROUP-03 | Promotion/reward/perk theo service ID | PRO-05, RWD-03/04 | Standard target không lan Premium; reward Standard/Tire đúng item; global perk giữ nguyên |
 | IT-LOY-02 | Ledger/balance consistency | LOY-02 | Mutation atomic; balance không âm; reconcile bằng nhau |
 | IT-LOY-03 | Redeem FEFO/generic allocation/concurrency | LOY-03 | Qua earn + adjustment credit; allocation đúng; rollback khi thiếu; metrics không đổi |
 | IT-LOY-04 | Expiry calendar/allocation/idempotency | LOY-04 | Chỉ expire remaining earn credit; transaction/allocation duy nhất |

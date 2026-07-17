@@ -17,6 +17,24 @@ use App\Support\VietnameseFormatter;
 /** @var array<string, string> $errors */
 /** @var string $csrfToken */
 /** @var string|null $flashSuccess */
+$serviceGroups = [];
+
+foreach ($services as $service) {
+    $groupId = (string) $service['service_group_id'];
+
+    if (!isset($serviceGroups[$groupId])) {
+        $serviceGroups[$groupId] = [
+            'id' => $groupId,
+            'code' => (string) $service['service_group_code'],
+            'name' => (string) $service['service_group_name'],
+            'selection_mode' => (string) $service['selection_mode'],
+            'min_selection' => (int) $service['min_selection'],
+            'services' => [],
+        ];
+    }
+
+    $serviceGroups[$groupId]['services'][] = $service;
+}
 ?>
 <section class="page-heading">
     <p class="eyebrow dark-eyebrow">Đặt lịch trước</p>
@@ -96,7 +114,7 @@ use App\Support\VietnameseFormatter;
         <input type="hidden" name="vehicle_id" value="<?= $e($selectedVehicleId) ?>">
 
         <fieldset class="booking-fieldset">
-            <legend>Chọn một hoặc nhiều dịch vụ</legend>
+            <legend>Chọn dịch vụ</legend>
             <p class="field-help">Thời lượng được cộng; capacity units lấy mức lớn nhất, không cộng dồn.</p>
             <?php if ($services === []): ?>
                 <div class="empty-state compact-empty">
@@ -104,24 +122,41 @@ use App\Support\VietnameseFormatter;
                     <p>Loại phương tiện này hiện chưa có dịch vụ đang hoạt động.</p>
                 </div>
             <?php else: ?>
-                <div class="booking-option-grid">
-                    <?php foreach ($services as $service): ?>
-                        <?php $serviceId = (string) $service['service_id']; ?>
-                        <label class="booking-option">
-                            <input type="checkbox" name="service_ids[]" value="<?= $e($serviceId) ?>"
-                                <?= in_array($serviceId, $selectedServiceIds, true) ? 'checked' : '' ?>>
-                            <span>
-                                <strong><?= $e($service['service_name']) ?></strong>
-                                <small><?= $e($service['description'] ?? '') ?></small>
-                                <span class="booking-option-meta">
-                                    <?= $e(VietnameseFormatter::vnd((string) $service['price'])) ?> ·
-                                    <?= $e($service['duration_minutes']) ?> phút ·
-                                    <?= $e($service['capacity_units']) ?> units
-                                </span>
-                            </span>
-                        </label>
-                    <?php endforeach; ?>
-                </div>
+                <?php foreach ($serviceGroups as $group): ?>
+                    <section class="booking-service-group" aria-labelledby="service-group-<?= $e($group['id']) ?>">
+                        <h2 id="service-group-<?= $e($group['id']) ?>">
+                            <?= $e($group['code'] === 'WASH_PACKAGE'
+                                ? 'Chọn một gói rửa chính'
+                                : 'Dịch vụ bổ sung — không bắt buộc') ?>
+                        </h2>
+                        <div class="booking-option-grid">
+                            <?php foreach ($group['services'] as $service): ?>
+                                <?php
+                                $serviceId = (string) $service['service_id'];
+                                $single = $group['selection_mode'] === 'single';
+                                $inputName = $single
+                                    ? 'service_ids[' . $group['id'] . ']'
+                                    : 'service_ids[]';
+                                ?>
+                                <label class="booking-option">
+                                    <input type="<?= $single ? 'radio' : 'checkbox' ?>"
+                                        name="<?= $e($inputName) ?>" value="<?= $e($serviceId) ?>"
+                                        <?= in_array($serviceId, $selectedServiceIds, true) ? 'checked' : '' ?>
+                                        <?= $single && $group['min_selection'] > 0 ? 'required' : '' ?>>
+                                    <span>
+                                        <strong><?= $e($service['service_name']) ?></strong>
+                                        <small><?= $e($service['description'] ?? '') ?></small>
+                                        <span class="booking-option-meta">
+                                            <?= $e(VietnameseFormatter::vnd((string) $service['price'])) ?> ·
+                                            <?= $e($service['duration_minutes']) ?> phút ·
+                                            <?= $e($service['capacity_units']) ?> units
+                                        </span>
+                                    </span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </section>
+                <?php endforeach; ?>
             <?php endif; ?>
             <?php if (isset($errors['service_ids'])): ?>
                 <span class="field-error" role="alert"><?= $e($errors['service_ids']) ?></span>

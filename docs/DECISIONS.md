@@ -41,6 +41,7 @@ Các quyết định này là baseline trước Slice 01. Thay đổi sau 00B ph
 | DEC-032 | Adjustment tách thành `adjust_credit` và `adjust_debit`; adjustment âm vượt available points bị từ chối, không clamp. | Credit dương mặc định không hết hạn và dùng sau lot có expiry theo FIFO; debit âm dùng cùng FEFO, allocation, reason/audit và locking; có thể tham chiếu source transaction. | LOY-02..04, ADM-06, NFR-21/22 |
 | DEC-033 | Survey/ML/paper có trạng thái **External academic deliverable — Pending lecturer confirmation**. | Không chặn Slice 01; vẫn làm research log, CSV ẩn danh, synthetic data; không bịa survey/kết quả/accuracy/kết luận; checkpoint trước Research/RBL chuyên sâu. | RBL-01..05 |
 | DEC-034 | Q-020 được chốt: survey thật, mô hình ML, kiểm định chuyên sâu và paper/conference-format report là deliverable mở rộng OPTIONAL/SHOULD, trạng thái **Deferred bonus work**, không chặn Slice 14 hoặc release cuối kỳ. | Slice 14 chỉ làm event log, CSV ẩn danh, synthetic ≥2.000, descriptive analytics/dashboard và data evidence; không bịa survey, accuracy, p-value, hypothesis result, kết luận hoặc nguồn dataset ngoài. External production LPR là future enhancement vì adapter/mock/manual fallback đã hoàn tất phạm vi Slice 13. | RBL-01..05, LPR-02 |
+| DEC-035 | Correction trước defense: mọi service thuộc một `service_group`; `WASH_PACKAGE` chọn đúng một và `ADD_ON` chọn nhiều/không bắt buộc. Standard/Premium là hai package thay thế; Tire Care/Engine Clean là add-on không đặt độc lập. | Backend tải policy từ DB và kiểm tra trước pricing/benefit/reservation/write; promotion/reward vẫn target service ID. Capacity biểu diễn sức chứa vật lý, duration biểu diễn thời gian; bốn service seed dùng vehicle default capacity. Booking/snapshot/research lịch sử không revalidate hoặc backfill. | CAT-01/02, SLOT-01, BKG-03/07, ADM-02/07, PRO-05, RWD-03/04 |
 
 ## Reward seed ban đầu
 
@@ -67,6 +68,8 @@ Các quyết định này là baseline trước Slice 01. Thay đổi sau 00B ph
 - Blocker Slice 10 được nhóm phê duyệt: tổng quát hóa earn lot thành credit lot và bắt buộc mọi debit,
   kể cả adjustment âm, phải có allocation; migration 007 backfill adjustment lịch sử và fail-fast nếu không reconcile.
 - Q-020 đã được checkpoint trước Slice 14 khóa bằng DEC-034; DEC-033 chỉ còn là trạng thái lịch sử trước xác nhận.
+- Manual test và read-only domain audit trước defense phát hiện checkbox cho phép Standard + Premium. DEC-035
+  sửa nguyên nhân gốc bằng selection policy trong domain/schema/backend, không chỉ đổi control UI.
 
 ## Ngoài phạm vi vẫn giữ
 

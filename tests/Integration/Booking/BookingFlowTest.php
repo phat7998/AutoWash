@@ -114,14 +114,14 @@ final class BookingFlowTest extends TestCase
             $ownerId,
             (string) $this->vehicleId('51AB12345'),
             (string) $slotOne,
-            [(string) $this->serviceId('STANDARD_WASH'), (string) $this->serviceId('PREMIUM_WASH')]
+            [(string) $this->serviceId('PREMIUM_WASH'), (string) $this->serviceId('ENGINE_CLEAN')]
         );
         $booking = $this->bookingByCode($code);
 
-        self::assertSame(100, (int) $booking['booking_duration_minutes']);
-        self::assertSame(3, (int) $booking['booking_capacity_units']);
-        self::assertSame('300000.00', $booking['subtotal']);
-        self::assertSame('300000.00', $booking['final_price']);
+        self::assertSame(105, (int) $booking['booking_duration_minutes']);
+        self::assertSame(2, (int) $booking['booking_capacity_units']);
+        self::assertSame('380000.00', $booking['subtotal']);
+        self::assertSame('380000.00', $booking['final_price']);
         self::assertSame('0.00', $booking['perk_discount']);
         self::assertSame(2, $this->countRows('booking_items', (int) $booking['id']));
 
@@ -133,11 +133,102 @@ final class BookingFlowTest extends TestCase
             $reservations,
             'wash_slot_id'
         )));
-        self::assertSame([3, 3], array_map('intval', array_column($reservations, 'capacity_units_reserved')));
+        self::assertSame([2, 2], array_map('intval', array_column($reservations, 'capacity_units_reserved')));
         self::assertSame(1, (int) self::$database->query(
             "SELECT COUNT(*) FROM research_event_logs WHERE event_key = 'booking_created:"
             . (int) $booking['id'] . "' AND data_source = 'system'"
         )->fetchColumn());
+    }
+
+    public function testSelectionPolicyAcceptsPackagesWithAddOnsAndRejectsInvalidCombinations(): void
+    {
+        $ownerId = $this->userId('0900000003');
+        $vehicleId = (string) $this->vehicleId('51AB12345');
+        $standard = (string) $this->serviceId('STANDARD_WASH');
+        $premium = (string) $this->serviceId('PREMIUM_WASH');
+        $tireCare = (string) $this->serviceId('TIRE_CARE');
+        $engineClean = (string) $this->serviceId('ENGINE_CLEAN');
+
+        $standardSlot = $this->createSlot(1, '17:00:00', '18:00:00', 10);
+        $standardBooking = $this->bookingByCode($this->service()->create(
+            $ownerId,
+            $vehicleId,
+            (string) $standardSlot,
+            [$standard]
+        ));
+        self::assertSame('100000.00', $standardBooking['subtotal']);
+        self::assertSame(40, (int) $standardBooking['booking_duration_minutes']);
+        self::assertSame(2, (int) $standardBooking['booking_capacity_units']);
+
+        $premiumSlot = $this->createSlot(2, '17:00:00', '18:00:00', 10);
+        $premiumBooking = $this->bookingByCode($this->service()->create(
+            $ownerId,
+            $vehicleId,
+            (string) $premiumSlot,
+            [$premium]
+        ));
+        self::assertSame('200000.00', $premiumBooking['subtotal']);
+        self::assertSame(60, (int) $premiumBooking['booking_duration_minutes']);
+        self::assertSame(2, (int) $premiumBooking['booking_capacity_units']);
+
+        $standardAddOnSlot = $this->createSlot(3, '17:00:00', '18:00:00', 10);
+        $standardAddOn = $this->bookingByCode($this->service()->create(
+            $ownerId,
+            $vehicleId,
+            (string) $standardAddOnSlot,
+            [$standard, $tireCare]
+        ));
+        self::assertSame('160000.00', $standardAddOn['subtotal']);
+        self::assertSame(60, (int) $standardAddOn['booking_duration_minutes']);
+        self::assertSame(2, $this->countRows('booking_items', (int) $standardAddOn['id']));
+
+        $premiumAddOnSlot = $this->createSlot(4, '17:00:00', '18:00:00', 10);
+        $this->createSlot(4, '18:00:00', '19:00:00', 10);
+        $premiumAddOn = $this->bookingByCode($this->service()->create(
+            $ownerId,
+            $vehicleId,
+            (string) $premiumAddOnSlot,
+            [$premium, $engineClean]
+        ));
+        self::assertSame('380000.00', $premiumAddOn['subtotal']);
+        self::assertSame(105, (int) $premiumAddOn['booking_duration_minutes']);
+        self::assertSame(2, (int) $premiumAddOn['booking_capacity_units']);
+
+        $invalidSlot = $this->createSlot(5, '17:00:00', '18:00:00', 10);
+        $before = $this->bookingArtifactCounts();
+
+        try {
+            $this->service()->create($ownerId, $vehicleId, (string) $invalidSlot, [$standard, $premium]);
+            self::fail('Hai gói rửa chính phải bị từ chối.');
+        } catch (ValidationException $exception) {
+            self::assertSame(
+                'Chỉ được chọn một gói rửa chính: Rửa tiêu chuẩn hoặc Rửa cao cấp.',
+                $exception->errors()['service_ids']
+            );
+        }
+
+        foreach ([[$tireCare], [$engineClean], [$tireCare, $engineClean]] as $addOnOnly) {
+            try {
+                $this->service()->create($ownerId, $vehicleId, (string) $invalidSlot, $addOnOnly);
+                self::fail('Add-on không được đặt khi thiếu gói rửa chính.');
+            } catch (ValidationException $exception) {
+                self::assertSame('Vui lòng chọn một gói rửa chính.', $exception->errors()['service_ids']);
+            }
+        }
+
+        self::assertSame($before, $this->bookingArtifactCounts());
+
+        $multipleAddOnSlot = $this->createSlot(6, '17:00:00', '18:00:00', 10);
+        $this->createSlot(6, '18:00:00', '19:00:00', 10);
+        $multipleAddOns = $this->bookingByCode($this->service()->create(
+            $ownerId,
+            $vehicleId,
+            (string) $multipleAddOnSlot,
+            [$standard, $tireCare, $engineClean]
+        ));
+        self::assertSame('340000.00', $multipleAddOns['subtotal']);
+        self::assertSame(105, (int) $multipleAddOns['booking_duration_minutes']);
+        self::assertSame(3, $this->countRows('booking_items', (int) $multipleAddOns['id']));
     }
 
     public function testCheckoutSnapshotsPerkPromotionRewardAndCompletesUsageOnce(): void
@@ -189,6 +280,74 @@ final class BookingFlowTest extends TestCase
             "SELECT COUNT(*) FROM research_event_logs WHERE event_key = 'promotion_used:"
             . (int) $booking['id'] . "'"
         ));
+    }
+
+    public function testServiceSpecificRewardsDoNotTransferAcrossPackagesOrMissingAddOns(): void
+    {
+        $motorbikeOwner = $this->userId('0900000002');
+        $motorbikeVehicle = (string) $this->vehicleId('59A12345');
+        $freeStandard = $this->insertAvailableRedemption(
+            $motorbikeOwner,
+            $this->rewardId('FREE_MOTORBIKE_STANDARD')
+        );
+        $motorbikeSlot = $this->createSlot(7, '17:00:00', '18:00:00', 10);
+
+        try {
+            $this->benefitService()->create(
+                $motorbikeOwner,
+                $motorbikeVehicle,
+                (string) $motorbikeSlot,
+                [(string) $this->serviceId('PREMIUM_WASH')],
+                (string) $freeStandard
+            );
+            self::fail('Reward Standard không được chuyển thành credit cho Premium.');
+        } catch (ValidationException $exception) {
+            self::assertArrayHasKey('reward_redemption_id', $exception->errors());
+        }
+
+        $standardBooking = $this->bookingByCode($this->benefitService()->create(
+            $motorbikeOwner,
+            $motorbikeVehicle,
+            (string) $motorbikeSlot,
+            [(string) $this->serviceId('STANDARD_WASH')],
+            (string) $freeStandard
+        ));
+        self::assertSame('40000.00', $standardBooking['reward_discount']);
+        self::assertSame('0.00', $standardBooking['final_price']);
+
+        $carOwner = $this->userId('0900000003');
+        $carVehicle = (string) $this->vehicleId('51AB12345');
+        $freeTireCare = $this->insertAvailableRedemption(
+            $carOwner,
+            $this->rewardId('FREE_TIRE_CARE')
+        );
+        $carSlot = $this->createSlot(8, '17:00:00', '18:00:00', 10);
+
+        try {
+            $this->benefitService()->create(
+                $carOwner,
+                $carVehicle,
+                (string) $carSlot,
+                [(string) $this->serviceId('STANDARD_WASH')],
+                (string) $freeTireCare
+            );
+            self::fail('Reward Dưỡng lốp phải yêu cầu add-on tương ứng trong booking.');
+        } catch (ValidationException $exception) {
+            self::assertArrayHasKey('reward_redemption_id', $exception->errors());
+        }
+
+        $tireCareBooking = $this->bookingByCode($this->benefitService()->create(
+            $carOwner,
+            $carVehicle,
+            (string) $carSlot,
+            [
+                (string) $this->serviceId('STANDARD_WASH'),
+                (string) $this->serviceId('TIRE_CARE'),
+            ],
+            (string) $freeTireCare
+        ));
+        self::assertSame('60000.00', $tireCareBooking['reward_discount']);
+        self::assertSame(2, $this->countRows('booking_items', (int) $tireCareBooking['id']));
     }
 
     public function testCancellationRestoresReservedRewardAndDoesNotRecordPromotionUsage(): void
@@ -375,12 +534,29 @@ final class BookingFlowTest extends TestCase
         self::assertSame('100000.00', $booking['final_price']);
         self::assertSame(40, (int) $booking['booking_duration_minutes']);
         self::assertSame(2, (int) $booking['booking_capacity_units']);
+
+        $artifactsBefore = $this->bookingArtifactCounts();
+        $bypass = $application->handle(new Request('POST', '/dat-lich', [], [
+            '_csrf_token' => $tokens->token(),
+            'vehicle_id' => (string) $this->vehicleId('51AB12345'),
+            'start_slot_id' => (string) $slot,
+            'service_ids' => [
+                (string) $this->serviceId('STANDARD_WASH'),
+                (string) $this->serviceId('PREMIUM_WASH'),
+            ],
+        ]));
+        self::assertSame(422, $bypass->statusCode());
+        self::assertStringContainsString(
+            'Chỉ được chọn một gói rửa chính: Rửa tiêu chuẩn hoặc Rửa cao cấp.',
+            $bypass->body()
+        );
+        self::assertSame($artifactsBefore, $this->bookingArtifactCounts());
     }
 
     public function testFullMiddleSlotRollsBackBookingItemsAndReservations(): void
     {
         $first = $this->createSlot(1, '17:00:00', '18:00:00', 10);
-        $middle = $this->createSlot(1, '18:00:00', '19:00:00', 2);
+        $middle = $this->createSlot(1, '18:00:00', '19:00:00', 1);
         $this->createSlot(1, '19:00:00', '20:00:00', 10);
         $ownerId = $this->userId('0900000003');
         $before = $this->generatedBookingCount();
@@ -391,7 +567,6 @@ final class BookingFlowTest extends TestCase
                 (string) $this->vehicleId('51AB12345'),
                 (string) $first,
                 [
-                    (string) $this->serviceId('STANDARD_WASH'),
                     (string) $this->serviceId('PREMIUM_WASH'),
                     (string) $this->serviceId('ENGINE_CLEAN'),
                     (string) $this->serviceId('TIRE_CARE'),
@@ -421,8 +596,8 @@ final class BookingFlowTest extends TestCase
                 (string) $this->vehicleId('51AB12345'),
                 (string) $first,
                 [
-                    (string) $this->serviceId('STANDARD_WASH'),
                     (string) $this->serviceId('PREMIUM_WASH'),
+                    (string) $this->serviceId('ENGINE_CLEAN'),
                 ]
             );
             self::fail('Thiếu slot liên tục phải làm booking thất bại.');
@@ -753,6 +928,30 @@ final class BookingFlowTest extends TestCase
         )->fetchColumn();
     }
 
+    /** @return array<string, int> */
+    private function bookingArtifactCounts(): array
+    {
+        return [
+            'bookings' => (int) self::$database->query(
+                "SELECT COUNT(*) FROM bookings WHERE booking_code LIKE 'AW%'"
+            )->fetchColumn(),
+            'items' => (int) self::$database->query(
+                "SELECT COUNT(*) FROM booking_items WHERE booking_id IN "
+                . "(SELECT id FROM bookings WHERE booking_code LIKE 'AW%')"
+            )->fetchColumn(),
+            'reservations' => (int) self::$database->query(
+                "SELECT COUNT(*) FROM booking_slot_reservations WHERE booking_id IN "
+                . "(SELECT id FROM bookings WHERE booking_code LIKE 'AW%')"
+            )->fetchColumn(),
+            'research_events' => (int) self::$database->query(
+                "SELECT COUNT(*) FROM research_event_logs WHERE event_key LIKE 'booking_created:%'"
+            )->fetchColumn(),
+            'audits' => (int) self::$database->query(
+                "SELECT COUNT(*) FROM audit_logs WHERE target_type = 'booking'"
+            )->fetchColumn(),
+        ];
+    }
+
     private function userId(string $phone): int
     {
         $statement = self::$database->prepare('SELECT id FROM users WHERE phone = :phone');
@@ -834,8 +1033,9 @@ final class BookingFlowTest extends TestCase
     private function insertScriptService(): void
     {
         $statement = self::$database->prepare(
-            "INSERT INTO services (code, name, description, is_active) "
-            . "VALUES ('TEST_BKG_XSS', '<script>alert(7)</script>', 'Nội dung kiểm thử', TRUE)"
+            "INSERT INTO services (code, name, description, service_group_id, is_active) "
+            . "SELECT 'TEST_BKG_XSS', '<script>alert(7)</script>', 'Nội dung kiểm thử', id, TRUE "
+            . "FROM service_groups WHERE code = 'ADD_ON'"
         );
         $statement->execute();
         $serviceId = (int) self::$database->lastInsertId();
