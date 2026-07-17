@@ -6,7 +6,9 @@ namespace App\Services;
 
 final class LicensePlateService
 {
-    private const COMMON_CIVILIAN_PATTERN = '/^[0-9]{2}[A-Z]{1,2}[0-9]{4,5}$/';
+    private const STANDARD_CIVILIAN_PATTERN = '/^[0-9]{2}([A-Z]{1,2})[0-9]{4,5}$/';
+
+    private const MOTORBIKE_CIVILIAN_PATTERN = '/^[0-9]{2}([A-Z])[0-9]{6}$/';
 
     public function normalize(string $plate): string
     {
@@ -17,13 +19,22 @@ final class LicensePlateService
 
     public function isCommonCivilianPlate(string $normalizedPlate): bool
     {
-        if (preg_match(self::COMMON_CIVILIAN_PATTERN, $normalizedPlate) !== 1) {
-            return false;
+        if (
+            preg_match(
+                self::STANDARD_CIVILIAN_PATTERN,
+                $normalizedPlate,
+                $matches
+            ) === 1
+        ) {
+            $series = $matches[1] ?? '';
+
+            return !in_array($series, ['NG', 'NN', 'QT'], true);
         }
 
-        $series = preg_replace('/^[0-9]{2}([A-Z]{1,2})[0-9]{4,5}$/', '$1', $normalizedPlate);
-
-        return is_string($series) && !in_array($series, ['NG', 'NN', 'QT'], true);
+        return preg_match(
+            self::MOTORBIKE_CIVILIAN_PATTERN,
+            $normalizedPlate
+        ) === 1;
     }
 
     public function display(string $plate): string
