@@ -84,6 +84,7 @@
 | FT-BKG-01 | Customer tạo booking theo tier | BKG-01, BKG-02 | Các tier thấy đúng window |
 | FT-BKG-03 | Checkout bị sửa giá/discount client | BKG-03 | Giá server thắng |
 | FT-REP-01 | Customer dashboard | REP-01 | Chỉ dữ liệu owner; có empty state |
+| FT-LOY-01 | Customer mở `/diem-thuong` khi dashboard factory cùng được đăng ký | LOY-02, REP-01 | Guest 303; customer 200 owner-only; link đúng; empty state và loại/dấu giao dịch đúng |
 | FT-REP-02 | Admin dashboard | REP-02 | Chỉ admin; aggregate đúng |
 | FT-LPR-01 | Nhập biển số thủ công end-to-end | LPR-01 | Hoạt động độc lập recognizer |
 | FT-LPR-02 | Upload/recognize/confirm/fallback | LPR-02 | Success/failure/timeout đều quay về manual an toàn |
@@ -100,6 +101,7 @@
 | ST-AUTH-01 | Role injection khi register | AUTH-01 | Request role bị bỏ qua |
 | ST-AUTH-02 | User enumeration/session fixation | AUTH-02 | Generic error; session ID đổi |
 | ST-AUTH-03 | Admin route/IDOR matrix | AUTH-03, NFR-15 | Không vượt role/ownership |
+| ST-LOY-01 | Query/path/POST/session-data tampering trên sổ điểm customer | LOY-02, NFR-15 | Không chọn được owner khác; customer không có mutation/adjustment và không vào admin loyalty |
 | ST-CSRF-01 | Thiếu/sai/replay token trên mutation | AUTH-04, NFR-13 | Request bị từ chối |
 | ST-SQL-01 | Payload SQL injection ở input chính | NFR-11 | Prepared statement, không đổi query |
 | ST-XSS-01 | Stored/reflected XSS ở field hiển thị | NFR-12 | Output được escape |

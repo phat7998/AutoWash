@@ -30,6 +30,28 @@
 | 14 | Complete | Sáu event type, CSV privacy allowlist, synthetic deterministic ≥2.000/four types, owner/admin dashboards và data dictionary |
 | 15 | Complete | Security/business audit, service-price audit, 10k/20VU performance, clean setup, defense/release docs |
 
+## Bugfix — Customer Loyalty Route Regression
+
+- Nguồn: manual testing sau Slice 14 phát hiện menu Customer và dashboard cùng trỏ `/diem-thuong` nhưng
+  production trả 404; `/admin/diem-thuong` vẫn hoạt động đúng.
+- Nguyên nhân gốc: commit Slice 14 thêm `DashboardController` bằng nhánh `if/elseif` cho `/tai-khoan`, trong
+  khi route `/diem-thuong` nằm chung nhánh `elseif` của `LoyaltyController`. Production inject cả hai factory
+  nên chỉ nhánh dashboard chạy; test Slice 09 chỉ inject loyalty factory nên không tái hiện wiring production.
+- Sửa route customer loyalty thành đăng ký độc lập khi có loyalty factory; giữ `/tai-khoan` dùng dashboard
+  mới và giữ nguyên namespace/admin controller, CSRF, admin role. Không redirect customer sang Admin.
+- Regression dùng đồng thời dashboard + loyalty factory như production; khóa guest `303`, customer `200`,
+  owner-only khi query/path/POST tampering, customer route read-only, customer/admin RBAC, menu/dashboard link,
+  empty state, escaping và dấu/nhãn earn/redeem/expire/adjust.
+- Migration: không có; không đổi schema, transaction hoặc business rule.
+- Verification: loyalty focused `8 test/94 assertion`; host PHP 8.5 và Docker PHP 8.2 cùng pass PHPCS 178 file,
+  PHPUnit `169 test/920 assertion`, không skip, release audit pass. HTTP Apache smoke: guest loyalty `303` về
+  login; customer loyalty `200`; customer admin loyalty `403`; admin loyalty `200` và adjustment form còn hoạt động.
+- Rủi ro/Backlog: error renderer hiện không nhận session/auth context nên 404 của request đã đăng nhập vẫn
+  render guest navigation. Đây là finding độc lập; sửa đúng cần thay contract/wiring `ErrorHandler` trên toàn
+  application và test, nên không mở rộng vào bugfix route này. Error page hiện không làm lộ dữ liệu nhạy cảm.
+- File thay đổi: `routes/web.php`, `LoyaltyFlowTest`, RTM, Test Plan, Demo Script và file status này.
+- Commit đề xuất: `fix(LOY): khôi phục trang điểm thưởng khách hàng`.
+
 ## Business-rule correction — Service Group Selection Policy
 
 - Nguồn: manual test và read-only domain audit trước defense phát hiện Standard + Premium có thể được chọn

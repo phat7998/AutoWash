@@ -67,8 +67,12 @@ Tài khoản demo dùng chung mật khẩu `AutoWash@123`:
 1. Admin mở `/admin/lich-dat`, xác nhận rồi hoàn thành một booking pending.
 2. Kỳ vọng status `completed`, revenue/metrics/point/event/usage ghi cùng transaction.
 3. Gửi lại thao tác complete. Kỳ vọng transition bị chặn; point, spend, visit, promotion và event không tăng lần hai.
-4. Customer xem `/lich-dat`, `/diem-thuong`, `/tai-khoan`; chỉ thấy dữ liệu owner và item snapshot.
-5. Tạo booking khác rồi hủy khi còn ít nhất 2 giờ. Kỳ vọng capacity/reward được trả; không earn, không penalty.
+4. Guest mở `/diem-thuong` nhận `303` về `/dang-nhap`. Customer đăng nhập, dùng cả menu “Điểm” và link
+   “Xem sổ giao dịch” trên `/tai-khoan`; `/diem-thuong` trả `200`, chỉ hiện balance/ledger owner, không có
+   form điều chỉnh. Thêm `?user_id=<id-khác>` không đổi owner; path giả không tồn tại.
+5. Customer mở `/admin/diem-thuong` nhận `403`; Admin mở cùng URL nhận `200` và form adjustment vẫn có CSRF.
+6. Customer xem `/lich-dat`; chỉ thấy dữ liệu owner và item snapshot. Tạo booking khác rồi hủy khi còn ít
+   nhất 2 giờ. Kỳ vọng capacity/reward được trả; không earn, không penalty.
 
 ## 6. DEMO-05 — Redeem FEFO và metrics hạng
 

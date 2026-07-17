@@ -101,8 +101,6 @@ return static function (
         $customer = new RoleMiddleware($session, 'customer');
         $router->get('/tai-khoan', static fn (Request $request): Response =>
             $loyalty()->dashboard($request), $authenticated, $customer);
-        $router->get('/diem-thuong', static fn (Request $request): Response =>
-            $loyalty()->index($request), $authenticated, $customer);
     } else {
         $router->get('/tai-khoan', static function () use ($view, $session, $tokens): Response {
             return Response::html($view->render('customer/dashboard', [
@@ -114,6 +112,12 @@ return static function (
                 'recent_transactions' => [],
             ]));
         }, $authenticated, new RoleMiddleware($session, 'customer'));
+    }
+
+    if ($loyaltyControllerFactory !== null) {
+        $loyalty = static fn (): LoyaltyController => $loyaltyControllerFactory();
+        $router->get('/diem-thuong', static fn (Request $request): Response =>
+            $loyalty()->index($request), $authenticated, new RoleMiddleware($session, 'customer'));
     }
 
     if ($dashboardControllerFactory !== null) {

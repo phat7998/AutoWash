@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Loyalty;
 
 use App\Controllers\AdminLoyaltyController;
+use App\Controllers\DashboardController;
 use App\Controllers\LoyaltyController;
 use App\Core\Application;
 use App\Core\CsrfTokenManager;
@@ -25,10 +26,12 @@ use App\Middleware\CsrfMiddleware;
 use App\Repositories\BookingRepository;
 use App\Repositories\LoyaltyTransactionRepository;
 use App\Repositories\ResearchEventRepository;
+use App\Repositories\ResearchReportRepository;
 use App\Services\BookingLifecyclePolicy;
 use App\Services\BookingResourceCalculator;
 use App\Services\BookingService;
 use App\Services\BookingWindowPolicy;
+use App\Services\DashboardService;
 use App\Services\LoyaltyPointCalculator;
 use App\Services\LoyaltyDebitAllocator;
 use App\Services\LoyaltyExpirationPolicy;
@@ -280,26 +283,82 @@ final class LoyaltyFlowTest extends TestCase
     {
         $adminId = $this->userId('0900000001');
         $ownerId = $this->userId('0900000002');
+        $otherId = $this->userId('0900000003');
         $this->loyaltyService()->adjust(
             $adminId,
             (string) $ownerId,
             '15',
             '<script>alert(9)</script>'
         );
+        $this->loyaltyService()->adjust(
+            $adminId,
+            (string) $otherId,
+            '99',
+            'Giao dịch chỉ thuộc khách hàng khác.'
+        );
+        $this->insertLedgerDisplayFixture($ownerId, 'earn', 7, 'Cộng điểm kiểm thử hiển thị.');
+        $this->insertLedgerDisplayFixture($ownerId, 'redeem', -3, 'Đổi điểm kiểm thử hiển thị.');
+        $this->insertLedgerDisplayFixture($ownerId, 'expire', -2, 'Hết hạn kiểm thử hiển thị.');
+        $this->setPointBalance($ownerId, 17);
         $customerData = ['auth_user' => [
             'id' => $ownerId,
             'full_name' => 'Khách hàng Demo',
             'role' => 'customer',
         ]];
-        [$customerApp] = $this->application($customerData);
-        $history = $customerApp->handle(new Request('GET', '/diem-thuong'));
+        [$customerApp, $customerTokens] = $this->application($customerData);
+        $history = $customerApp->handle(new Request(
+            'GET',
+            '/diem-thuong?user_id=' . $otherId,
+            [
+                'user_id' => (string) $otherId,
+                'auth_user' => ['id' => $otherId, 'role' => 'customer'],
+            ]
+        ));
         self::assertSame(200, $history->statusCode());
+        self::assertStringContainsString('17 điểm', $history->body());
+        self::assertStringContainsString('Hạng hiện tại', $history->body());
         self::assertStringNotContainsString('<script>alert(9)</script>', $history->body());
         self::assertStringContainsString('&lt;script&gt;alert(9)&lt;/script&gt;', $history->body());
+        self::assertStringNotContainsString('Giao dịch chỉ thuộc khách hàng khác.', $history->body());
+        self::assertStringContainsString('Cộng điểm', $history->body());
+        self::assertStringContainsString('+7 điểm', $history->body());
+        self::assertStringContainsString('Đổi thưởng', $history->body());
+        self::assertStringContainsString('-3 điểm', $history->body());
+        self::assertStringContainsString('Hết hạn', $history->body());
+        self::assertStringContainsString('-2 điểm', $history->body());
+        self::assertStringContainsString('Điều chỉnh tăng', $history->body());
+        self::assertStringContainsString('+15 điểm', $history->body());
+        self::assertStringNotContainsString('loyalty-adjustment-form', $history->body());
+        self::assertStringNotContainsString('/admin/diem-thuong/dieu-chinh', $history->body());
+        self::assertStringContainsString('href="/diem-thuong">Điểm</a>', $history->body());
+        self::assertSame(
+            404,
+            $customerApp->handle(new Request('GET', '/diem-thuong/' . $otherId))->statusCode()
+        );
+        self::assertSame(405, $customerApp->handle(new Request(
+            'POST',
+            '/diem-thuong',
+            [],
+            ['_csrf_token' => $customerTokens->token(), 'user_id' => (string) $otherId]
+        ))->statusCode());
         self::assertSame(
             403,
             $customerApp->handle(new Request('GET', '/admin/diem-thuong'))->statusCode()
         );
+        self::assertSame(403, $customerApp->handle(new Request(
+            'POST',
+            '/admin/diem-thuong/dieu-chinh',
+            [],
+            [
+                '_csrf_token' => $customerTokens->token(),
+                'user_id' => (string) $otherId,
+                'points' => '100',
+                'reason' => 'Giả mạo quyền quản trị.',
+            ]
+        ))->statusCode());
+        $dashboard = $customerApp->handle(new Request('GET', '/tai-khoan'));
+        self::assertSame(200, $dashboard->statusCode());
+        self::assertStringContainsString('<a href="/diem-thuong">Xem sổ giao dịch</a>', $dashboard->body());
 
         $adminData = ['auth_user' => [
             'id' => $adminId,
@@ -319,6 +378,25 @@ final class LoyaltyFlowTest extends TestCase
             [],
             ['_csrf_token' => $tokens->token(), 'user_id' => '', 'points' => '0', 'reason' => '']
         ))->statusCode());
+    }
+
+    public function testGuestRedirectAndEmptyCustomerLedgerState(): void
+    {
+        $guestData = [];
+        [$guestApp] = $this->application($guestData);
+        $guest = $guestApp->handle(new Request('GET', '/diem-thuong'));
+        self::assertSame(303, $guest->statusCode());
+        self::assertSame('/dang-nhap', $guest->headers()['Location']);
+
+        $customerData = ['auth_user' => [
+            'id' => $this->userId('0900000002'),
+            'full_name' => 'Khách hàng không có giao dịch',
+            'role' => 'customer',
+        ]];
+        [$customerApp] = $this->application($customerData);
+        $history = $customerApp->handle(new Request('GET', '/diem-thuong'));
+        self::assertSame(200, $history->statusCode());
+        self::assertStringContainsString('Chưa có giao dịch điểm', $history->body());
     }
 
     private function loyaltyService(): LoyaltyService
@@ -382,6 +460,20 @@ final class LoyaltyFlowTest extends TestCase
             ),
             fn (): AdminLoyaltyController => new AdminLoyaltyController(
                 $this->loyaltyService(),
+                $view,
+                $session,
+                $tokens
+            ),
+            null,
+            null,
+            null,
+            null,
+            null,
+            fn (): DashboardController => new DashboardController(
+                new DashboardService(
+                    new ResearchReportRepository(self::$database),
+                    $this->loyaltyService()
+                ),
                 $view,
                 $session,
                 $tokens
@@ -562,6 +654,43 @@ final class LoyaltyFlowTest extends TestCase
             "SELECT COUNT(*) FROM loyalty_transactions WHERE type = 'earn' "
             . "AND source_type = 'booking' AND source_id = " . $bookingId
         )->fetchColumn();
+    }
+
+    private function insertLedgerDisplayFixture(
+        int $userId,
+        string $type,
+        int $points,
+        string $description
+    ): void {
+        $statement = self::$database->prepare(
+            <<<'SQL'
+            INSERT INTO loyalty_transactions (
+                user_id, type, points_delta, remaining_points, source_type, source_id, description,
+                earned_at, expires_at
+            ) VALUES (
+                :user_id, :type, :points, :remaining_points, 'manual', :source_id, :description,
+                :earned_at, :expires_at
+            )
+            SQL
+        );
+        $statement->execute([
+            'user_id' => $userId,
+            'type' => $type,
+            'points' => $points,
+            'remaining_points' => $type === 'earn' ? $points : null,
+            'source_id' => random_int(1, PHP_INT_MAX),
+            'description' => $description,
+            'earned_at' => $type === 'earn' ? '2030-01-01 00:00:00' : null,
+            'expires_at' => $type === 'earn' ? '2031-01-01 00:00:00' : null,
+        ]);
+    }
+
+    private function setPointBalance(int $userId, int $balance): void
+    {
+        $statement = self::$database->prepare(
+            'UPDATE users SET point_balance = :point_balance WHERE id = :user_id'
+        );
+        $statement->execute(['point_balance' => $balance, 'user_id' => $userId]);
     }
 
     private function eventCount(string $eventKey): int
