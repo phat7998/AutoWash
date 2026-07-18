@@ -21,6 +21,7 @@ use App\Controllers\AdminRewardController;
 use App\Controllers\AdminTierReviewController;
 use App\Controllers\AdminTierController;
 use App\Controllers\AdminPromotionController;
+use App\Controllers\AdminReportController;
 use App\Controllers\DashboardController;
 use App\Controllers\BookingController;
 use App\Controllers\LoyaltyController;
@@ -64,6 +65,7 @@ use App\Services\TierConfigurationService;
 use App\Services\PromotionService;
 use App\Services\BookingCompletionService;
 use App\Services\DashboardService;
+use App\Services\AdminReportService;
 use App\Services\ResearchEventService;
 use App\Providers\MockLprProvider;
 use App\Validation\AuthValidator;
@@ -76,6 +78,7 @@ use App\Validation\LoyaltyAdjustmentValidator;
 use App\Validation\RewardValidator;
 use App\Validation\TierConfigurationValidator;
 use App\Validation\PromotionValidator;
+use App\Validation\AdminReportDateRangeValidator;
 
 $projectRoot = require __DIR__ . '/environment.php';
 $config = require $projectRoot . '/config/app.php';
@@ -291,6 +294,15 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $session,
         $tokens
     );
+    $adminReportControllerFactory = static fn (): AdminReportController => new AdminReportController(
+        new AdminReportService(
+            new ResearchReportRepository(Database::connection()),
+            new AdminReportDateRangeValidator(new DateTimeZone($timezone))
+        ),
+        $view,
+        $session,
+        $tokens
+    );
     $registerRoutes = require $projectRoot . '/routes/web.php';
     $registerRoutes(
         $router,
@@ -312,7 +324,8 @@ return static function (Request $request) use ($config, $projectRoot, $timezone)
         $adminTierReviewControllerFactory,
         $adminTierControllerFactory,
         $adminPromotionControllerFactory,
-        $dashboardControllerFactory
+        $dashboardControllerFactory,
+        $adminReportControllerFactory
     );
 
     $errorHandler = new ErrorHandler(

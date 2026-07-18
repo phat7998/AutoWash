@@ -1,6 +1,6 @@
 # AUTO WASH PRO — IMPLEMENTATION STATUS
 
-> Cập nhật: 2026-07-17
+> Cập nhật: 2026-07-18
 > Slice hiện tại: Slice 15 — Complete
 >
 > Product code: đã có nền repository/database, HTTP/security, authentication/RBAC, quản lý phương tiện,
@@ -9,6 +9,20 @@
 > research event/CSV/synthetic data, descriptive dashboard và release hardening/evidence.
 
 ## Tổng quan
+
+## UX correction — Dedicated Admin Reports Page
+
+- Requirements: củng cố `REP-02`; thay liên kết fragment `/admin#bao-cao` bằng trang riêng
+  `GET /admin/bao-cao`, giữ nguyên dashboard `/admin` và toàn bộ KPI tóm tắt hiện có.
+- Route mới bắt buộc authenticated + role admin; menu Báo cáo có active state theo path.
+- Bộ lọc `from_date`/`to_date` mặc định 30 ngày gần nhất, validate định dạng và thứ tự ngày trước khi gọi
+  repository. Mọi truy vấn theo khoảng dùng prepared statement với biên cuối exclusive.
+- Báo cáo gồm doanh thu completed lũy kế/hôm nay/trong khoảng; booking theo status/loại xe/dịch vụ; phân bố
+  tier hiện tại; điểm cộng/trừ; reward đã dùng và promotion đã áp dụng. Khoảng rỗng render số 0/empty state.
+- Migration/transaction: không có; không đổi schema hoặc business rule và không thêm thư viện chart.
+- Test: `AdminReportDateRangeValidatorTest`, `ResearchFlowTest`, `AuthAuthorizationTest`; HTTP smoke khóa Admin
+  `200`, Customer `403`, Guest `303`, filter hợp lệ và khoảng rỗng an toàn.
+- Commit: `feat(admin): add operational reports page`.
 
 ## UI/UX Productization Pass — Complete
 

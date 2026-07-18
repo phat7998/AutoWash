@@ -25,16 +25,7 @@ final readonly class ResearchReportRepository
             ORDER BY bookings.status
             SQL
         )->fetchAll();
-        $revenue = $this->database->query(
-            <<<'SQL'
-            SELECT
-                COALESCE(SUM(CASE WHEN DATE(completed_at) = CURRENT_DATE THEN final_price ELSE 0 END), 0)
-                    AS today_revenue,
-                COALESCE(SUM(final_price), 0) AS completed_revenue
-            FROM bookings
-            WHERE status = 'completed'
-            SQL
-        )->fetch();
+        $revenue = $this->revenueMetrics();
         $slots = $this->database->query(
             <<<'SQL'
             SELECT COALESCE(SUM(wash_slots.capacity_units), 0) AS total_capacity,
@@ -51,15 +42,7 @@ final readonly class ResearchReportRepository
             WHERE wash_slots.slot_date = CURRENT_DATE AND wash_slots.status = 'open'
             SQL
         )->fetch();
-        $tiers = $this->database->query(
-            <<<'SQL'
-            SELECT tiers.code, tiers.name, COUNT(users.id) AS total
-            FROM tiers
-            LEFT JOIN users ON users.current_tier_id = tiers.id AND users.role = 'customer'
-            GROUP BY tiers.id
-            ORDER BY tiers.rank_order
-            SQL
-        )->fetchAll();
+        $tiers = $this->tierDistribution();
         $points = $this->database->query(
             <<<'SQL'
             SELECT type, ABS(COALESCE(SUM(points_delta), 0)) AS points
@@ -82,11 +65,102 @@ final readonly class ResearchReportRepository
 
         return [
             'booking_status' => $bookingStatus,
-            'revenue' => is_array($revenue) ? $revenue : [],
+            'revenue' => $revenue,
             'slots' => is_array($slots) ? $slots : [],
             'tiers' => $tiers,
             'points' => $points,
             'usage' => is_array($usage) ? $usage : [],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public function adminReportMetrics(string $fromAt, string $toExclusive): array
+    {
+        $bookingStatus = $this->database->prepare(
+            <<<'SQL'
+            SELECT bookings.status, COUNT(*) AS total
+            FROM bookings
+            INNER JOIN wash_slots ON wash_slots.id = bookings.start_slot_id
+            WHERE wash_slots.slot_date >= DATE(:from_at)
+              AND wash_slots.slot_date < DATE(:to_exclusive)
+            GROUP BY bookings.status
+            ORDER BY bookings.status
+            SQL
+        );
+        $bookingStatus->execute(['from_at' => $fromAt, 'to_exclusive' => $toExclusive]);
+
+        $vehicleTypes = $this->database->prepare(
+            <<<'SQL'
+            SELECT booking_items.vehicle_type_code_snapshot AS code,
+                COALESCE(vehicle_types.display_name, booking_items.vehicle_type_code_snapshot) AS name,
+                COUNT(DISTINCT bookings.id) AS total
+            FROM booking_items
+            INNER JOIN bookings ON bookings.id = booking_items.booking_id
+            INNER JOIN wash_slots ON wash_slots.id = bookings.start_slot_id
+            LEFT JOIN vehicle_types
+                ON vehicle_types.code = booking_items.vehicle_type_code_snapshot
+            WHERE wash_slots.slot_date >= DATE(:from_at)
+              AND wash_slots.slot_date < DATE(:to_exclusive)
+            GROUP BY booking_items.vehicle_type_code_snapshot, vehicle_types.display_name
+            ORDER BY total DESC, name
+            SQL
+        );
+        $vehicleTypes->execute(['from_at' => $fromAt, 'to_exclusive' => $toExclusive]);
+
+        $services = $this->database->prepare(
+            <<<'SQL'
+            SELECT booking_items.service_id, booking_items.service_name_snapshot AS name,
+                COUNT(DISTINCT bookings.id) AS total
+            FROM booking_items
+            INNER JOIN bookings ON bookings.id = booking_items.booking_id
+            INNER JOIN wash_slots ON wash_slots.id = bookings.start_slot_id
+            WHERE wash_slots.slot_date >= DATE(:from_at)
+              AND wash_slots.slot_date < DATE(:to_exclusive)
+            GROUP BY booking_items.service_id, booking_items.service_name_snapshot
+            ORDER BY total DESC, name
+            SQL
+        );
+        $services->execute(['from_at' => $fromAt, 'to_exclusive' => $toExclusive]);
+
+        $points = $this->database->prepare(
+            <<<'SQL'
+            SELECT
+                COALESCE(SUM(CASE WHEN points_delta > 0 THEN points_delta ELSE 0 END), 0)
+                    AS points_added,
+                ABS(COALESCE(SUM(CASE WHEN points_delta < 0 THEN points_delta ELSE 0 END), 0))
+                    AS points_deducted
+            FROM loyalty_transactions
+            WHERE created_at >= :from_at AND created_at < :to_exclusive
+            SQL
+        );
+        $points->execute(['from_at' => $fromAt, 'to_exclusive' => $toExclusive]);
+
+        $usage = $this->database->prepare(
+            <<<'SQL'
+            SELECT
+                (SELECT COUNT(*) FROM reward_redemptions
+                 WHERE status = 'used' AND used_at >= :reward_from
+                   AND used_at < :reward_to) AS rewards_used,
+                (SELECT COUNT(*) FROM promotion_usages
+                 WHERE used_at >= :promotion_from
+                   AND used_at < :promotion_to) AS promotions_used
+            SQL
+        );
+        $usage->execute([
+            'reward_from' => $fromAt,
+            'reward_to' => $toExclusive,
+            'promotion_from' => $fromAt,
+            'promotion_to' => $toExclusive,
+        ]);
+
+        return [
+            'revenue' => $this->revenueMetrics($fromAt, $toExclusive),
+            'booking_status' => $bookingStatus->fetchAll(),
+            'vehicle_types' => $vehicleTypes->fetchAll(),
+            'services' => $services->fetchAll(),
+            'tiers' => $this->tierDistribution(),
+            'points' => $this->fetchRow($points->fetch()),
+            'usage' => $this->fetchRow($usage->fetch()),
         ];
     }
 
@@ -137,5 +211,58 @@ final readonly class ResearchReportRepository
             'wash_history' => $history->fetchAll(),
             'available_rewards' => (int) $rewards->fetchColumn(),
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private function revenueMetrics(?string $fromAt = null, ?string $toExclusive = null): array
+    {
+        if ($fromAt === null || $toExclusive === null) {
+            return $this->fetchRow($this->database->query(
+                <<<'SQL'
+                SELECT
+                    COALESCE(SUM(CASE WHEN DATE(completed_at) = CURRENT_DATE
+                        THEN final_price ELSE 0 END), 0) AS today_revenue,
+                    COALESCE(SUM(final_price), 0) AS completed_revenue
+                FROM bookings
+                WHERE status = 'completed'
+                SQL
+            )->fetch());
+        }
+
+        $statement = $this->database->prepare(
+            <<<'SQL'
+            SELECT
+                COALESCE(SUM(CASE WHEN DATE(completed_at) = CURRENT_DATE
+                    THEN final_price ELSE 0 END), 0) AS today_revenue,
+                COALESCE(SUM(final_price), 0) AS completed_revenue,
+                COALESCE(SUM(CASE WHEN completed_at >= :from_at AND completed_at < :to_exclusive
+                    THEN final_price ELSE 0 END), 0) AS range_revenue
+            FROM bookings
+            WHERE status = 'completed'
+            SQL
+        );
+        $statement->execute(['from_at' => $fromAt, 'to_exclusive' => $toExclusive]);
+
+        return $this->fetchRow($statement->fetch());
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function tierDistribution(): array
+    {
+        return $this->database->query(
+            <<<'SQL'
+            SELECT tiers.code, tiers.name, COUNT(users.id) AS total
+            FROM tiers
+            LEFT JOIN users ON users.current_tier_id = tiers.id AND users.role = 'customer'
+            GROUP BY tiers.id
+            ORDER BY tiers.rank_order
+            SQL
+        )->fetchAll();
+    }
+
+    /** @return array<string, mixed> */
+    private function fetchRow(mixed $row): array
+    {
+        return is_array($row) ? $row : [];
     }
 }

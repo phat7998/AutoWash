@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace Tests\Integration\Research;
 
 use App\Core\Database;
+use App\Core\CsrfTokenManager;
+use App\Core\Request;
+use App\Core\Session;
+use App\Core\View;
+use App\Controllers\AdminReportController;
 use App\Database\DatabaseResetter;
 use App\Database\DatabaseSeeder;
 use App\Database\MigrationRunner;
@@ -13,6 +18,8 @@ use App\Repositories\ResearchReportRepository;
 use App\Services\ResearchCsvExporter;
 use App\Services\ResearchEventService;
 use App\Services\ResearchExportService;
+use App\Services\AdminReportService;
+use App\Validation\AdminReportDateRangeValidator;
 use DateTimeImmutable;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -148,6 +155,81 @@ final class ResearchFlowTest extends TestCase
         self::assertSame('111111.00', $customer['wash_history'][0]['final_price']);
         $other = $reports->customerMetrics($otherCustomerId);
         self::assertSame([], $other['wash_history']);
+    }
+
+    public function testAdminReportFiltersMetricsAndRendersEmptyRangesSafely(): void
+    {
+        $booking = self::$database->query(
+            <<<'SQL'
+            SELECT bookings.id, wash_slots.slot_date
+            FROM bookings
+            INNER JOIN wash_slots ON wash_slots.id = bookings.start_slot_id
+            ORDER BY bookings.id
+            LIMIT 1
+            SQL
+        )->fetch();
+        self::assertIsArray($booking);
+        $slotDate = (string) $booking['slot_date'];
+        $complete = self::$database->prepare(
+            "UPDATE bookings SET status = 'completed', subtotal = '222222.00', perk_discount = 0, "
+            . "promotion_discount = 0, reward_discount = 0, final_price = '222222.00', "
+            . 'completed_at = :completed_at WHERE id = :id'
+        );
+        $complete->execute([
+            'completed_at' => $slotDate . ' 12:00:00',
+            'id' => $booking['id'],
+        ]);
+
+        $reports = new ResearchReportRepository(self::$database);
+        $rangeEnd = (new DateTimeImmutable($slotDate))->modify('+1 day')->format('Y-m-d 00:00:00');
+        $metrics = $reports->adminReportMetrics($slotDate . ' 00:00:00', $rangeEnd);
+
+        self::assertGreaterThanOrEqual(222222.0, (float) $metrics['revenue']['range_revenue']);
+        self::assertNotSame([], $metrics['booking_status']);
+        self::assertNotSame([], $metrics['vehicle_types']);
+        self::assertNotSame([], $metrics['services']);
+
+        $empty = $reports->adminReportMetrics('1990-01-01 00:00:00', '1990-01-02 00:00:00');
+        self::assertSame([], $empty['booking_status']);
+        self::assertSame([], $empty['vehicle_types']);
+        self::assertSame([], $empty['services']);
+        self::assertSame(0.0, (float) $empty['revenue']['range_revenue']);
+        self::assertSame(0, (int) $empty['points']['points_added']);
+        self::assertSame(0, (int) $empty['usage']['rewards_used']);
+    }
+
+    public function testAdminReportControllerRendersDefaultFilterAndSafeValidationMessage(): void
+    {
+        $sessionData = [
+            'auth_user' => ['id' => 1, 'full_name' => 'Quản trị viên', 'role' => 'admin'],
+        ];
+        $session = new Session($sessionData);
+        $controller = new AdminReportController(
+            new AdminReportService(
+                new ResearchReportRepository(self::$database),
+                new AdminReportDateRangeValidator(new \DateTimeZone('Asia/Ho_Chi_Minh'))
+            ),
+            new View(dirname(__DIR__, 3) . '/resources/views'),
+            $session,
+            new CsrfTokenManager($session)
+        );
+
+        $response = $controller->index(new Request('GET', '/admin/bao-cao'));
+        self::assertSame(200, $response->statusCode());
+        self::assertStringContainsString('Báo cáo vận hành', $response->body());
+        self::assertMatchesRegularExpression(
+            '/href="\/admin\/bao-cao"\s+aria-current="page"/',
+            $response->body()
+        );
+        self::assertStringContainsString('name="from_date"', $response->body());
+
+        $invalid = $controller->index(new Request('GET', '/admin/bao-cao', [
+            'from_date' => '<script>alert(1)</script>',
+            'to_date' => '2026-07-18',
+        ]));
+        self::assertSame(422, $invalid->statusCode());
+        self::assertStringContainsString('Khoảng thời gian chưa hợp lệ', $invalid->body());
+        self::assertStringNotContainsString('<script>alert(1)</script>', $invalid->body());
     }
 
     private function customerId(string $phone): int

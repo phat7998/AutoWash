@@ -10,6 +10,7 @@ declare(strict_types=1);
 $role = is_array($authUser ?? null) ? ($authUser['role'] ?? null) : null;
 $isAdmin = $role === 'admin';
 $isCustomer = $role === 'customer';
+$currentPath ??= '';
 ?>
 <!doctype html>
 <html lang="vi">
@@ -87,7 +88,8 @@ $isCustomer = $role === 'customer';
                 <a class="admin-nav-link" href="/admin/promotion">Khuyến mãi</a>
                 <a class="admin-nav-link" href="/admin/reward">Quà tặng</a>
                 <p class="admin-nav-group">Phân tích</p>
-                <a class="admin-nav-link" href="/admin#bao-cao">Báo cáo</a>
+                <a class="admin-nav-link" href="/admin/bao-cao"
+                    <?= $currentPath === '/admin/bao-cao' ? 'aria-current="page"' : '' ?>>Báo cáo</a>
             </nav>
             <div class="admin-account">
                 <span><?= $e($authUser['full_name'] ?? 'Quản trị viên') ?></span>

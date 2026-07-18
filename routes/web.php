@@ -12,6 +12,7 @@ use App\Controllers\AdminRewardController;
 use App\Controllers\AdminTierReviewController;
 use App\Controllers\AdminTierController;
 use App\Controllers\AdminPromotionController;
+use App\Controllers\AdminReportController;
 use App\Controllers\DashboardController;
 use App\Controllers\BookingController;
 use App\Controllers\LoyaltyController;
@@ -48,7 +49,8 @@ return static function (
     ?callable $adminTierReviewControllerFactory = null,
     ?callable $adminTierControllerFactory = null,
     ?callable $adminPromotionControllerFactory = null,
-    ?callable $dashboardControllerFactory = null
+    ?callable $dashboardControllerFactory = null,
+    ?callable $adminReportControllerFactory = null
 ): void {
     $router->get('/', static function () use ($view, $session): Response {
         $authUser = $session->get('auth_user');
@@ -138,6 +140,12 @@ return static function (
                 'flashSuccess' => $session->get('success'),
             ]));
         }, $authenticated, $admin);
+    }
+
+    if ($adminReportControllerFactory !== null) {
+        $adminReports = static fn (): AdminReportController => $adminReportControllerFactory();
+        $router->get('/admin/bao-cao', static fn (Request $request): Response =>
+            $adminReports()->index($request), $authenticated, $admin);
     }
 
     if ($adminServiceControllerFactory !== null) {

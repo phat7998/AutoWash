@@ -39,11 +39,14 @@ final class AuthAuthorizationTest extends TestCase
 
         $customer = $application->handle(new Request('GET', '/tai-khoan'));
         $admin = $application->handle(new Request('GET', '/admin'));
+        $adminReport = $application->handle(new Request('GET', '/admin/bao-cao'));
 
         self::assertSame(303, $customer->statusCode());
         self::assertSame('/dang-nhap', $customer->headers()['Location']);
         self::assertSame(303, $admin->statusCode());
         self::assertSame('/dang-nhap', $admin->headers()['Location']);
+        self::assertSame(303, $adminReport->statusCode());
+        self::assertSame('/dang-nhap', $adminReport->headers()['Location']);
     }
 
     public function testCustomerCannotAccessAdminEvenByDirectUrl(): void
@@ -53,12 +56,14 @@ final class AuthAuthorizationTest extends TestCase
 
         $ownDashboard = $application->handle(new Request('GET', '/tai-khoan'));
         $admin = $application->handle(new Request('GET', '/admin'));
+        $adminReport = $application->handle(new Request('GET', '/admin/bao-cao'));
         $root = $application->handle(new Request('GET', '/'));
 
         self::assertSame(200, $ownDashboard->statusCode());
         self::assertSame(303, $root->statusCode());
         self::assertSame('/tai-khoan', $root->headers()['Location']);
         self::assertSame(403, $admin->statusCode());
+        self::assertSame(403, $adminReport->statusCode());
         self::assertStringContainsString('không có quyền', $admin->body());
         self::assertStringNotContainsString('/admin/lich-dat', $ownDashboard->body());
         self::assertStringContainsString('/doi-thuong', $ownDashboard->body());
@@ -85,6 +90,7 @@ final class AuthAuthorizationTest extends TestCase
                 '/admin/hang-thanh-vien',
                 '/admin/promotion',
                 '/admin/reward',
+                '/admin/bao-cao',
             ] as $path
         ) {
             self::assertStringContainsString('href="' . $path . '"', $adminDashboard->body());
@@ -106,7 +112,9 @@ final class AuthAuthorizationTest extends TestCase
             $view,
             $session,
             $tokens,
-            static fn (): never => throw new \RuntimeException('Không cần AuthController cho test phân quyền.')
+            static fn (): never => throw new \RuntimeException('Không cần AuthController cho test phân quyền.'),
+            adminReportControllerFactory: static fn (): never =>
+                throw new \RuntimeException('Middleware phải chặn trước khi tạo controller báo cáo.')
         );
 
         return new Application($router, new ErrorHandler(
