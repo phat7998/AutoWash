@@ -690,6 +690,14 @@ p {
     border-radius: var(--radius-md);
 }
 
+.booking-vehicle-filter {
+    align-items: flex-end;
+}
+
+.booking-vehicle-filter > .button {
+    align-self: flex-end;
+}
+
 .filter-field {
     min-width: min(100%, 280px);
 }
