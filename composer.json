@@ -28,6 +28,7 @@
         "lint": "phpcs",
         "db:migrate": "php database/migrate.php",
         "db:seed": "php database/seed.php --demo",
+        "db:seed-defense": "php database/seed-defense.php",
         "release:audit": "php scripts/release-audit.php",
         "check": [
             "@lint",
